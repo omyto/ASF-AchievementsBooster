@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ASF.AchievementsBooster", "ASF.AchievementsBooster\ASF.AchievementsBooster.csproj", "{350EE7B9-DC1C-4E35-98D3-CAB6B489E18C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ArchiSteamFarm", "ArchiSteamFarm\ArchiSteamFarm\ArchiSteamFarm.csproj", "{21EA85C5-A1DF-4D9E-9CEE-00D6C7D71CA5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		DebugFast|Any CPU = DebugFast|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{350EE7B9-DC1C-4E35-98D3-CAB6B489E18C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{350EE7B9-DC1C-4E35-98D3-CAB6B489E18C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{350EE7B9-DC1C-4E35-98D3-CAB6B489E18C}.DebugFast|Any CPU.ActiveCfg = DebugFast|Any CPU
+		{350EE7B9-DC1C-4E35-98D3-CAB6B489E18C}.DebugFast|Any CPU.Build.0 = DebugFast|Any CPU
+		{350EE7B9-DC1C-4E35-98D3-CAB6B489E18C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{350EE7B9-DC1C-4E35-98D3-CAB6B489E18C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21EA85C5-A1DF-4D9E-9CEE-00D6C7D71CA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21EA85C5-A1DF-4D9E-9CEE-00D6C7D71CA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21EA85C5-A1DF-4D9E-9CEE-00D6C7D71CA5}.DebugFast|Any CPU.ActiveCfg = DebugFast|Any CPU
+		{21EA85C5-A1DF-4D9E-9CEE-00D6C7D71CA5}.DebugFast|Any CPU.Build.0 = DebugFast|Any CPU
+		{21EA85C5-A1DF-4D9E-9CEE-00D6C7D71CA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21EA85C5-A1DF-4D9E-9CEE-00D6C7D71CA5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {68EC935C-CBBE-4629-9608-C507E8070AD1}
+	EndGlobalSection
+EndGlobal
