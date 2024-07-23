@@ -1,11 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
+		<RootNamespace>AchievementsBooster</RootNamespace>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="ConfigureAwaitChecker.Analyzer" PrivateAssets="all" />
 		<PackageReference Include="JetBrains.Annotations" PrivateAssets="all" />
+		<PackageReference Include="SteamKit2" IncludeAssets="compile" />
 		<PackageReference Include="System.Composition.AttributedModel" IncludeAssets="compile" />
 	</ItemGroup>
 
