@@ -13,6 +13,7 @@ using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using SteamKit2;
+using System.Globalization;
 
 namespace AchievementsBooster;
 
@@ -50,9 +51,10 @@ internal sealed class Booster : IDisposable {
 
   public void Dispose() => Stop();
 
-  internal void OnSteamCallbacksInit(CallbackManager callbackManager) {
+  internal Task OnSteamCallbacksInit(CallbackManager callbackManager) {
     ArgumentNullException.ThrowIfNull(callbackManager);
     _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionStateCallback);
+    return Task.CompletedTask;
   }
 
   [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "<Pending>")]
@@ -64,9 +66,8 @@ internal sealed class Booster : IDisposable {
 
   internal async Task<string> Start() {
     if (IsBoostingStarted) {
-      string message = "This booster has already started!";
-      Bot.ArchiLogger.LogGenericWarning(message);
-      return message;
+      Bot.ArchiLogger.LogGenericWarning(Messages.BoostingStarted);
+      return Messages.BoostingStarted;
     }
     IsBoostingStarted = true;
 
@@ -84,9 +85,8 @@ internal sealed class Booster : IDisposable {
 
   internal string Stop() {
     if (!IsBoostingStarted) {
-      string message = "This booster is currently not running!";
-      Bot.ArchiLogger.LogGenericWarning(message);
-      return message;
+      Bot.ArchiLogger.LogGenericWarning(Messages.BoostingNotStart);
+      return Messages.BoostingNotStart;
     }
     IsBoostingStarted = false;
 
@@ -120,14 +120,22 @@ internal sealed class Booster : IDisposable {
 
     IsBoostingInProgress = true;
     bool status = await BoostingAchievements().ConfigureAwait(false);
-    if (!status) {
+    if (status) {
+      if (BoostingState is EBoostingState.ArchiFarming or EBoostingState.ArchiPlayedWhileIdle) {
+        if (BoostingApps.Count > 0) {
+          Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys)));
+        } else {
+          Bot.ArchiLogger.LogGenericInfo(BoostingState is EBoostingState.ArchiFarming ? Messages.NoBoostingAppsInArchiFarming : Messages.NoBoostingAppsInArchiPlayedWhileIdle);
+        }
+      }
+    } else {
       BoostingState = EBoostingState.None;
     }
     IsBoostingInProgress = false;
   }
 
   private async Task<bool> BoostingAchievements() {
-    Bot.ArchiLogger.LogGenericDebug("Boosting ...");
+    Bot.ArchiLogger.LogGenericDebug("Boosting is in progress...");
     if (!Ready()) {
       Bot.ArchiLogger.LogGenericWarning("Bot not ready!");
       return false;
@@ -176,7 +184,7 @@ internal sealed class Booster : IDisposable {
       BoostingState = EBoostingState.ArchiFarming;
       bool hasAppForBoosting = await InitializeNewBoostingApps(farmingAppIDs).ConfigureAwait(false);
       if (!hasAppForBoosting) {
-        Bot.ArchiLogger.LogGenericInfo("There are no apps available to boost achievements during the card farming process");
+        Bot.ArchiLogger.LogGenericInfo(Messages.NoBoostingAppsInArchiFarming);
       }
       return hasAppForBoosting;
     }
@@ -208,7 +216,7 @@ internal sealed class Booster : IDisposable {
       BoostingState = EBoostingState.ArchiPlayedWhileIdle;
       bool hasAppForBoosting = await InitializeNewBoostingApps(gamesPlayedWhileIdle).ConfigureAwait(false);
       if (!hasAppForBoosting) {
-        Bot.ArchiLogger.LogGenericInfo("There are no apps available to boost achievements while playing in idle mode");
+        Bot.ArchiLogger.LogGenericInfo(Messages.NoBoostingAppsInArchiPlayedWhileIdle);
       }
       return hasAppForBoosting;
     }
@@ -263,7 +271,7 @@ internal sealed class Booster : IDisposable {
     BoostingState = EBoostingState.None;
     _ = await Bot.Actions.Play([]).ConfigureAwait(false);
     if (BoostableGames.Count == 0) {
-      Bot.ArchiLogger.LogGenericInfo("There are no apps available to boost achievements");
+      Bot.ArchiLogger.LogGenericInfo(Messages.NoBoostingApps);
       _ = Stop();
     }
 
@@ -273,16 +281,15 @@ internal sealed class Booster : IDisposable {
   private void CompleteBoostingApp(SteamApp app) {
     _ = PerfectGames.Add(app.ID);
     _ = BoostableGames.Remove(app.ID);
-    Bot.ArchiLogger.LogGenericInfo($"{app.Name}({app.ID}): Completed boosting achievements!");
+    Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name));
   }
 
   private async Task<bool> PlayBoostingApps() {
     List<uint> appIDs = [.. BoostingApps.Keys];
+    Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", appIDs)));
     (bool success, string message) = await Bot.Actions.Play(appIDs).ConfigureAwait(false);
-    if (success) {
-      Bot.ArchiLogger.LogGenericInfo($"Boosting apps: {string.Join(",", appIDs)}");
-    } else {
-      Bot.ArchiLogger.LogGenericWarning($"Boosting apps: {string.Join(",", appIDs)} failed! Reason: {message}");
+    if (!success) {
+      Bot.ArchiLogger.LogGenericWarning($"Boosting apps failed! Reason: {message}");
     }
     return success;
   }
@@ -304,12 +311,12 @@ internal sealed class Booster : IDisposable {
   private async Task<(bool boostable, SteamApp? app)> GetAppForBoosting(uint appID) {
     if (!OwnedGames.ContainsKey(appID)) {
       // Oh God! Why?
-      Bot.ArchiLogger.LogGenericWarning($"Game {appID} is not owned");
+      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID));
       return (false, null);
     }
 
     if (ASF.GlobalConfig?.Blacklist.Contains(appID) == true) {
-      Bot.ArchiLogger.LogGenericWarning($"The game {appID} is in the ASF blacklist configuration");
+      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
       return (false, null);
     }
 
@@ -319,18 +326,18 @@ internal sealed class Booster : IDisposable {
 
     SteamApp app = await AppUtils.GetApp(appID).ConfigureAwait(false);
     if (!app.IsValid) {
-      Bot.ArchiLogger.LogGenericDebug($"{app.Name}({appID}): Wrong app type!");
+      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.InvalidApp, appID));
       return (false, app);
     }
 
     if (!app.HasAchievements()) {
       _ = NoStatsGames.Add(appID);
-      Bot.ArchiLogger.LogGenericDebug($"{app.Name}({appID}): Not including achievements!");
+      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
       return (false, app);
     }
 
     if (app.HasVAC()) {
-      Bot.ArchiLogger.LogGenericDebug($"{app.Name}({appID}): Valve Anti-Cheat enabled!");
+      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID));
       return (false, app);
     }
 
@@ -338,23 +345,16 @@ internal sealed class Booster : IDisposable {
     if (!result.Success) {
       // Unreachable
       _ = NoStatsGames.Add(appID);
-      Bot.ArchiLogger.LogGenericWarning($"{app.Name}({appID}): No user stats found!");
+      Bot.ArchiLogger.LogGenericWarning(result.Message);
       return (false, app);
     }
 
     IEnumerable<StatData> unlockableStats = statDatas.Where(e => e.Unlockable());
     if (!unlockableStats.Any()) {
       _ = PerfectGames.Add(appID);
-      Bot.ArchiLogger.LogGenericDebug($"{app.Name}({appID}): Perfectly completed!");
+      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID));
       return (false, app);
     }
-
-    //bool success = BoostingApps.TryAdd(appID, app);
-    //if (success) {
-    //  Bot.ArchiLogger.LogGenericInfo($"{app.Name}({appID}): Starting boosting ...");
-    //} else {
-    //  Bot.ArchiLogger.LogGenericWarning($"{app.Name}({appID}): Error happened when starting boosting!");
-    //}
 
     return (true, app);
   }
@@ -363,6 +363,6 @@ internal sealed class Booster : IDisposable {
 
   private void OnPlayingSessionStateCallback(SteamUser.PlayingSessionStateCallback callback) {
     ArgumentNullException.ThrowIfNull(callback);
-    Bot.ArchiLogger.LogGenericDebug($"OnPlayingSessionState | PlayingBlocked: {callback.PlayingBlocked}, AppID: {callback.PlayingAppID}");
+    Bot.ArchiLogger.LogGenericTrace($"OnPlayingSessionState | PlayingBlocked: {callback.PlayingBlocked}, AppID: {callback.PlayingAppID}");
   }
 }

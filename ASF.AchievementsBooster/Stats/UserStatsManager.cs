@@ -48,23 +48,21 @@ internal sealed class UserStatsManager : ClientMsgHandler {
 
     List<StatData> unlockableStats = response.StatDatas.Where(e => e.Unlockable()).ToList();
     if (unlockableStats.Count == 0) {
-      Bot.ArchiLogger.LogGenericInfo($"[{appID}] All achievements have been unlocked!");
+      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID));
       return (new TaskResult(true), 0);
     }
 
     StatData stat = unlockableStats.First();
     bool success = await UnlockStat(appID, stat, response.CrcStats).ConfigureAwait(false);
     if (success) {
-      Bot.ArchiLogger.LogGenericInfo($"[{appID}] Achieved achievement {stat.Name}");
+      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, stat.Name, appID));
     } else {
-      Bot.ArchiLogger.LogGenericWarning($"[{appID}] Unlock achievement {stat.Name} unsuccessful");
+      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, appID));
     }
     return (new TaskResult(success), success ? unlockableStats.Count - 1 : unlockableStats.Count);
   }
 
   private async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {
-    //Bot.ArchiLogger.LogGenericDebug($"UnlockAchievement {stat.StatNum} for {appID}, crcStats: {crcStats}");
-    //ASF.ArchiLogger.LogGenericDebug($"UnlockAchievement: ${JsonSerializer.Serialize(stat)}");
     ClientMsgProtobuf<CMsgClientStoreUserStats2> request = new(EMsg.ClientStoreUserStats2) {
       SourceJobID = Client.GetNextJobID(),
       Body = {
@@ -77,7 +75,6 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     };
 
     List<CMsgClientStoreUserStats2.Stats> stats = UserStatsUtils.GetStatsToSet([], stat).ToList();
-    //Bot.ArchiLogger.LogGenericDebug($"request.Body.stats.Count after: {request.Body.stats.Count}, statsToSet: {JsonSerializer.Serialize(stats)}");
     request.Body.stats.AddRange(stats);
     Client.Send(request);
     StoreUserStatsResponseCallback response = await new AsyncJob<StoreUserStatsResponseCallback>(Client, request.SourceJobID).ToLongRunningTask().ConfigureAwait(false);

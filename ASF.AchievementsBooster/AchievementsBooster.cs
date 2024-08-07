@@ -53,7 +53,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
     if (Boosters.TryGetValue(bot, out Booster? booster)) {
       _ = booster.Stop();
     } else {
-      ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
     return Task.CompletedTask;
   }
@@ -62,7 +62,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
     if (Boosters.TryGetValue(bot, out Booster? booster)) {
       _ = booster.Start();
     } else {
-      ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
     return Task.CompletedTask;
   }
@@ -75,7 +75,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
     if (Boosters.TryGetValue(bot, out Booster? booster)) {
       return booster.OnInitModules(additionalConfigProperties);
     }
-    ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+    ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     return Task.CompletedTask;
   }
 
@@ -83,22 +83,22 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   public Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager) {
     if (Boosters.TryGetValue(bot, out Booster? botBooster)) {
-      botBooster.OnSteamCallbacksInit(callbackManager);
-    } else {
-      ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+      return botBooster.OnSteamCallbacksInit(callbackManager);
     }
+    ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     return Task.CompletedTask;
   }
 
   public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
     RemoveBoosterBot(bot);
     Booster booster = new(bot);
-    if (!Boosters.TryAdd(bot, booster)) {
-      booster.Dispose();
-      ASF.ArchiLogger.LogGenericError($"Can not initial booster for bot {bot.BotName}");
-      return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(null);
+    if (Boosters.TryAdd(bot, booster)) {
+      return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.StatsManager]);
     }
-    return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.StatsManager]);
+
+    booster.Dispose();
+    ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
+    return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(null);
   }
 
   /** IBotCommand */
