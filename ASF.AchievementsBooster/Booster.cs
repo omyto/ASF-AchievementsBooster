@@ -52,6 +52,7 @@ internal sealed class Booster : IDisposable {
   public void Dispose() => Stop();
 
   internal Task OnSteamCallbacksInit(CallbackManager callbackManager) {
+    //StatsManager.Setup();
     ArgumentNullException.ThrowIfNull(callbackManager);
     _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionStateCallback);
     return Task.CompletedTask;
@@ -101,12 +102,12 @@ internal sealed class Booster : IDisposable {
     return Strings.Done;
   }
 
-  internal async Task<string> Log(ulong appID) {
+  internal async Task<string> Log(uint appID) {
     (TaskResult result, _) = await StatsManager.GetStats(appID).ConfigureAwait(false);
     return result.Success ? Strings.Done : result.Message;
   }
 
-  internal async Task<string> UnlockNext(ulong appID) {
+  internal async Task<string> UnlockNext(uint appID) {
     (TaskResult result, _) = await StatsManager.UnlockNextStat(appID).ConfigureAwait(false);
     return result.Success ? Strings.Done : result.Message;
   }

@@ -15,7 +15,7 @@ internal static class AppUtils {
 
   internal static async Task<SteamApp> GetApp(uint appID) {
     if (!Apps.TryGetValue(appID, out SteamApp? app)) {
-      ASF.ArchiLogger.LogGenericDebug($"App {appID} not found! Try get from steam store...");
+      ASF.ArchiLogger.LogGenericDebug($"Get details for app {appID} ...");
       AppDetails? appDetails = await GetAppDetails(appID).ConfigureAwait(false);
       app = appDetails != null ? GenerateApp(appID, appDetails) : new InvalidApp(appID);
       _ = Apps.TryAdd(appID, app);

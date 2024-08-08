@@ -64,6 +64,7 @@ internal static class UserStatsUtils {
                 //}
 
                 string? name = achievement.Children.Find(child => child.Name == "display")?.Children?.Find(child => child.Name == "name")?.Children?.Find(child => child.Name == lang)?.Value;
+                string? apiName = achievement.Children.Find(child => child.Name == "name")?.Value;
                 result.Add(new StatData() {
                   StatNum = statNum,
                   BitNum = bitNum,
@@ -73,7 +74,8 @@ internal static class UserStatsUtils {
                   DependancyName = dependancyName,
                   Dependancy = 0,
                   Name = name,
-                  StatValue = stat_value ?? 0
+                  StatValue = stat_value ?? 0,
+                  APIName = apiName,
                 });
 
               }
