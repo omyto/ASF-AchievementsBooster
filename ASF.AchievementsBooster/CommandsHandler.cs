@@ -67,7 +67,7 @@ internal static class CommandsHandler {
       return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
 
-    string response = await booster.Start().ConfigureAwait(false);
+    string response = await booster.Start(true).ConfigureAwait(false);
     return bot.Commands.FormatBotResponse(response);
   }
 

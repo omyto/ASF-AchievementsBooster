@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using AchievementsBooster.Base;
 using AchievementsBooster.Config;
 using ArchiSteamFarm.Core;
+using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Plugins.Interfaces;
 using ArchiSteamFarm.Steam;
 using SteamKit2;
@@ -17,9 +18,11 @@ namespace AchievementsBooster;
 [Export(typeof(IPlugin))]
 internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnection, IBotSteamClient, IBotCommand2 {
 
+  private const string AchievementsBoosterConfigPropertyKey = "AchievementsBooster";
+
   internal static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
-  internal static readonly BoosterGlobalConfig Config = new();
+  internal static BoosterGlobalConfig Config { get; private set; } = new();
 
   public string Name => nameof(AchievementsBooster);
 
@@ -34,6 +37,18 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   public Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties) {
     if (additionalConfigProperties != null && additionalConfigProperties.Count > 0) {
+      if (additionalConfigProperties.TryGetValue(AchievementsBoosterConfigPropertyKey, out JsonElement configValue)) {
+        BoosterGlobalConfig? config = configValue.ToJsonObject<BoosterGlobalConfig>();
+        ASF.ArchiLogger.LogGenericInfo(JsonSerializer.Serialize(config));
+        if (config != null) {
+          Config = config;
+          if (Config.Enabled) {
+            Config.Validate();
+          } else {
+            ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.PluginDisabledInConfig, Name));
+          }
+        }
+      }
     }
     return Task.CompletedTask;
   }
@@ -43,66 +58,78 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   public Task OnBotInit(Bot bot) => Task.CompletedTask;
 
   public Task OnBotDestroy(Bot bot) {
-    RemoveBoosterBot(bot);
+    if (Config.Enabled) {
+      RemoveBoosterBot(bot);
+    }
     return Task.CompletedTask;
   }
 
   /* IBotConnection */
 
   public Task OnBotDisconnected(Bot bot, EResult reason) {
-    if (Boosters.TryGetValue(bot, out Booster? booster)) {
-      _ = booster.Stop();
-    } else {
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+    if (Config.Enabled) {
+      if (Boosters.TryGetValue(bot, out Booster? booster)) {
+        _ = booster.Stop();
+      } else {
+        ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+      }
     }
     return Task.CompletedTask;
   }
 
   public Task OnBotLoggedOn(Bot bot) {
-    if (Boosters.TryGetValue(bot, out Booster? booster)) {
-      _ = booster.Start();
-    } else {
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+    if (Config.Enabled) {
+      if (Boosters.TryGetValue(bot, out Booster? booster)) {
+        _ = booster.Start();
+      } else {
+        ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+      }
     }
     return Task.CompletedTask;
   }
 
   /** IBotModules */
   public Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
-    if (additionalConfigProperties == null || additionalConfigProperties.Count == 0) {
-      return Task.CompletedTask;
+    if (Config.Enabled) {
+      if (additionalConfigProperties == null || additionalConfigProperties.Count == 0) {
+        return Task.CompletedTask;
+      }
+      if (Boosters.TryGetValue(bot, out Booster? booster)) {
+        return booster.OnInitModules(additionalConfigProperties);
+      }
+      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
-    if (Boosters.TryGetValue(bot, out Booster? booster)) {
-      return booster.OnInitModules(additionalConfigProperties);
-    }
-    ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     return Task.CompletedTask;
   }
 
   /** IBotSteamClient */
 
   public Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager) {
-    if (Boosters.TryGetValue(bot, out Booster? botBooster)) {
-      return botBooster.OnSteamCallbacksInit(callbackManager);
+    if (Config.Enabled) {
+      if (Boosters.TryGetValue(bot, out Booster? botBooster)) {
+        return botBooster.OnSteamCallbacksInit(callbackManager);
+      }
+      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
-    ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     return Task.CompletedTask;
   }
 
   public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
-    RemoveBoosterBot(bot);
-    Booster booster = new(bot);
-    if (Boosters.TryAdd(bot, booster)) {
-      return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.StatsManager]);
-    }
+    if (Config.Enabled) {
+      RemoveBoosterBot(bot);
+      Booster booster = new(bot);
+      if (Boosters.TryAdd(bot, booster)) {
+        return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.StatsManager]);
+      }
 
-    booster.Dispose();
-    ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
+      booster.Dispose();
+      ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
+    }
     return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(null);
   }
 
   /** IBotCommand */
-  public async Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0) => await CommandsHandler.OnBotCommand(bot, access, message, args, steamID).ConfigureAwait(false);
+  public async Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0) => Config.Enabled ? await CommandsHandler.OnBotCommand(bot, access, message, args, steamID).ConfigureAwait(false) : null;
 
   /** Internal Method */
   private static void RemoveBoosterBot(Bot bot) {

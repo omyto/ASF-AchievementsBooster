@@ -15,14 +15,12 @@ using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using SteamKit2;
 using System.Globalization;
+using AchievementsBooster.Extensions;
 
 namespace AchievementsBooster;
 
 internal sealed class Booster : IDisposable {
   private static readonly ConcurrentHashSet<uint> NonAchievementApps = [];
-
-  private readonly TimeSpan BoosterTimerDueTime = TimeSpan.FromSeconds(30);
-  private readonly TimeSpan BoosterTimerPeriod = TimeSpan.FromMinutes(5);
 
   internal readonly Bot Bot;
   internal readonly UserStatsManager StatsManager;
@@ -66,7 +64,7 @@ internal sealed class Booster : IDisposable {
     return Task.CompletedTask;
   }
 
-  internal async Task<string> Start() {
+  internal async Task<string> Start(bool command = false) {
     if (IsBoostingStarted) {
       Bot.ArchiLogger.LogGenericWarning(Messages.BoostingStarted);
       return Messages.BoostingStarted;
@@ -80,7 +78,8 @@ internal sealed class Booster : IDisposable {
     }
 
     Bot.ArchiLogger.LogGenericInfo("Achievements Booster Starting...");
-    BoosterTimer = new Timer(OnBoosterTimer, null, BoosterTimerDueTime, BoosterTimerPeriod);
+    TimeSpan dueTime = command ? TimeSpan.Zero : TimeSpanExtensions.InMinutesRange(3, 5);
+    BoosterTimer = new Timer(OnBoosterTimer, null, dueTime, TimeSpan.FromMinutes(AchievementsBooster.Config.BoostingPeriod));
 
     return Strings.Done;
   }
