@@ -9,6 +9,7 @@ using AchievementsBooster.Stats;
 using AchievementsBooster.App;
 using AchievementsBooster.Base;
 using AchievementsBooster.Config;
+using ArchiSteamFarm.Collections;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
@@ -18,6 +19,8 @@ using System.Globalization;
 namespace AchievementsBooster;
 
 internal sealed class Booster : IDisposable {
+  private static readonly ConcurrentHashSet<uint> NonAchievementApps = [];
+
   private readonly TimeSpan BoosterTimerDueTime = TimeSpan.FromSeconds(30);
   private readonly TimeSpan BoosterTimerPeriod = TimeSpan.FromMinutes(5);
 
@@ -32,7 +35,6 @@ internal sealed class Booster : IDisposable {
   private Dictionary<uint, string> OwnedGames;
   private HashSet<uint> BoostableGames;
   private readonly HashSet<uint> PerfectGames;
-  private readonly HashSet<uint> NoStatsGames;
 
   // Boosting status
   private EBoostingState BoostingState = EBoostingState.None;
@@ -46,7 +48,6 @@ internal sealed class Booster : IDisposable {
     OwnedGames = [];
     BoostableGames = [];
     PerfectGames = [];
-    NoStatsGames = [];
   }
 
   public void Dispose() => Stop();
@@ -321,7 +322,7 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    if (PerfectGames.Contains(appID) || NoStatsGames.Contains(appID)) {
+    if (PerfectGames.Contains(appID) || NonAchievementApps.Contains(appID)) {
       return (false, null);
     }
 
@@ -332,7 +333,7 @@ internal sealed class Booster : IDisposable {
     }
 
     if (!app.HasAchievements()) {
-      _ = NoStatsGames.Add(appID);
+      _ = NonAchievementApps.Add(appID);
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
       return (false, app);
     }
@@ -345,7 +346,7 @@ internal sealed class Booster : IDisposable {
     (TaskResult result, List<StatData> statDatas) = await StatsManager.GetStats(appID).ConfigureAwait(false);
     if (!result.Success) {
       // Unreachable
-      _ = NoStatsGames.Add(appID);
+      _ = NonAchievementApps.Add(appID);
       Bot.ArchiLogger.LogGenericWarning(result.Message);
       return (false, app);
     }
