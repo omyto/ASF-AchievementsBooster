@@ -102,16 +102,6 @@ internal sealed class Booster : IDisposable {
     return Strings.Done;
   }
 
-  internal async Task<string> Log(uint appID) {
-    (TaskResult result, _) = await StatsManager.GetStats(appID).ConfigureAwait(false);
-    return result.Success ? Strings.Done : result.Message;
-  }
-
-  internal async Task<string> UnlockNext(uint appID) {
-    (TaskResult result, _) = await StatsManager.UnlockNextStat(appID).ConfigureAwait(false);
-    return result.Success ? Strings.Done : result.Message;
-  }
-
   private bool Ready() => OwnedGames.Count > 0 && Bot.IsConnectedAndLoggedOn && Bot.IsPlayingPossible;
 
   private async void OnBoosterTimer(object? state) {
