@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -59,7 +60,7 @@ internal sealed class Booster : IDisposable {
     return Task.CompletedTask;
   }
 
-  [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "<Pending>")]
+  [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "<Pending>")]
   internal Task OnInitModules(IReadOnlyDictionary<string, JsonElement> additionalConfigProperties) {
     if (additionalConfigProperties != null) {
     }
@@ -302,7 +303,19 @@ internal sealed class Booster : IDisposable {
     return BoostingApps.Count > 0;
   }
 
-  private bool IsBoostable(uint appID) => !Cache.PerfectGames.Contains(appID) && !AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID);
+  [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
+  private bool IsBoostable(uint appID) {
+    if (Cache.PerfectGames.Contains(appID)) {
+      return false;
+    }
+    if (AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID)) {
+      return false;
+    }
+    if (AchievementsBooster.GlobalCache.VACApps.Contains(appID)) {
+      return false;
+    }
+    return true;
+  }
 
   private async Task<(bool boostable, SteamApp? app)> GetAppForBoosting(uint appID) {
     if (!OwnedGames.ContainsKey(appID)) {
@@ -333,6 +346,7 @@ internal sealed class Booster : IDisposable {
     }
 
     if (app.HasVAC()) {
+      _ = AchievementsBooster.GlobalCache.VACApps.Add(appID);
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID), Caller.Name());
       return (false, app);
     }

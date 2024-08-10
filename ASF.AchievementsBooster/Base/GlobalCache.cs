@@ -14,6 +14,10 @@ internal sealed class GlobalCache {
   [JsonInclude]
   internal ConcurrentHashSet<uint> NonAchievementApps { get; private init; } = [];
 
+  [JsonDisallowNull]
+  [JsonInclude]
+  internal ConcurrentHashSet<uint> VACApps { get; private init; } = [];
+
   internal static GlobalCache? LoadFromDatabase() {
     if (ASF.GlobalDatabase == null) {
       throw new InvalidOperationException(nameof(ASF.GlobalDatabase));
@@ -23,12 +27,21 @@ internal sealed class GlobalCache {
   }
 
   [JsonConstructor]
-  internal GlobalCache() => NonAchievementApps.OnModified += OnObjectModified;
+  internal GlobalCache() {
+    NonAchievementApps.OnModified += OnObjectModified;
+    VACApps.OnModified += OnObjectModified;
+  }
 
-  ~GlobalCache() => NonAchievementApps.OnModified -= OnObjectModified;
+  ~GlobalCache() {
+    NonAchievementApps.OnModified -= OnObjectModified;
+    VACApps.OnModified-= OnObjectModified;
+  }
 
   private void OnObjectModified(object? sender, EventArgs e) => ASF.GlobalDatabase?.SaveToJsonStorage(Constants.GlobalCacheKey, this);
 
   [UsedImplicitly]
   public bool ShouldSerializeNonAchievementApps() => NonAchievementApps.Count > 0;
+
+  [UsedImplicitly]
+  public bool ShouldSerializeVACApps() => VACApps.Count > 0;
 }
