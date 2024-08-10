@@ -126,7 +126,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
         return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.StatsManager]);
       }
 
-      booster.Dispose();
+      booster.Destroy();
       ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
     }
     return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(null);
@@ -139,6 +139,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   private static void RemoveBoosterBot(Bot bot) {
     if (Boosters.TryRemove(bot, out Booster? booster)) {
       booster.Dispose();
+      booster.Destroy();
     }
   }
 }

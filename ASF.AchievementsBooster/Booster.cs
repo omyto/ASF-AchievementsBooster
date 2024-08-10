@@ -27,9 +27,9 @@ internal sealed class Booster : IDisposable {
   private bool IsBoostingInProgress;
   private Timer? BoosterTimer;
 
+  private readonly BotCache Cache;
   private Dictionary<uint, string> OwnedGames;
   private HashSet<uint> BoostableGames;
-  private readonly HashSet<uint> PerfectGames;
 
   // Boosting status
   private EBoostingState BoostingState = EBoostingState.None;
@@ -42,10 +42,15 @@ internal sealed class Booster : IDisposable {
     IsBoostingInProgress = false;
     OwnedGames = [];
     BoostableGames = [];
-    PerfectGames = [];
+    Cache = BotCache.LoadFromDatabase(bot) ?? new BotCache(bot);
   }
 
   public void Dispose() => Stop();
+
+  internal void Destroy() {
+    Cache.Destroy();
+    Dispose();
+  }
 
   internal Task OnSteamCallbacksInit(CallbackManager callbackManager) {
     //StatsManager.Setup();
@@ -267,7 +272,7 @@ internal sealed class Booster : IDisposable {
   }
 
   private void CompleteBoostingApp(SteamApp app) {
-    _ = PerfectGames.Add(app.ID);
+    _ = Cache.PerfectGames.Add(app.ID);
     _ = BoostableGames.Remove(app.ID);
     Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name));
   }
@@ -296,6 +301,8 @@ internal sealed class Booster : IDisposable {
     return BoostingApps.Count > 0;
   }
 
+  private bool IsBoostable(uint appID) => !Cache.PerfectGames.Contains(appID) && !AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID);
+
   private async Task<(bool boostable, SteamApp? app)> GetAppForBoosting(uint appID) {
     if (!OwnedGames.ContainsKey(appID)) {
       // Oh God! Why?
@@ -308,7 +315,7 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    if (PerfectGames.Contains(appID) || AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID)) {
+    if (!IsBoostable(appID)) {
       return (false, null);
     }
 
@@ -339,7 +346,7 @@ internal sealed class Booster : IDisposable {
 
     IEnumerable<StatData> unlockableStats = statDatas.Where(e => e.Unlockable());
     if (!unlockableStats.Any()) {
-      _ = PerfectGames.Add(appID);
+      _ = Cache.PerfectGames.Add(appID);
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID));
       return (false, app);
     }
