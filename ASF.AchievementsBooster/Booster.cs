@@ -81,9 +81,8 @@ internal sealed class Booster : IDisposable {
     }
 
     Bot.ArchiLogger.LogGenericInfo("Achievements Booster Starting...", Caller.Name());
-    TimeSpan dueTime = command ? TimeSpan.Zero : TimeSpanExtensions.InMinutesRange(3, 5);
-    dueTime = TimeSpan.FromSeconds(20);//TODO: remove
-    BoosterTimer = new Timer(OnBoosterTimer, null, dueTime, TimeSpan.FromMinutes(AchievementsBooster.Config.BoostingPeriod));
+    TimeSpan dueTime = command ? TimeSpan.Zero : TimeSpan.FromMinutes(5);
+    BoosterTimer = new Timer(OnBoosterTimer, null, dueTime, Timeout.InfiniteTimeSpan);
 
     return Strings.Done;
   }
@@ -127,6 +126,13 @@ internal sealed class Booster : IDisposable {
       BoostingState = EBoostingState.None;
     }
     IsBoostingInProgress = false;
+
+    // Calculate the delay time for the next boosting
+    TimeSpan dueTime = TimeSpan.FromMinutes(AchievementsBooster.Config.BoostingPeriod);
+    if (AchievementsBooster.Config.MaxExpandTimePeriod > 0) {
+      dueTime += TimeSpanUtils.InMinutesRange(0, AchievementsBooster.Config.MaxExpandTimePeriod);
+    }
+    _ = BoosterTimer?.Change(dueTime, Timeout.InfiniteTimeSpan);
   }
 
   private async Task<bool> BoostingAchievements() {
@@ -373,6 +379,6 @@ internal sealed class Booster : IDisposable {
 
   private void OnPlayingSessionStateCallback(SteamUser.PlayingSessionStateCallback callback) {
     ArgumentNullException.ThrowIfNull(callback);
-    Bot.ArchiLogger.LogGenericTrace($"OnPlayingSessionState | PlayingBlocked: {callback.PlayingBlocked}, AppID: {callback.PlayingAppID}", Caller.Name());
+    Bot.ArchiLogger.LogGenericTrace($"PlayingBlocked: {callback.PlayingBlocked}, AppID: {callback.PlayingAppID}", Caller.Name());
   }
 }

@@ -8,6 +8,7 @@ namespace AchievementsBooster.Config;
 
 public sealed class BoosterGlobalConfig {
   public const byte DefaultBoostingPeriod = 15;
+  public const byte DefaultMaxExpandTimePeriod = 5;
   public const byte DefaultMaxBoostingGames = 1;
 
   [JsonInclude]
@@ -16,6 +17,10 @@ public sealed class BoosterGlobalConfig {
   [JsonInclude]
   [Range(5, byte.MaxValue)]
   public byte BoostingPeriod { get; private set; } = DefaultBoostingPeriod;
+
+  [JsonInclude]
+  [Range(byte.MinValue, byte.MaxValue)]
+  public byte MaxExpandTimePeriod { get; private set; } = DefaultMaxExpandTimePeriod;
 
   [JsonInclude]
   [Range(1, 10)]
@@ -27,7 +32,6 @@ public sealed class BoosterGlobalConfig {
   internal void Validate() {
     if (BoostingPeriod < 5) {
       ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(BoostingPeriod), BoostingPeriod, 5), Caller.Name());
-      //ASF.ArchiLogger.LogGenericWarning("BoostingPeriod less than 5 is invalid and will be automatically adjusted to 5");
       BoostingPeriod = 5;
     }
 
