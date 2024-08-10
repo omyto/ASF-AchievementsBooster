@@ -26,16 +26,16 @@ public sealed class BoosterGlobalConfig {
 
   internal void Validate() {
     if (BoostingPeriod < 5) {
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(BoostingPeriod), BoostingPeriod, 5));
+      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(BoostingPeriod), BoostingPeriod, 5), Caller.Name());
       //ASF.ArchiLogger.LogGenericWarning("BoostingPeriod less than 5 is invalid and will be automatically adjusted to 5");
       BoostingPeriod = 5;
     }
 
     if (MaxBoostingGames < 1) {
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingGames), MaxBoostingGames, 1));
+      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingGames), MaxBoostingGames, 1), Caller.Name());
       MaxBoostingGames = 1;
     } else if (MaxBoostingGames > 10) {
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingGames), MaxBoostingGames, 10));
+      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingGames), MaxBoostingGames, 10), Caller.Name());
       MaxBoostingGames = 10;
     }
   }

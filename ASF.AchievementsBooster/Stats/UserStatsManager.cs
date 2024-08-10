@@ -35,7 +35,7 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     GetUserStatsResponseCallback? response = await RequestUserStats(appID).ConfigureAwait(false);
     if (response == null || !response.Success) {
       string message = string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID);
-      Bot.ArchiLogger.LogGenericDebug(message);
+      Bot.ArchiLogger.LogGenericDebug(message, Caller.Name());
       return (new TaskResult(false, message), []);
     }
 
@@ -46,13 +46,13 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     GetUserStatsResponseCallback? response = await RequestUserStats(appID).ConfigureAwait(false);
     if (response == null || !response.Success) {
       string message = string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID);
-      Bot.ArchiLogger.LogGenericDebug(message);
+      Bot.ArchiLogger.LogGenericDebug(message, Caller.Name());
       return (new TaskResult(false, message), -1);
     }
 
     List<StatData> unlockableStats = response.StatDatas.Where(e => e.Unlockable()).ToList();
     if (unlockableStats.Count == 0) {
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID));
+      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID), Caller.Name());
       return (new TaskResult(true), 0);
     }
 
@@ -60,7 +60,7 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     Dictionary<string, double> achievementPercentages = await GetAppAchievementPercentages(appID).ConfigureAwait(false);
     if (achievementPercentages.Count == 0) {
       string message = $"No global achievement percentages for app {appID}";
-      Bot.ArchiLogger.LogGenericWarning(message);
+      Bot.ArchiLogger.LogGenericWarning(message, Caller.Name());
       return (new TaskResult(false, message), 0);
     }
 
@@ -75,9 +75,9 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     StatData stat = unlockableStats.First();
     bool success = await UnlockStat(appID, stat, response.CrcStats).ConfigureAwait(false);
     if (success) {
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, stat.Name, appID));
+      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, stat.Name, appID), Caller.Name());
     } else {
-      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, appID));
+      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, appID), Caller.Name());
     }
     return (new TaskResult(success), success ? unlockableStats.Count - 1 : unlockableStats.Count);
   }
@@ -114,7 +114,7 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     try {
       return await new AsyncJob<GetUserStatsResponseCallback>(Client, request.SourceJobID).ToLongRunningTask().ConfigureAwait(false);
     } catch (Exception e) {
-      Bot.ArchiLogger.LogGenericException(e);
+      Bot.ArchiLogger.LogGenericException(e, Caller.Name());
       return null;
     }
   }
@@ -152,12 +152,12 @@ internal sealed class UserStatsManager : ClientMsgHandler {
 
     percentages = await GetGlobalAchievementPercentagesForApp(appid).ConfigureAwait(false);
     if (percentages == null) {
-      Bot.ArchiLogger.LogGenericWarning($"No global achievement percentages exist for app {appid}");
+      Bot.ArchiLogger.LogGenericWarning($"No global achievement percentages exist for app {appid}", Caller.Name());
       return [];
     }
 
     if (!AppsAchievementPercentages.TryAdd(appid, percentages)) {
-      Bot.ArchiLogger.LogGenericWarning($"The global achievement percentages for app {appid} are already present");
+      Bot.ArchiLogger.LogGenericWarning($"The global achievement percentages for app {appid} are already present", Caller.Name());
     }
     return percentages;
   }
@@ -177,13 +177,13 @@ internal sealed class UserStatsManager : ClientMsgHandler {
         async () => await steamUserStatsService.CallAsync(HttpMethod.Get, "GetGlobalAchievementPercentagesForApp", 2, arguments).ConfigureAwait(false)
       ).ConfigureAwait(false);
     } catch (TaskCanceledException e) {
-      Bot.ArchiLogger.LogGenericDebuggingException(e);
+      Bot.ArchiLogger.LogGenericDebuggingException(e, Caller.Name());
     } catch (Exception e) {
-      Bot.ArchiLogger.LogGenericWarningException(e);
+      Bot.ArchiLogger.LogGenericWarningException(e, Caller.Name());
     }
 
     if (response == null) {
-      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Strings.ErrorRequestFailedTooManyTimes, 1/*WebBrowser.MaxTries*/));
+      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Strings.ErrorRequestFailedTooManyTimes, 1/*WebBrowser.MaxTries*/), Caller.Name());
       return null;
     }
 
@@ -196,18 +196,18 @@ internal sealed class UserStatsManager : ClientMsgHandler {
       KeyValue achievement = achievements[i];
       string? apiName = achievement["name"].Value;
       if (apiName == null) {
-        Bot.ArchiLogger.LogGenericWarning($"App {appid} has an invalid internal achievement name");
+        Bot.ArchiLogger.LogGenericWarning($"App {appid} has an invalid internal achievement name", Caller.Name());
         continue;
       }
 
       double percent = achievement["percent"].AsDouble(double.MinValue);
       if (percent < 0) {
-        Bot.ArchiLogger.LogGenericWarning($"Achievement '{apiName}' has no percentage data");
+        Bot.ArchiLogger.LogGenericWarning($"Achievement '{apiName}' has no percentage data", Caller.Name());
         percent = 0;
       }
 
       if (!percentages.TryAdd(apiName, percent)) {
-        Bot.ArchiLogger.LogGenericWarning($"Internal achievement name '{apiName}' for app {appid} already exists");
+        Bot.ArchiLogger.LogGenericWarning($"Internal achievement name '{apiName}' for app {appid} already exists", Caller.Name());
       }
     }
 
@@ -232,7 +232,7 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     try {
       response = await UnifiedPlayerService.SendMessage(e => e.GetGameAchievements(request)).ToLongRunningTask().ConfigureAwait(false);
     } catch (Exception e) {
-      ASF.ArchiLogger.LogGenericWarningException(e);
+      ASF.ArchiLogger.LogGenericWarningException(e, Caller.Name());
       return null;
     }
 

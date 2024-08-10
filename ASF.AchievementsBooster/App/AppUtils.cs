@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading.Tasks;
+using AchievementsBooster.Base;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam.Integration;
 
@@ -15,7 +16,7 @@ internal static class AppUtils {
 
   internal static async Task<SteamApp> GetApp(uint appID) {
     if (!Apps.TryGetValue(appID, out SteamApp? app)) {
-      ASF.ArchiLogger.LogGenericDebug($"Get details for app {appID} ...");
+      ASF.ArchiLogger.LogGenericDebug($"Get details for app {appID} ...", Caller.Name());
       AppDetails? appDetails = await GetAppDetails(appID).ConfigureAwait(false);
       app = appDetails != null ? GenerateApp(appID, appDetails) : new InvalidApp(appID);
       _ = Apps.TryAdd(appID, app);

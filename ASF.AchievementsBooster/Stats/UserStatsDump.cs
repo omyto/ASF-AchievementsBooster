@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using AchievementsBooster.Base;
 using ArchiSteamFarm.Collections;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
@@ -17,10 +18,10 @@ internal static class UserStatsDump {
 
   internal static void Dump(CMsgClientGetUserStatsResponse msg, List<StatData> statDatas) {
     if (GameIDs.Add(msg.game_id)) {
-      ASF.ArchiLogger.LogGenericTrace($"User Stats Response for game id: {msg.game_id}");
-      ASF.ArchiLogger.LogGenericTrace(JsonSerializer.Serialize(UserStatsResponseToDictionary(msg)));
-      ASF.ArchiLogger.LogGenericTrace($"User Stats Data for game id: {msg.game_id}");
-      ASF.ArchiLogger.LogGenericTrace(JsonSerializer.Serialize(statDatas));
+      ASF.ArchiLogger.LogGenericTrace($"User Stats Response for game id: {msg.game_id}", Caller.Name());
+      ASF.ArchiLogger.LogGenericTrace(JsonSerializer.Serialize(UserStatsResponseToDictionary(msg)), Caller.Name());
+      ASF.ArchiLogger.LogGenericTrace($"User Stats Data for game id: {msg.game_id}", Caller.Name());
+      ASF.ArchiLogger.LogGenericTrace(JsonSerializer.Serialize(statDatas), Caller.Name());
     }
   }
 
@@ -28,7 +29,7 @@ internal static class UserStatsDump {
     using MemoryStream ms = new(msg.schema ?? []);
     KeyValue kv = new();
     if (!kv.TryReadAsBinary(ms)) {
-      ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(msg.schema)));
+      ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(msg.schema)), Caller.Name());
     }
 
     return new Dictionary<string, object> {

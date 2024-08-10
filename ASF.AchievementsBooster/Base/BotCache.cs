@@ -37,7 +37,7 @@ internal sealed class BotCache {
           return cache;
         }
       } catch (Exception ex) {
-        bot.ArchiLogger.LogGenericException(ex);
+        bot.ArchiLogger.LogGenericException(ex, Caller.Name());
       }
     }
 
