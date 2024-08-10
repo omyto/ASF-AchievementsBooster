@@ -9,7 +9,6 @@ using AchievementsBooster.Stats;
 using AchievementsBooster.App;
 using AchievementsBooster.Base;
 using AchievementsBooster.Config;
-using ArchiSteamFarm.Collections;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
@@ -20,8 +19,6 @@ using AchievementsBooster.Extensions;
 namespace AchievementsBooster;
 
 internal sealed class Booster : IDisposable {
-  private static readonly ConcurrentHashSet<uint> NonAchievementApps = [];
-
   internal readonly Bot Bot;
   internal readonly UserStatsManager StatsManager;
   internal readonly BoosterBotConfig Config = new();
@@ -311,7 +308,7 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    if (PerfectGames.Contains(appID) || NonAchievementApps.Contains(appID)) {
+    if (PerfectGames.Contains(appID) || AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID)) {
       return (false, null);
     }
 
@@ -322,7 +319,7 @@ internal sealed class Booster : IDisposable {
     }
 
     if (!app.HasAchievements()) {
-      _ = NonAchievementApps.Add(appID);
+      _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
       return (false, app);
     }
@@ -335,7 +332,7 @@ internal sealed class Booster : IDisposable {
     (TaskResult result, List<StatData> statDatas) = await StatsManager.GetStats(appID).ConfigureAwait(false);
     if (!result.Success) {
       // Unreachable
-      _ = NonAchievementApps.Add(appID);
+      _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
       Bot.ArchiLogger.LogGenericWarning(result.Message);
       return (false, app);
     }

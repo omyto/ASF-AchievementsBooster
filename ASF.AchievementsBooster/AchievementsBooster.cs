@@ -18,11 +18,11 @@ namespace AchievementsBooster;
 [Export(typeof(IPlugin))]
 internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnection, IBotSteamClient, IBotCommand2 {
 
-  private const string AchievementsBoosterConfigPropertyKey = "AchievementsBooster";
-
   internal static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
   internal static BoosterGlobalConfig Config { get; private set; } = new();
+
+  internal static GlobalCache GlobalCache { get; private set; } = new();
 
   public string Name => nameof(AchievementsBooster);
 
@@ -30,6 +30,10 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   public Task OnLoaded() {
     ASF.ArchiLogger.LogGenericInfo("Achievements Booster | Automatically boosting achievements while farming cards.");
+    GlobalCache? globalCache = GlobalCache.LoadFromDatabase();
+    if (globalCache != null) {
+      GlobalCache = globalCache;
+    }
     return Task.CompletedTask;
   }
 
@@ -37,9 +41,9 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   public Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties) {
     if (additionalConfigProperties != null && additionalConfigProperties.Count > 0) {
-      if (additionalConfigProperties.TryGetValue(AchievementsBoosterConfigPropertyKey, out JsonElement configValue)) {
+      if (additionalConfigProperties.TryGetValue(Constants.AchievementsBoosterConfigKey, out JsonElement configValue)) {
         BoosterGlobalConfig? config = configValue.ToJsonObject<BoosterGlobalConfig>();
-        ASF.ArchiLogger.LogGenericInfo(JsonSerializer.Serialize(config));
+        //ASF.ArchiLogger.LogGenericInfo(JsonSerializer.Serialize(config));
         if (config != null) {
           Config = config;
           if (Config.Enabled) {
