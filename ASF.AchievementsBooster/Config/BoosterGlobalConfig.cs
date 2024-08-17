@@ -1,5 +1,7 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
+using System.Reflection;
 using System.Text.Json.Serialization;
 using AchievementsBooster.Base;
 using ArchiSteamFarm.Core;
@@ -30,17 +32,31 @@ public sealed class BoosterGlobalConfig {
   internal BoosterGlobalConfig() { }
 
   internal void Validate() {
-    if (BoostingPeriod < 5) {
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(BoostingPeriod), BoostingPeriod, 5), Caller.Name());
-      BoostingPeriod = 5;
+    PropertyInfo[] properties = GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);
+    foreach (PropertyInfo property in properties) {
+      if (property.PropertyType == typeof(byte)) {
+        ValidateRange(property);
+      }
+    }
+  }
+
+  private void ValidateRange(PropertyInfo property) {
+    RangeAttribute? rangeAttribute = property.GetCustomAttribute<RangeAttribute>();
+    if (rangeAttribute == null) {
+      return;
     }
 
-    if (MaxBoostingGames < 1) {
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingGames), MaxBoostingGames, 1), Caller.Name());
-      MaxBoostingGames = 1;
-    } else if (MaxBoostingGames > 10) {
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingGames), MaxBoostingGames, 10), Caller.Name());
-      MaxBoostingGames = 10;
+    byte value = (byte) (property.GetValue(this) ?? 0);
+    byte newValue = value;
+    if (value < (int) rangeAttribute.Minimum) {
+      newValue = Convert.ToByte((int) rangeAttribute.Minimum);
+    } else if (value > (int) rangeAttribute.Maximum) {
+      newValue = Convert.ToByte((int) rangeAttribute.Maximum);
+    }
+
+    if (value != newValue) {
+      property.SetValue(this, newValue);
+      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, newValue), Caller.Name());
     }
   }
 }

@@ -3,7 +3,7 @@ namespace AchievementsBooster.Base;
 internal static class Messages {
   internal const string PluginDisabledInConfig = "{0} is currently disabled according to your configuration!";
 
-  internal const string ConfigPropertyInvalid = "Configured property {0} is invalid: {1}. It will be automatically adjusted to {2}";
+  internal const string ConfigPropertyInvalid = "The configured value {1} of property {0} is invalid! It will be automatically adjusted to {2}";
 
   internal const string BoosterInitEror = "Can not initialize booster for bot: {0}";
 

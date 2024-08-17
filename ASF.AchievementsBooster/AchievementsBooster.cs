@@ -43,7 +43,6 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
     if (additionalConfigProperties != null && additionalConfigProperties.Count > 0) {
       if (additionalConfigProperties.TryGetValue(Constants.AchievementsBoosterConfigKey, out JsonElement configValue)) {
         BoosterGlobalConfig? config = configValue.ToJsonObject<BoosterGlobalConfig>();
-        //ASF.ArchiLogger.LogGenericInfo(JsonSerializer.Serialize(config));
         if (config != null) {
           Config = config;
           if (Config.Enabled) {
