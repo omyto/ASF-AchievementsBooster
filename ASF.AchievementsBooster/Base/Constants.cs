@@ -6,4 +6,10 @@ public static class Constants {
   public const string GlobalCacheKey = AchievementsBoosterConfigKey;
 
   public const string BotCacheKey = AchievementsBoosterConfigKey;
+
+#if DEBUG
+  public const float AutoStartDelayTime = .5f;
+#else
+  public const float AutoStartDelayTime = 5;
+#endif
 }

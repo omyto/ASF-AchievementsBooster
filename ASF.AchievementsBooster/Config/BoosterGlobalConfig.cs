@@ -9,24 +9,24 @@ using ArchiSteamFarm.Core;
 namespace AchievementsBooster.Config;
 
 public sealed class BoosterGlobalConfig {
-  public const byte DefaultBoostingPeriod = 15;
-  public const byte DefaultMaxExpandTimePeriod = 5;
-  public const byte DefaultMaxBoostingGames = 1;
+  public const byte DefaultBoostTimeInterval = 15;
+  public const byte DefaultExpandBoostTimeInterval = 5;
+  public const byte DefaultMaxBoostingApps = 1;
 
   [JsonInclude]
   public bool Enabled { get; internal set; } = true;
 
   [JsonInclude]
   [Range(5, byte.MaxValue)]
-  public byte BoostingPeriod { get; private set; } = DefaultBoostingPeriod;
+  public byte BoostTimeInterval { get; private set; } = DefaultBoostTimeInterval;
 
   [JsonInclude]
   [Range(byte.MinValue, byte.MaxValue)]
-  public byte MaxExpandTimePeriod { get; private set; } = DefaultMaxExpandTimePeriod;
+  public byte ExpandBoostTimeInterval { get; private set; } = DefaultExpandBoostTimeInterval;
 
   [JsonInclude]
   [Range(1, 10)]
-  public byte MaxBoostingGames { get; private set; } = DefaultMaxBoostingGames;
+  public byte MaxBoostingApps { get; private set; } = DefaultMaxBoostingApps;
 
   [JsonConstructor]
   internal BoosterGlobalConfig() { }

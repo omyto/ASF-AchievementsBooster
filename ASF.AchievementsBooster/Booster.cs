@@ -81,7 +81,7 @@ internal sealed class Booster : IDisposable {
     }
 
     Bot.ArchiLogger.LogGenericInfo("Achievements Booster Starting...", Caller.Name());
-    TimeSpan dueTime = command ? TimeSpan.Zero : TimeSpan.FromMinutes(5);
+    TimeSpan dueTime = command ? TimeSpan.Zero : TimeSpan.FromMinutes(Constants.AutoStartDelayTime);
     BoosterTimer = new Timer(OnBoosterTimer, null, dueTime, Timeout.InfiniteTimeSpan);
 
     return Strings.Done;
@@ -128,9 +128,9 @@ internal sealed class Booster : IDisposable {
     IsBoostingInProgress = false;
 
     // Calculate the delay time for the next boosting
-    TimeSpan dueTime = TimeSpan.FromMinutes(AchievementsBooster.Config.BoostingPeriod);
-    if (AchievementsBooster.Config.MaxExpandTimePeriod > 0) {
-      dueTime += TimeSpanUtils.InMinutesRange(0, AchievementsBooster.Config.MaxExpandTimePeriod);
+    TimeSpan dueTime = TimeSpan.FromMinutes(AchievementsBooster.Config.BoostTimeInterval);
+    if (AchievementsBooster.Config.ExpandBoostTimeInterval > 0) {
+      dueTime += TimeSpanUtils.InMinutesRange(0, AchievementsBooster.Config.ExpandBoostTimeInterval);
     }
     _ = BoosterTimer?.Change(dueTime, Timeout.InfiniteTimeSpan);
   }
