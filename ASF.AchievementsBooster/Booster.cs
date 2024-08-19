@@ -7,7 +7,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Stats;
-using AchievementsBooster.App;
 using AchievementsBooster.Base;
 using AchievementsBooster.Config;
 using ArchiSteamFarm.Core;
@@ -16,12 +15,13 @@ using ArchiSteamFarm.Steam;
 using SteamKit2;
 using System.Globalization;
 using AchievementsBooster.Extensions;
+using static SteamKit2.GC.Dota.Internal.CMsgDOTALeague;
 
 namespace AchievementsBooster;
 
 internal sealed class Booster : IDisposable {
   internal readonly Bot Bot;
-  internal readonly UserStatsManager StatsManager;
+  internal readonly BoosterHandler BoosterHandler;
   internal readonly BoosterBotConfig Config = new();
 
   private bool IsBoostingStarted;
@@ -34,11 +34,11 @@ internal sealed class Booster : IDisposable {
 
   // Boosting status
   private EBoostingState BoostingState = EBoostingState.None;
-  private readonly Dictionary<uint, SteamApp> BoostingApps = [];
+  private readonly Dictionary<uint, AppBooster> BoostingApps = [];
 
   internal Booster(Bot bot) {
     Bot = bot;
-    StatsManager = new UserStatsManager(bot);
+    BoosterHandler = new BoosterHandler(bot);
     IsBoostingStarted = false;
     IsBoostingInProgress = false;
     OwnedGames = [];
@@ -54,9 +54,8 @@ internal sealed class Booster : IDisposable {
   }
 
   internal Task OnSteamCallbacksInit(CallbackManager callbackManager) {
-    //StatsManager.Setup();
     ArgumentNullException.ThrowIfNull(callbackManager);
-    _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionStateCallback);
+    BoosterHandler.Init();
     return Task.CompletedTask;
   }
 
@@ -149,9 +148,9 @@ internal sealed class Booster : IDisposable {
         List<uint> appsToRemove = [];
         // Check games and unlock next stat for each games
         foreach (uint appID in farmingAppIDs) {
-          if (BoostingApps.TryGetValue(appID, out SteamApp? app)) {
+          if (BoostingApps.TryGetValue(appID, out AppBooster? app)) {
             // Achieved next achievement
-            (TaskResult result, int count) = await StatsManager.UnlockNextStat(appID).ConfigureAwait(false);
+            (TaskResult result, int count) = await BoosterHandler.UnlockNextStat(appID).ConfigureAwait(false);
             if (result.Success) {
               if (count == 0) {
                 CompleteBoostingApp(app);
@@ -196,8 +195,8 @@ internal sealed class Booster : IDisposable {
       if (BoostingState == EBoostingState.ArchiPlayedWhileIdle) {
         // Since GamesPlayedWhileIdle may never change, just boost all apps in BoostingApps.
         List<uint> appsToRemove = [];
-        foreach (SteamApp app in BoostingApps.Values) {
-          (TaskResult result, int count) = await StatsManager.UnlockNextStat(app.ID).ConfigureAwait(false);
+        foreach (AppBooster app in BoostingApps.Values) {
+          (TaskResult result, int count) = await BoosterHandler.UnlockNextStat(app.ID).ConfigureAwait(false);
           if (result.Success && count == 0) {
             CompleteBoostingApp(app);
             appsToRemove.Add(app.ID);
@@ -225,8 +224,8 @@ internal sealed class Booster : IDisposable {
     // Automatically play games and boost achievements
     if (BoostingState == EBoostingState.BoosterPlayed) {
       List<uint> appsToRemove = [];
-      foreach (SteamApp app in BoostingApps.Values) {
-        (TaskResult result, int count) = await StatsManager.UnlockNextStat(app.ID).ConfigureAwait(false);
+      foreach (AppBooster app in BoostingApps.Values) {
+        (TaskResult result, int count) = await BoosterHandler.UnlockNextStat(app.ID).ConfigureAwait(false);
         if (result.Success && count == 0) {
           CompleteBoostingApp(app);
           appsToRemove.Add(app.ID);
@@ -248,7 +247,7 @@ internal sealed class Booster : IDisposable {
     BoostingApps.Clear();
     List<uint> gamesToRemove = [];
     foreach (uint appID in BoostableGames) {
-      (bool boostable, SteamApp? app) = await GetAppForBoosting(appID).ConfigureAwait(false);
+      (bool boostable, AppBooster? app) = await GetAppForBoosting(appID).ConfigureAwait(false);
       if (boostable) {
         ArgumentNullException.ThrowIfNull(app);
         BoostingApps.Add(appID, app);
@@ -279,7 +278,7 @@ internal sealed class Booster : IDisposable {
     return false;
   }
 
-  private void CompleteBoostingApp(SteamApp app) {
+  private void CompleteBoostingApp(AppBooster app) {
     _ = Cache.PerfectGames.Add(app.ID);
     _ = BoostableGames.Remove(app.ID);
     Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name), Caller.Name());
@@ -298,7 +297,7 @@ internal sealed class Booster : IDisposable {
   private async Task<bool> InitializeNewBoostingApps(FrozenSet<uint> appIDs) {
     BoostingApps.Clear();
     foreach (uint appID in appIDs) {
-      (bool boostable, SteamApp? app) = await GetAppForBoosting(appID).ConfigureAwait(false);
+      (bool boostable, AppBooster? app) = await GetAppForBoosting(appID).ConfigureAwait(false);
       if (boostable) {
         ArgumentNullException.ThrowIfNull(app);
         BoostingApps.Add(appID, app);
@@ -323,7 +322,7 @@ internal sealed class Booster : IDisposable {
     return true;
   }
 
-  private async Task<(bool boostable, SteamApp? app)> GetAppForBoosting(uint appID) {
+  private async Task<(bool boostable, AppBooster? app)> GetAppForBoosting(uint appID) {
     if (!OwnedGames.ContainsKey(appID)) {
       // Oh God! Why?
       Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID), Caller.Name());
@@ -339,8 +338,15 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    SteamApp app = await AppUtils.GetApp(appID).ConfigureAwait(false);
-    if (!app.IsValid) {
+    ProductInfo? productInfo = await BoosterHandler.GetProductInfo(appID).ConfigureAwait(false);
+    if (productInfo == null) {
+      Bot.ArchiLogger.LogGenericWarning($"Can't get product info for app {appID}", Caller.Name());
+      return (false, null);
+    }
+
+    AppBooster app = new(appID, productInfo);
+
+    if (!app.IsPlayable()) {
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.InvalidApp, appID), Caller.Name());
       return (false, app);
     }
@@ -351,13 +357,13 @@ internal sealed class Booster : IDisposable {
       return (false, app);
     }
 
-    if (app.HasVAC()) {
+    if (app.IsVACEnabled) {
       _ = AchievementsBooster.GlobalCache.VACApps.Add(appID);
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID), Caller.Name());
       return (false, app);
     }
 
-    (TaskResult result, List<StatData> statDatas) = await StatsManager.GetStats(appID).ConfigureAwait(false);
+    (TaskResult result, List<StatData> statDatas) = await BoosterHandler.GetStats(appID).ConfigureAwait(false);
     if (!result.Success) {
       // Unreachable
       _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
@@ -373,12 +379,5 @@ internal sealed class Booster : IDisposable {
     }
 
     return (true, app);
-  }
-
-  /* Callbacks */
-
-  private void OnPlayingSessionStateCallback(SteamUser.PlayingSessionStateCallback callback) {
-    ArgumentNullException.ThrowIfNull(callback);
-    Bot.ArchiLogger.LogGenericTrace($"PlayingBlocked: {callback.PlayingBlocked}, AppID: {callback.PlayingAppID}", Caller.Name());
   }
 }

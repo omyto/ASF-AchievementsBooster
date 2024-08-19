@@ -22,9 +22,7 @@ public sealed class StatData {
 
   public uint StatValue { get; set; }
 
-  // Add for Achievements Booster
   public string? APIName { get; set; }
 
-  // Add for Achievements Booster
-  public double Percentage { get; set; } = double.MinValue;
+  public double Percentage { get; set; }
 }

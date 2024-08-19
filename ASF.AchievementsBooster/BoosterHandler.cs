@@ -1,32 +1,35 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
-using AchievementsBooster.Extensions;
+using AchievementsBooster.Stats;
 using ArchiSteamFarm.Core;
-using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
-using ArchiSteamFarm.Steam.Integration;
+using ArchiSteamFarm.Web;
 using SteamKit2;
 using SteamKit2.Internal;
+using static SteamKit2.SteamApps.PICSProductInfoCallback;
+using GameAchievement = SteamKit2.Internal.CPlayer_GetGameAchievements_Response.Achievement;
 
-namespace AchievementsBooster.Stats;
+namespace AchievementsBooster;
 
-internal sealed class UserStatsManager : ClientMsgHandler {
-  private static readonly ConcurrentDictionary<uint, Dictionary<string, double>> AppsAchievementPercentages = [];
+internal sealed class BoosterHandler : ClientMsgHandler {
+  // Global
+  private static readonly ConcurrentDictionary<uint, ProductInfo> Products = new();
+  private static readonly ConcurrentDictionary<uint, FrozenDictionary<string, double>> AppsAchievementPercentages = [];
 
   private readonly Bot Bot;
 
   private SteamUnifiedMessages.UnifiedService<IPlayer>? UnifiedPlayerService;
 
-  internal UserStatsManager(Bot bot) => Bot = bot;
+  internal BoosterHandler(Bot bot) => Bot = bot;
 
-  internal void Setup() {
+  internal void Init() {
     ArgumentNullException.ThrowIfNull(Client);
     UnifiedPlayerService = Client.GetHandler<SteamUnifiedMessages>()?.CreateService<IPlayer>();
   }
@@ -57,8 +60,8 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     }
 
     // Order by global achievement percentages
-    Dictionary<string, double> achievementPercentages = await GetAppAchievementPercentages(appID).ConfigureAwait(false);
-    if (achievementPercentages.Count == 0) {
+    FrozenDictionary<string, double>? achievementPercentages = await GetAppAchievementPercentages(appID).ConfigureAwait(false);
+    if (achievementPercentages == null || achievementPercentages.Count == 0) {
       string message = $"No global achievement percentages for app {appID}";
       Bot.ArchiLogger.LogGenericWarning(message, Caller.Name());
       return (new TaskResult(false, message), 0);
@@ -145,76 +148,25 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     }
   }
 
-  internal async Task<Dictionary<string, double>> GetAppAchievementPercentages(uint appid) {
-    if (AppsAchievementPercentages.TryGetValue(appid, out Dictionary<string, double>? percentages)) {
+  internal async Task<FrozenDictionary<string, double>?> GetAppAchievementPercentages(uint appid) {
+    if (AppsAchievementPercentages.TryGetValue(appid, out FrozenDictionary<string, double>? percentages)) {
       return percentages;
     }
 
-    percentages = await GetGlobalAchievementPercentagesForApp(appid).ConfigureAwait(false);
-    if (percentages == null) {
+    List<GameAchievement>? gameAchievements = await GetGameAchievements(appid).ConfigureAwait(false);
+    if (gameAchievements == null) {
       Bot.ArchiLogger.LogGenericWarning($"No global achievement percentages exist for app {appid}", Caller.Name());
-      return [];
+      return null;
     }
 
+    percentages = gameAchievements.ToFrozenDictionary(k => k.internal_name, v => double.TryParse(v.player_percent_unlocked, out double value) ? value : 0.0);
     if (!AppsAchievementPercentages.TryAdd(appid, percentages)) {
       Bot.ArchiLogger.LogGenericWarning($"The global achievement percentages for app {appid} are already present", Caller.Name());
     }
     return percentages;
   }
 
-  private async Task<Dictionary<string, double>?> GetGlobalAchievementPercentagesForApp(uint appid) {
-    Dictionary<string, object?> arguments = new(2, StringComparer.Ordinal) {
-      { "gameid", appid },
-      { "t", DateTime.UtcNow.ToFileTimeUtc() }
-    };
-
-    using WebAPI.AsyncInterface steamUserStatsService = Bot.SteamConfiguration.GetAsyncWebAPIInterface("ISteamUserStats");
-    steamUserStatsService.Timeout = Bot.ArchiWebHandler.WebBrowser.Timeout;
-    KeyValue? response = null;
-    try {
-      response = await ArchiWebHandler.WebLimitRequest(
-        WebAPI.DefaultBaseAddress,
-        async () => await steamUserStatsService.CallAsync(HttpMethod.Get, "GetGlobalAchievementPercentagesForApp", 2, arguments).ConfigureAwait(false)
-      ).ConfigureAwait(false);
-    } catch (TaskCanceledException e) {
-      Bot.ArchiLogger.LogGenericDebuggingException(e, Caller.Name());
-    } catch (Exception e) {
-      Bot.ArchiLogger.LogGenericWarningException(e, Caller.Name());
-    }
-
-    if (response == null) {
-      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Strings.ErrorRequestFailedTooManyTimes, 1/*WebBrowser.MaxTries*/), Caller.Name());
-      return null;
-    }
-
-    return ParseGlobalAchievementPercentagesForApp(appid, response["achievements"].Children);
-  }
-
-  private Dictionary<string, double> ParseGlobalAchievementPercentagesForApp(uint appid, List<KeyValue> achievements) {
-    Dictionary<string, double> percentages = [];
-    for (int i = 0; i < achievements.Count; i++) {
-      KeyValue achievement = achievements[i];
-      string? apiName = achievement["name"].Value;
-      if (apiName == null) {
-        Bot.ArchiLogger.LogGenericWarning($"App {appid} has an invalid internal achievement name", Caller.Name());
-        continue;
-      }
-
-      double percent = achievement["percent"].AsDouble(double.MinValue);
-      if (percent < 0) {
-        Bot.ArchiLogger.LogGenericWarning($"Achievement '{apiName}' has no percentage data", Caller.Name());
-        percent = 0;
-      }
-
-      if (!percentages.TryAdd(apiName, percent)) {
-        Bot.ArchiLogger.LogGenericWarning($"Internal achievement name '{apiName}' for app {appid} already exists", Caller.Name());
-      }
-    }
-
-    return percentages;
-  }
-
-  internal async Task<List<Dictionary<string, object>>?> GetGameAchievements(uint appid) {
+  internal async Task<List<GameAchievement>?> GetGameAchievements(uint appid) {
     ArgumentNullException.ThrowIfNull(Client);
     ArgumentNullException.ThrowIfNull(UnifiedPlayerService);
 
@@ -241,19 +193,67 @@ internal sealed class UserStatsManager : ClientMsgHandler {
     }
 
     CPlayer_GetGameAchievements_Response body = response.GetDeserializedResponse<CPlayer_GetGameAchievements_Response>();
-    List<Dictionary<string, object>> list = [];
-    foreach (CPlayer_GetGameAchievements_Response.Achievement achievement in body.achievements) {
-      list.Add(new Dictionary<string, object> {
-        { "internal_name", achievement.internal_name },
-        { "localized_name", achievement.localized_name },
-        { "localized_desc", achievement.localized_desc },
-        { "icon", achievement.icon },
-        { "icon_gray", achievement.icon_gray },
-        { "hidden", achievement.hidden },
-        { "player_percent_unlocked", achievement.player_percent_unlocked }
-      });
+    return body.achievements;
+  }
+
+  internal async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries = WebBrowser.MaxTries) {
+    // Get if exist
+    if (Products.TryGetValue(appID, out ProductInfo? info)) {
+      return info;
     }
 
-    return list;
+    ulong? accessToken = await GetPICSAccessTokens(appID, maxTries).ConfigureAwait(false);
+    SteamApps.PICSRequest request = new(appID, accessToken ?? 0);
+
+    AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet? productInfoResultSet = null;
+
+    for (byte i = 0; i < maxTries && productInfoResultSet == null && Bot.IsConnectedAndLoggedOn; i++) {
+      try {
+        productInfoResultSet = await Bot.SteamApps.PICSGetProductInfo(request.ToEnumerable(), []).ToLongRunningTask().ConfigureAwait(false);
+      } catch (Exception e) {
+        Bot.ArchiLogger.LogGenericWarningException(e, Caller.Name());
+      }
+    }
+
+    if (productInfoResultSet?.Results == null) {
+      return null;
+    }
+
+    foreach (Dictionary<uint, PICSProductInfo> productInfoApps in productInfoResultSet.Results.Select(static result => result.Apps)) {
+      if (!productInfoApps.TryGetValue(appID, out PICSProductInfo? productInfoApp)) {
+        continue;
+      }
+
+      KeyValue productInfo = productInfoApp.KeyValues;
+      if (productInfo == KeyValue.Invalid) {
+        Bot.ArchiLogger.LogNullError(productInfo, Caller.Name());
+        break;
+      }
+
+      KeyValue commonProductInfo = productInfo["common"];
+      if (commonProductInfo == KeyValue.Invalid) {
+        continue;
+      }
+
+      info = new ProductInfo(productInfoApp);
+      _ = Products.TryAdd(appID, info);
+      return info;
+    }
+
+    return null;
+  }
+
+  private async Task<ulong?> GetPICSAccessTokens(uint appID, byte maxTries = WebBrowser.MaxTries) {
+    SteamApps.PICSTokensCallback? tokenCallback = null;
+
+    for (byte i = 0; i < maxTries && tokenCallback == null && Bot.IsConnectedAndLoggedOn; i++) {
+      try {
+        tokenCallback = await Bot.SteamApps.PICSGetAccessTokens(appID, null).ToLongRunningTask().ConfigureAwait(false);
+      } catch (Exception e) {
+        Bot.ArchiLogger.LogGenericWarningException(e, Caller.Name());
+      }
+    }
+
+    return tokenCallback?.AppTokens.GetValueOrDefault(appID);
   }
 }

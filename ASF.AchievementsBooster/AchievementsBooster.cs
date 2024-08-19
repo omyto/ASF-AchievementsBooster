@@ -122,7 +122,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
       RemoveBoosterBot(bot);
       Booster booster = new(bot);
       if (Boosters.TryAdd(bot, booster)) {
-        return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.StatsManager]);
+        return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.BoosterHandler]);
       }
 
       booster.Destroy();

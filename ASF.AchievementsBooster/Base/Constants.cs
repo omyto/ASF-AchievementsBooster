@@ -12,4 +12,8 @@ public static class Constants {
 #else
   public const float AutoStartDelayTime = 5;
 #endif
+
+  public const string VACCategory = "category_8";
+
+  public const string AchievementsCategory = "category_22";
 }
