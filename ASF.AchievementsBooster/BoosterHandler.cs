@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
 using AchievementsBooster.Stats;
@@ -13,15 +14,15 @@ using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Web;
 using SteamKit2;
 using SteamKit2.Internal;
-using static SteamKit2.SteamApps.PICSProductInfoCallback;
 using GameAchievement = SteamKit2.Internal.CPlayer_GetGameAchievements_Response.Achievement;
+using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
 
 namespace AchievementsBooster;
 
 internal sealed class BoosterHandler : ClientMsgHandler {
   // Global
-  private static readonly ConcurrentDictionary<uint, ProductInfo> Products = new();
-  private static readonly ConcurrentDictionary<uint, FrozenDictionary<string, double>> AppsAchievementPercentages = [];
+  private static readonly ConcurrentDictionary<uint, ProductInfo> AllProducts = new();
+  private static readonly ConcurrentDictionary<uint, FrozenDictionary<string, double>> GlobalAchievementPercentages = new();
 
   private readonly Bot Bot;
 
@@ -34,41 +35,51 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     UnifiedPlayerService = Client.GetHandler<SteamUnifiedMessages>()?.CreateService<IPlayer>();
   }
 
-  internal async Task<(TaskResult result, List<StatData> statDatas)> GetStats(uint appID) {
-    GetUserStatsResponseCallback? response = await RequestUserStats(appID).ConfigureAwait(false);
-    if (response == null || !response.Success) {
-      string message = string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID);
-      Bot.ArchiLogger.LogGenericDebug(message, Caller.Name());
-      return (new TaskResult(false, message), []);
+  /** ClientMsgHandler */
+  [SuppressMessage("Style", "IDE0010:Add missing cases", Justification = "<Pending>")]
+  public override void HandleMsg(IPacketMsg packetMsg) {
+    ArgumentNullException.ThrowIfNull(packetMsg);
+    switch (packetMsg.MsgType) {
+      case EMsg.ClientGetUserStatsResponse:
+        ClientMsgProtobuf<CMsgClientGetUserStatsResponse> getUserStatsResponse = new(packetMsg);
+        Client.PostCallback(new GetUserStatsResponseCallback(packetMsg.TargetJobID, getUserStatsResponse.Body));
+        break;
+      case EMsg.ClientStoreUserStatsResponse:
+        ClientMsgProtobuf<CMsgClientStoreUserStatsResponse> storeUserStatsResponse = new(packetMsg);
+        Client.PostCallback(new StoreUserStatsResponseCallback(packetMsg.TargetJobID, storeUserStatsResponse.Body));
+        break;
+      default:
+        //ASF.ArchiLogger.LogGenericTrace($"[Booster] Not Handler {packetMsg.MsgType}");
+        break;
     }
-
-    return (new TaskResult(true), response.StatDatas);
   }
 
-  internal async Task<(TaskResult result, int unachievedCount)> UnlockNextStat(uint appID) {
+  internal async Task<List<StatData>?> GetStats(uint appID) {
     GetUserStatsResponseCallback? response = await RequestUserStats(appID).ConfigureAwait(false);
     if (response == null || !response.Success) {
-      string message = string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID);
+      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID), Caller.Name());
+      return null;
+    }
+
+    return response.StatDatas;
+  }
+
+  internal async Task<(TaskResult result, int unachievedCount)> UnlockNextStat(AppBooster app) {
+    GetUserStatsResponseCallback? response = await RequestUserStats(app.ID).ConfigureAwait(false);
+    if (response == null || !response.Success) {
+      string message = string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, app.ID);
       Bot.ArchiLogger.LogGenericDebug(message, Caller.Name());
       return (new TaskResult(false, message), -1);
     }
 
     List<StatData> unlockableStats = response.StatDatas.Where(e => e.Unlockable()).ToList();
     if (unlockableStats.Count == 0) {
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID), Caller.Name());
+      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, app.ID), Caller.Name());
       return (new TaskResult(true), 0);
     }
 
-    // Order by global achievement percentages
-    FrozenDictionary<string, double>? achievementPercentages = await GetAppAchievementPercentages(appID).ConfigureAwait(false);
-    if (achievementPercentages == null || achievementPercentages.Count == 0) {
-      string message = $"No global achievement percentages for app {appID}";
-      Bot.ArchiLogger.LogGenericWarning(message, Caller.Name());
-      return (new TaskResult(false, message), 0);
-    }
-
     foreach (StatData statData in unlockableStats) {
-      if (achievementPercentages.TryGetValue(statData.APIName ?? "", out double percentage)) {
+      if (app.AchievementPercentages.TryGetValue(statData.APIName ?? "", out double percentage)) {
         statData.Percentage = percentage;
       }
     }
@@ -76,11 +87,11 @@ internal sealed class BoosterHandler : ClientMsgHandler {
 
     // Unlock next achievement
     StatData stat = unlockableStats.First();
-    bool success = await UnlockStat(appID, stat, response.CrcStats).ConfigureAwait(false);
+    bool success = await UnlockStat(app.ID, stat, response.CrcStats).ConfigureAwait(false);
     if (success) {
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, stat.Name, appID), Caller.Name());
+      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, stat.Name, app.ID), Caller.Name());
     } else {
-      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, appID), Caller.Name());
+      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, app.ID), Caller.Name());
     }
     return (new TaskResult(success), success ? unlockableStats.Count - 1 : unlockableStats.Count);
   }
@@ -122,51 +133,25 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     }
   }
 
-  /** ClientMsgHandler */
-  [SuppressMessage("Style", "IDE0010:Add missing cases", Justification = "<Pending>")]
-  public override void HandleMsg(IPacketMsg packetMsg) {
-    ArgumentNullException.ThrowIfNull(packetMsg);
-
-    switch (packetMsg.MsgType) {
-      //case EMsg.ClientGetUserStats:
-      //  break;
-      case EMsg.ClientGetUserStatsResponse:
-        ClientMsgProtobuf<CMsgClientGetUserStatsResponse> getUserStatsResponse = new(packetMsg);
-        Client.PostCallback(new GetUserStatsResponseCallback(packetMsg.TargetJobID, getUserStatsResponse.Body));
-        break;
-      //case EMsg.ClientStoreUserStats:
-      //  break;
-      //case EMsg.ClientStoreUserStats2:
-      //  break;
-      case EMsg.ClientStoreUserStatsResponse:
-        ClientMsgProtobuf<CMsgClientStoreUserStatsResponse> storeUserStatsResponse = new(packetMsg);
-        Client.PostCallback(new StoreUserStatsResponseCallback(packetMsg.TargetJobID, storeUserStatsResponse.Body));
-        break;
-      default:
-        //ASF.ArchiLogger.LogGenericTrace($"[Booster] Not Handler {packetMsg.MsgType}");
-        break;
-    }
-  }
-
-  internal async Task<FrozenDictionary<string, double>?> GetAppAchievementPercentages(uint appid) {
-    if (AppsAchievementPercentages.TryGetValue(appid, out FrozenDictionary<string, double>? percentages)) {
+  internal async Task<FrozenDictionary<string, double>?> GetAppAchievementPercentages(uint appID) {
+    if (GlobalAchievementPercentages.TryGetValue(appID, out FrozenDictionary<string, double>? percentages)) {
       return percentages;
     }
 
-    List<GameAchievement>? gameAchievements = await GetGameAchievements(appid).ConfigureAwait(false);
+    List<GameAchievement>? gameAchievements = await GetGameAchievements(appID).ConfigureAwait(false);
     if (gameAchievements == null) {
-      Bot.ArchiLogger.LogGenericWarning($"No global achievement percentages exist for app {appid}", Caller.Name());
+      Bot.ArchiLogger.LogGenericWarning($"No global achievement percentages exist for app {appID}", Caller.Name());
       return null;
     }
 
     percentages = gameAchievements.ToFrozenDictionary(k => k.internal_name, v => double.TryParse(v.player_percent_unlocked, out double value) ? value : 0.0);
-    if (!AppsAchievementPercentages.TryAdd(appid, percentages)) {
-      Bot.ArchiLogger.LogGenericWarning($"The global achievement percentages for app {appid} are already present", Caller.Name());
+    if (!GlobalAchievementPercentages.TryAdd(appID, percentages)) {
+      Bot.ArchiLogger.LogGenericWarning($"The global achievement percentages for app {appID} are already present", Caller.Name());
     }
     return percentages;
   }
 
-  internal async Task<List<GameAchievement>?> GetGameAchievements(uint appid) {
+  private async Task<List<GameAchievement>?> GetGameAchievements(uint appid) {
     ArgumentNullException.ThrowIfNull(Client);
     ArgumentNullException.ThrowIfNull(UnifiedPlayerService);
 
@@ -198,7 +183,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
 
   internal async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries = WebBrowser.MaxTries) {
     // Get if exist
-    if (Products.TryGetValue(appID, out ProductInfo? info)) {
+    if (AllProducts.TryGetValue(appID, out ProductInfo? info)) {
       return info;
     }
 
@@ -223,6 +208,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       if (!productInfoApps.TryGetValue(appID, out PICSProductInfo? productInfoApp)) {
         continue;
       }
+      Bot.ArchiLogger.LogGenericTrace(JsonSerializer.Serialize(productInfoApp), Caller.Name());
 
       KeyValue productInfo = productInfoApp.KeyValues;
       if (productInfo == KeyValue.Invalid) {
@@ -236,7 +222,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       }
 
       info = new ProductInfo(productInfoApp);
-      _ = Products.TryAdd(appID, info);
+      _ = AllProducts.TryAdd(appID, info);
       return info;
     }
 

@@ -15,7 +15,6 @@ using ArchiSteamFarm.Steam;
 using SteamKit2;
 using System.Globalization;
 using AchievementsBooster.Extensions;
-using static SteamKit2.GC.Dota.Internal.CMsgDOTALeague;
 
 namespace AchievementsBooster;
 
@@ -150,7 +149,7 @@ internal sealed class Booster : IDisposable {
         foreach (uint appID in farmingAppIDs) {
           if (BoostingApps.TryGetValue(appID, out AppBooster? app)) {
             // Achieved next achievement
-            (TaskResult result, int count) = await BoosterHandler.UnlockNextStat(appID).ConfigureAwait(false);
+            (TaskResult result, int count) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
             if (result.Success) {
               if (count == 0) {
                 CompleteBoostingApp(app);
@@ -196,7 +195,7 @@ internal sealed class Booster : IDisposable {
         // Since GamesPlayedWhileIdle may never change, just boost all apps in BoostingApps.
         List<uint> appsToRemove = [];
         foreach (AppBooster app in BoostingApps.Values) {
-          (TaskResult result, int count) = await BoosterHandler.UnlockNextStat(app.ID).ConfigureAwait(false);
+          (TaskResult result, int count) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
           if (result.Success && count == 0) {
             CompleteBoostingApp(app);
             appsToRemove.Add(app.ID);
@@ -225,7 +224,7 @@ internal sealed class Booster : IDisposable {
     if (BoostingState == EBoostingState.BoosterPlayed) {
       List<uint> appsToRemove = [];
       foreach (AppBooster app in BoostingApps.Values) {
-        (TaskResult result, int count) = await BoosterHandler.UnlockNextStat(app.ID).ConfigureAwait(false);
+        (TaskResult result, int count) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
         if (result.Success && count == 0) {
           CompleteBoostingApp(app);
           appsToRemove.Add(app.ID);
@@ -344,40 +343,43 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    AppBooster app = new(appID, productInfo);
-
-    if (!app.IsPlayable()) {
+    if (!productInfo.IsPlayable()) {
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.InvalidApp, appID), Caller.Name());
-      return (false, app);
+      return (false, null);
     }
 
-    if (!app.HasAchievements()) {
-      _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
-      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID), Caller.Name());
-      return (false, app);
-    }
-
-    if (app.IsVACEnabled) {
+    if (productInfo.IsVACEnabled) {
       _ = AchievementsBooster.GlobalCache.VACApps.Add(appID);
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID), Caller.Name());
-      return (false, app);
+      return (false, null);
     }
 
-    (TaskResult result, List<StatData> statDatas) = await BoosterHandler.GetStats(appID).ConfigureAwait(false);
-    if (!result.Success) {
-      // Unreachable
+    if (productInfo.IsAchievementsEnabled.HasValue && !productInfo.IsAchievementsEnabled.Value) {
       _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
-      Bot.ArchiLogger.LogGenericWarning(result.Message, Caller.Name());
-      return (false, app);
+      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID), Caller.Name());
+      return (false, null);
+    }
+
+    List<StatData>? statDatas = await BoosterHandler.GetStats(appID).ConfigureAwait(false);
+    if (statDatas == null) {
+      productInfo.IsAchievementsEnabled = false;
+      _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
+      return (false, null);
     }
 
     IEnumerable<StatData> unlockableStats = statDatas.Where(e => e.Unlockable());
     if (!unlockableStats.Any()) {
       _ = Cache.PerfectGames.Add(appID);
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID), Caller.Name());
-      return (false, app);
+      return (false, null);
     }
 
+    FrozenDictionary<string, double>? percentages = await BoosterHandler.GetAppAchievementPercentages(appID).ConfigureAwait(false);
+    if (percentages == null) {
+      return (false, null);
+    }
+
+    AppBooster app = new(appID, productInfo, percentages);
     return (true, app);
   }
 }

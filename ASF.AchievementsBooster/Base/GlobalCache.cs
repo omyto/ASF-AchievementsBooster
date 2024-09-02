@@ -34,7 +34,7 @@ internal sealed class GlobalCache {
 
   ~GlobalCache() {
     NonAchievementApps.OnModified -= OnObjectModified;
-    VACApps.OnModified-= OnObjectModified;
+    VACApps.OnModified -= OnObjectModified;
   }
 
   private void OnObjectModified(object? sender, EventArgs e) => ASF.GlobalDatabase?.SaveToJsonStorage(Constants.GlobalCacheKey, this);

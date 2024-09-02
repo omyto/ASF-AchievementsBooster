@@ -1,37 +1,20 @@
 
-using System.Globalization;
-using ArchiSteamFarm.Core;
-using ArchiSteamFarm.Localization;
+using System.Collections.Frozen;
 
 namespace AchievementsBooster.Base;
 
 internal sealed class AppBooster {
   internal uint ID { get; }
 
-  internal string Name => Info.Name;
+  internal string Name => ProductInfo.Name;
 
-  internal ProductInfo Info { get; }
+  internal ProductInfo ProductInfo { get; }
 
-  internal AppBooster(uint id, ProductInfo info) {
+  internal FrozenDictionary<string, double> AchievementPercentages { get; }
+
+  internal AppBooster(uint id, ProductInfo info, FrozenDictionary<string, double> achievementPercentages) {
     ID = id;
-    Info = info;
-  }
-
-  internal bool IsVACEnabled => Info.VACEnabled;
-
-  internal bool HasAchievements() => Info.AchievementsEnabled;
-
-  internal bool IsPlayable() {
-    switch (Info.ReleaseState.ToUpperInvariant()) {
-      case "RELEASED":
-        break;
-      case "PRELOADONLY" or "PRERELEASE":
-        return false;
-      default:
-        ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Strings.WarningUnknownValuePleaseReport, nameof(Info.ReleaseState), Info.ReleaseState), Caller.Name());
-        break;
-    }
-
-    return Info.Type.ToUpperInvariant() is "GAME" or "MOVIE" or "VIDEO";
+    ProductInfo = info;
+    AchievementPercentages = achievementPercentages;
   }
 }

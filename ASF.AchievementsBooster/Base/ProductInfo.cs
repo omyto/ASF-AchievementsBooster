@@ -1,10 +1,11 @@
 using System;
-using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using ArchiSteamFarm;
 using ArchiSteamFarm.Core;
+using ArchiSteamFarm.Localization;
 using SteamKit2;
 using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
 
@@ -19,17 +20,19 @@ public sealed class ProductInfo {
 
   public string ReleaseState { get; private init; }
 
-  public bool AchievementsEnabled { get; set; }
+  public bool? IsAchievementsEnabled { get; internal set; }
 
-  public bool VACEnabled { get; private init; }
+  public bool IsVACEnabled => HasVACCategory;
+
+  public bool HasVACCategory { get; private init; }
+
+  public bool HasAchievementsCategory { get; private init; }
 
   public ImmutableHashSet<uint> DLCs { get; private init; } = [];
 
   public ImmutableHashSet<string> Developers { get; private init; } = [];
 
   public ImmutableHashSet<string> Publishers { get; private init; } = [];
-
-  public FrozenDictionary<string, double>? AchievementPercentages { get; internal set; }
 
   internal ProductInfo(PICSProductInfo productInfoApp) {
     KeyValue productInfo = productInfoApp.KeyValues;
@@ -42,14 +45,18 @@ public sealed class ProductInfo {
 
     List<KeyValue> categories = commonProductInfo["category"].Children;
     foreach (KeyValue category in categories) {
-      if (!VACEnabled && Constants.VACCategory.Equals(category.Name, StringComparison.OrdinalIgnoreCase)) {
-        VACEnabled = true;
+      if (!HasVACCategory && Constants.VACCategory.Equals(category.Name, StringComparison.OrdinalIgnoreCase)) {
+        HasVACCategory = true;
         continue;
       }
-      if (!AchievementsEnabled && Constants.AchievementsCategory.Equals(category.Name, StringComparison.OrdinalIgnoreCase)) {
-        AchievementsEnabled = true;
+      if (!HasAchievementsCategory && Constants.AchievementsCategory.Equals(category.Name, StringComparison.OrdinalIgnoreCase)) {
+        HasAchievementsCategory = true;
         continue;
       }
+    }
+
+    if (HasAchievementsCategory) {
+      IsAchievementsEnabled = true;
     }
 
     KeyValue extendedProductInfo = productInfo["extended"];
@@ -77,5 +84,21 @@ public sealed class ProductInfo {
         .ToImmutableHashSet();
       }
     }
+  }
+
+  internal bool IsPlayable() {
+    switch (ReleaseState.ToUpperInvariant()) {
+      case "":
+        break;
+      case "RELEASED":
+        break;
+      case "PRELOADONLY" or "PRERELEASE":
+        return false;
+      default:
+        ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Strings.WarningUnknownValuePleaseReport, nameof(ReleaseState), ReleaseState), Caller.Name());
+        break;
+    }
+
+    return Type.ToUpperInvariant() is "GAME" or "MOVIE" or "VIDEO";
   }
 }
