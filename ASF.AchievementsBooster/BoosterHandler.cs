@@ -64,18 +64,18 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     return response.StatDatas;
   }
 
-  internal async Task<(bool success, int unachievedCount)> UnlockNextStat(AppBooster app) {
+  internal async Task<(bool success, bool completed)> UnlockNextStat(AppBooster app) {
     GetUserStatsResponseCallback? response = await RequestUserStats(app.ID).ConfigureAwait(false);
     if (response == null || !response.Success) {
       string message = string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, app.ID);
       Bot.ArchiLogger.LogGenericDebug(message, Caller.Name());
-      return (false, -1);
+      return (false, false);
     }
 
     List<StatData> unlockableStats = response.StatDatas.Where(e => e.Unlockable()).ToList();
     if (unlockableStats.Count == 0) {
       Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, app.ID), Caller.Name());
-      return (true, 0);
+      return (true, true);
     }
 
     foreach (StatData statData in unlockableStats) {
@@ -93,7 +93,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     } else {
       Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, app.ID), Caller.Name());
     }
-    return (success, success ? unlockableStats.Count - 1 : unlockableStats.Count);
+    return (success, (unlockableStats.Count - (success ? 1 : 0)) > 0);
   }
 
   private async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {

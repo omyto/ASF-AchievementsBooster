@@ -150,9 +150,9 @@ internal sealed class Booster : IDisposable {
         foreach (uint appID in farmingAppIDs) {
           if (BoostingApps.TryGetValue(appID, out AppBooster? app)) {
             // Achieved next achievement
-            (bool success, int count) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
+            (bool success, bool completed) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
             if (success) {
-              if (count == 0) {
+              if (completed) {
                 CompleteBoostingApp(app);
                 _ = BoostingApps.Remove(appID);
               }
@@ -196,8 +196,8 @@ internal sealed class Booster : IDisposable {
         // Since GamesPlayedWhileIdle may never change, just boost all apps in BoostingApps.
         List<uint> appsToRemove = [];
         foreach (AppBooster app in BoostingApps.Values) {
-          (bool success, int count) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
-          if (success && count == 0) {
+          (bool success, bool completed) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
+          if (success && completed) {
             CompleteBoostingApp(app);
             appsToRemove.Add(app.ID);
           }
@@ -225,8 +225,8 @@ internal sealed class Booster : IDisposable {
     if (BoostingState == EBoostingState.BoosterPlayed) {
       List<uint> appsToRemove = [];
       foreach (AppBooster app in BoostingApps.Values) {
-        (bool success, int count) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
-        if (success && count == 0) {
+        (bool success, bool completed) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
+        if (success && completed) {
           CompleteBoostingApp(app);
           appsToRemove.Add(app.ID);
         }
