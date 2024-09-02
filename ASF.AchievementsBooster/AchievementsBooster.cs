@@ -32,8 +32,10 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
     ASF.ArchiLogger.LogGenericInfo("Achievements Booster | Automatically boosting achievements while farming cards.");
     GlobalCache? globalCache = GlobalCache.LoadFromDatabase();
     if (globalCache != null) {
+      GlobalCache.Destroy();
       GlobalCache = globalCache;
     }
+    GlobalCache.Init();
     return Task.CompletedTask;
   }
 

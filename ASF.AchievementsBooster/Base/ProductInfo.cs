@@ -18,7 +18,11 @@ public sealed class ProductInfo {
 
   public string Type { get; private init; }
 
-  public string ReleaseState { get; private init; }
+  public string? ReleaseState { get; private init; }
+
+  public string? SteamReleaseDate { get; private init; }
+
+  public string? StoreReleaseDate { get; private init; }
 
   public bool? IsAchievementsEnabled { get; internal set; }
 
@@ -41,7 +45,21 @@ public sealed class ProductInfo {
     ID = productInfoApp.ID;
     Name = commonProductInfo["name"].AsString() ?? string.Empty;
     Type = commonProductInfo["type"].AsString() ?? string.Empty;
-    ReleaseState = commonProductInfo["ReleaseState"].AsString() ?? string.Empty;
+
+    KeyValue releaseState = commonProductInfo["ReleaseState"];
+    if (releaseState != KeyValue.Invalid) {
+      ReleaseState = releaseState.AsString() ?? string.Empty;
+    }
+
+    KeyValue steamReleaseDate = commonProductInfo["steam_release_date"];
+    if (steamReleaseDate != KeyValue.Invalid) {
+      SteamReleaseDate = steamReleaseDate.AsString() ?? string.Empty;
+    }
+
+    KeyValue storeReleaseDate = commonProductInfo["store_release_date"];
+    if (storeReleaseDate != KeyValue.Invalid) {
+      StoreReleaseDate = storeReleaseDate.AsString() ?? string.Empty;
+    }
 
     List<KeyValue> categories = commonProductInfo["category"].Children;
     foreach (KeyValue category in categories) {
@@ -87,8 +105,8 @@ public sealed class ProductInfo {
   }
 
   internal bool IsPlayable() {
-    switch (ReleaseState.ToUpperInvariant()) {
-      case "":
+    switch (ReleaseState?.ToUpperInvariant()) {
+      case null or "":
         break;
       case "RELEASED":
         break;

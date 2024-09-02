@@ -43,6 +43,7 @@ internal sealed class Booster : IDisposable {
     OwnedGames = [];
     BoostableGames = [];
     Cache = BotCache.LoadFromDatabase(bot) ?? new BotCache(bot);
+    Cache.Init();
   }
 
   public void Dispose() => Stop();

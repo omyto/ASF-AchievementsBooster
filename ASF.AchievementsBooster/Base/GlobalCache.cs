@@ -9,6 +9,8 @@ using JetBrains.Annotations;
 namespace AchievementsBooster.Base;
 
 internal sealed class GlobalCache {
+  [JsonIgnore]
+  private bool Initialized = false;
 
   [JsonDisallowNull]
   [JsonInclude]
@@ -28,13 +30,24 @@ internal sealed class GlobalCache {
 
   [JsonConstructor]
   internal GlobalCache() {
-    NonAchievementApps.OnModified += OnObjectModified;
-    VACApps.OnModified += OnObjectModified;
   }
 
-  ~GlobalCache() {
-    NonAchievementApps.OnModified -= OnObjectModified;
-    VACApps.OnModified -= OnObjectModified;
+  ~GlobalCache() => Destroy();
+
+  internal void Init() {
+    if (!Initialized) {
+      VACApps.OnModified += OnObjectModified;
+      NonAchievementApps.OnModified += OnObjectModified;
+      Initialized = true;
+    }
+  }
+
+  internal void Destroy() {
+    if (Initialized) {
+      VACApps.OnModified -= OnObjectModified;
+      NonAchievementApps.OnModified -= OnObjectModified;
+      Initialized = false;
+    }
   }
 
   private void OnObjectModified(object? sender, EventArgs e) => ASF.GlobalDatabase?.SaveToJsonStorage(Constants.GlobalCacheKey, this);

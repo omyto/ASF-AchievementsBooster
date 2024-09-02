@@ -208,7 +208,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       if (!productInfoApps.TryGetValue(appID, out PICSProductInfo? productInfoApp)) {
         continue;
       }
-      Bot.ArchiLogger.LogGenericTrace(JsonSerializer.Serialize(productInfoApp), Caller.Name());
+      Bot.ArchiLogger.LogGenericTrace($"PICSProductInfo {appID}: {JsonSerializer.Serialize(productInfoApp)}", Caller.Name());
 
       KeyValue productInfo = productInfoApp.KeyValues;
       if (productInfo == KeyValue.Invalid) {
@@ -222,6 +222,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       }
 
       info = new ProductInfo(productInfoApp);
+      Bot.ArchiLogger.LogGenericTrace($"ProductInfo {appID}: {JsonSerializer.Serialize(info)}", Caller.Name());
       _ = AllProducts.TryAdd(appID, info);
       return info;
     }

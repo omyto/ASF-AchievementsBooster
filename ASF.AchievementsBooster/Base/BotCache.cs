@@ -48,12 +48,17 @@ internal sealed class BotCache {
 
   [JsonConstructor]
   private BotCache() {
-    PerfectGames.OnModified += OnObjectModified;
-    //NonBoostableGames.OnModified += OnObjectModified;
-    Initialized = true;
   }
 
   ~BotCache() => Destroy();
+
+  internal void Init() {
+    if (!Initialized) {
+      PerfectGames.OnModified += OnObjectModified;
+      //NonBoostableGames.OnModified += OnObjectModified;
+      Initialized = true;
+    }
+  }
 
   internal void Destroy() {
     if (Initialized) {
