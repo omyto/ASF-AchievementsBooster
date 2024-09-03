@@ -156,6 +156,10 @@ internal sealed class Booster : IDisposable {
                 CompleteBoostingApp(app);
                 _ = BoostingApps.Remove(appID);
               }
+            } else {
+              if (app.ShouldSkipBoosting()) {
+                _ = BoostingApps.Remove(appID);
+              }
             }
           } else {
             // Card farming scenario on a new app
@@ -197,9 +201,15 @@ internal sealed class Booster : IDisposable {
         List<uint> appsToRemove = [];
         foreach (AppBooster app in BoostingApps.Values) {
           (bool success, bool completed) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
-          if (success && completed) {
-            CompleteBoostingApp(app);
-            appsToRemove.Add(app.ID);
+          if (success) {
+            if (completed) {
+              CompleteBoostingApp(app);
+              appsToRemove.Add(app.ID);
+            }
+          } else {
+            if (app.ShouldSkipBoosting()) {
+              appsToRemove.Add(app.ID);
+            }
           }
         }
 
@@ -226,9 +236,15 @@ internal sealed class Booster : IDisposable {
       List<uint> appsToRemove = [];
       foreach (AppBooster app in BoostingApps.Values) {
         (bool success, bool completed) = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
-        if (success && completed) {
-          CompleteBoostingApp(app);
-          appsToRemove.Add(app.ID);
+        if (success) {
+          if (completed) {
+            CompleteBoostingApp(app);
+            appsToRemove.Add(app.ID);
+          }
+        } else {
+          if (app.ShouldSkipBoosting()) {
+            appsToRemove.Add(app.ID);
+          }
         }
       }
 

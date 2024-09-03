@@ -22,7 +22,7 @@ public sealed class StatData {
 
   public uint StatValue { get; set; }
 
-  public string? APIName { get; set; }
+  public string APIName { get; set; } = string.Empty;
 
   public double Percentage { get; set; }
 }

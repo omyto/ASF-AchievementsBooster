@@ -72,28 +72,23 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       return (false, false);
     }
 
-    List<StatData> unlockableStats = response.StatDatas.Where(e => e.Unlockable()).ToList();
-    if (unlockableStats.Count == 0) {
+    app.AddAndSortUnlockableStats(response.StatDatas.Where(e => e.Unlockable()).ToList());
+    if (app.UnlockableStats.Count == 0) {
       Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, app.ID), Caller.Name());
       return (true, true);
     }
 
-    foreach (StatData statData in unlockableStats) {
-      if (app.AchievementPercentages.TryGetValue(statData.APIName ?? "", out double percentage)) {
-        statData.Percentage = percentage;
-      }
-    }
-    unlockableStats.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
-
     // Unlock next achievement
-    StatData stat = unlockableStats.First();
+    StatData stat = app.UnlockableStats.First();
     bool success = await UnlockStat(app.ID, stat, response.CrcStats).ConfigureAwait(false);
     if (success) {
+      app.UnlockableStats.RemoveAt(0);
       Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, stat.Name, app.ID), Caller.Name());
     } else {
+      app.UnlockFailed(stat);
       Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, app.ID), Caller.Name());
     }
-    return (success, (unlockableStats.Count - (success ? 1 : 0)) > 0);
+    return (success, app.UnlockableStats.Count > 0);
   }
 
   private async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {

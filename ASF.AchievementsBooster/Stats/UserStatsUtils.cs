@@ -76,7 +76,7 @@ internal static class UserStatsUtils {
                   Dependancy = 0,
                   Name = name,
                   StatValue = stat_value ?? 0,
-                  APIName = apiName,
+                  APIName = apiName ?? string.Empty,
                 });
 
               }
