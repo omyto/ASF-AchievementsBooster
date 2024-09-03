@@ -49,7 +49,8 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
           Config = config;
           if (Config.Enabled) {
             Config.Validate();
-          } else {
+          }
+          else {
             ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.PluginDisabledInConfig, Name), Caller.Name());
           }
         }
@@ -75,7 +76,8 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
     if (Config.Enabled) {
       if (Boosters.TryGetValue(bot, out Booster? booster)) {
         _ = booster.Stop();
-      } else {
+      }
+      else {
         ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName), Caller.Name());
       }
     }
@@ -86,7 +88,8 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
     if (Config.Enabled) {
       if (Boosters.TryGetValue(bot, out Booster? booster)) {
         _ = booster.Start();
-      } else {
+      }
+      else {
         ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName), Caller.Name());
       }
     }

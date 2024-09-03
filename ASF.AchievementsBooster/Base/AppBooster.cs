@@ -43,7 +43,8 @@ internal sealed class AppBooster {
   internal void UnlockFailed(StatData statData) {
     if (FailedUnlockStats.TryGetValue(statData.APIName, out byte count)) {
       FailedUnlockStats[statData.APIName] = ++count;
-    } else {
+    }
+    else {
       FailedUnlockStats.Clear();
       _ = FailedUnlockStats.TryAdd(statData.APIName, 1);
     }

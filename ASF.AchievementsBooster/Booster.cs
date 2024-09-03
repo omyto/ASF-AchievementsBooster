@@ -117,11 +117,13 @@ internal sealed class Booster : IDisposable {
       if (BoostingState is EBoostingState.ArchiFarming or EBoostingState.ArchiPlayedWhileIdle) {
         if (BoostingApps.Count > 0) {
           Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys)), Caller.Name());
-        } else {
+        }
+        else {
           Bot.ArchiLogger.LogGenericInfo(BoostingState is EBoostingState.ArchiFarming ? Messages.NoBoostingAppsInArchiFarming : Messages.NoBoostingAppsInArchiPlayedWhileIdle, Caller.Name());
         }
       }
-    } else {
+    }
+    else {
       BoostingState = EBoostingState.None;
     }
     IsBoostingInProgress = false;
@@ -156,18 +158,21 @@ internal sealed class Booster : IDisposable {
                 CompleteBoostingApp(app);
                 _ = BoostingApps.Remove(appID);
               }
-            } else {
+            }
+            else {
               if (app.ShouldSkipBoosting()) {
                 _ = BoostingApps.Remove(appID);
               }
             }
-          } else {
+          }
+          else {
             // Card farming scenario on a new app
             (bool boostable, app) = await GetAppForBoosting(appID).ConfigureAwait(false);
             if (boostable) {
               ArgumentNullException.ThrowIfNull(app);
               BoostingApps.Add(appID, app);
-            } else {
+            }
+            else {
               appsToRemove.Add(appID);
               _ = BoostableGames.Remove(appID);
             }
@@ -206,7 +211,8 @@ internal sealed class Booster : IDisposable {
               CompleteBoostingApp(app);
               appsToRemove.Add(app.ID);
             }
-          } else {
+          }
+          else {
             if (app.ShouldSkipBoosting()) {
               appsToRemove.Add(app.ID);
             }
@@ -241,7 +247,8 @@ internal sealed class Booster : IDisposable {
             CompleteBoostingApp(app);
             appsToRemove.Add(app.ID);
           }
-        } else {
+        }
+        else {
           if (app.ShouldSkipBoosting()) {
             appsToRemove.Add(app.ID);
           }
@@ -317,7 +324,8 @@ internal sealed class Booster : IDisposable {
       if (boostable) {
         ArgumentNullException.ThrowIfNull(app);
         BoostingApps.Add(appID, app);
-      } else {
+      }
+      else {
         _ = BoostableGames.Remove(appID);
       }
     }

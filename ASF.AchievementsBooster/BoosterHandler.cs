@@ -84,7 +84,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     if (success) {
       app.UnlockableStats.RemoveAt(0);
       Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, stat.Name, app.ID), Caller.Name());
-    } else {
+    }
+    else {
       app.UnlockFailed(stat);
       Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, app.ID), Caller.Name());
     }
@@ -122,7 +123,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     Client.Send(request);
     try {
       return await new AsyncJob<GetUserStatsResponseCallback>(Client, request.SourceJobID).ToLongRunningTask().ConfigureAwait(false);
-    } catch (Exception e) {
+    }
+    catch (Exception e) {
       Bot.ArchiLogger.LogGenericException(e, Caller.Name());
       return null;
     }
@@ -163,7 +165,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
 
     try {
       response = await UnifiedPlayerService.SendMessage(e => e.GetGameAchievements(request)).ToLongRunningTask().ConfigureAwait(false);
-    } catch (Exception e) {
+    }
+    catch (Exception e) {
       ASF.ArchiLogger.LogGenericWarningException(e, Caller.Name());
       return null;
     }
@@ -190,7 +193,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     for (byte i = 0; i < maxTries && productInfoResultSet == null && Bot.IsConnectedAndLoggedOn; i++) {
       try {
         productInfoResultSet = await Bot.SteamApps.PICSGetProductInfo(request.ToEnumerable(), []).ToLongRunningTask().ConfigureAwait(false);
-      } catch (Exception e) {
+      }
+      catch (Exception e) {
         Bot.ArchiLogger.LogGenericWarningException(e, Caller.Name());
       }
     }
@@ -231,7 +235,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     for (byte i = 0; i < maxTries && tokenCallback == null && Bot.IsConnectedAndLoggedOn; i++) {
       try {
         tokenCallback = await Bot.SteamApps.PICSGetAccessTokens(appID, null).ToLongRunningTask().ConfigureAwait(false);
-      } catch (Exception e) {
+      }
+      catch (Exception e) {
         Bot.ArchiLogger.LogGenericWarningException(e, Caller.Name());
       }
     }

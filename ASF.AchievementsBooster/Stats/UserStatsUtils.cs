@@ -123,7 +123,8 @@ internal static class UserStatsUtils {
     uint statMask = (uint) 1 << statToSet.BitNum;
     if (set) {
       currentstat.stat_value |= statMask;
-    } else {
+    }
+    else {
       currentstat.stat_value &= ~statMask;
     }
 

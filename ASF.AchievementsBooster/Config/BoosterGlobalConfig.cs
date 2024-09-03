@@ -50,7 +50,8 @@ public sealed class BoosterGlobalConfig {
     byte newValue = value;
     if (value < (int) rangeAttribute.Minimum) {
       newValue = Convert.ToByte((int) rangeAttribute.Minimum);
-    } else if (value > (int) rangeAttribute.Maximum) {
+    }
+    else if (value > (int) rangeAttribute.Maximum) {
       newValue = Convert.ToByte((int) rangeAttribute.Maximum);
     }
 
