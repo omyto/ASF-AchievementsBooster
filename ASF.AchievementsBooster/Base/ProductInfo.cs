@@ -81,11 +81,11 @@ public sealed class ProductInfo {
     if (extendedProductInfo != KeyValue.Invalid) {
       string? developer = extendedProductInfo["developer"].AsString();
       if (developer != null) {
-        Developers = [developer];
+        Developers = ImmutableHashSet.Create(StringComparer.OrdinalIgnoreCase, [developer]);
       }
       string? publisher = extendedProductInfo["publisher"].AsString();
       if (publisher != null) {
-        Publishers = [publisher];
+        Publishers = ImmutableHashSet.Create(StringComparer.OrdinalIgnoreCase, [publisher]);
       }
 
       string? listOfDlc = extendedProductInfo["listofdlc"].AsString();

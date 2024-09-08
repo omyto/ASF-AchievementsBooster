@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Immutable;
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
@@ -12,6 +13,8 @@ public sealed class BoosterGlobalConfig {
   public const byte DefaultBoostTimeInterval = 15;
   public const byte DefaultExpandBoostTimeInterval = 5;
   public const byte DefaultMaxBoostingApps = 1;
+  public const bool DefaultIgnoreAppWithVAC = true;
+  public const bool DefaultIgnoreAppWithDLC = true;
 
   [JsonInclude]
   public bool Enabled { get; internal set; } = true;
@@ -27,6 +30,18 @@ public sealed class BoosterGlobalConfig {
   [JsonInclude]
   [Range(1, 10)]
   public byte MaxBoostingApps { get; private set; } = DefaultMaxBoostingApps;
+
+  [JsonInclude]
+  public bool IgnoreAppWithVAC { get; private set; } = DefaultIgnoreAppWithVAC;
+
+  [JsonInclude]
+  public bool IgnoreAppWithDLC { get; private set; } = DefaultIgnoreAppWithDLC;
+
+  [JsonInclude]
+  public ImmutableHashSet<string> IgnoreDevelopers { get; private set; } = [];
+
+  [JsonInclude]
+  public ImmutableHashSet<string> IgnorePublishers { get; private set; } = [];
 
   [JsonConstructor]
   internal BoosterGlobalConfig() { }

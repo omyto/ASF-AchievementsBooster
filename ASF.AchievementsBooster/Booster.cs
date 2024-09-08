@@ -262,7 +262,7 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    if (AchievementsBooster.GlobalCache.VACApps.Contains(appID)) {
+    if (AchievementsBooster.Config.IgnoreAppWithVAC && AchievementsBooster.GlobalCache.VACApps.Contains(appID)) {
       return (false, null);
     }
 
@@ -283,13 +283,35 @@ internal sealed class Booster : IDisposable {
 
     if (productInfo.IsVACEnabled) {
       _ = AchievementsBooster.GlobalCache.VACApps.Add(appID);
-      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID), Caller.Name());
+      if (AchievementsBooster.Config.IgnoreAppWithVAC) {
+        Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID), Caller.Name());
+        return (false, null);
+      }
+    }
+
+    if (AchievementsBooster.Config.IgnoreAppWithDLC && productInfo.DLCs.Count > 0) {
+      //TODO: Cache ?
       return (false, null);
+    }
+
+    if (AchievementsBooster.Config.IgnoreDevelopers.Count > 0) {
+      foreach (string developer in AchievementsBooster.Config.IgnoreDevelopers) {
+        if (productInfo.Developers.Contains(developer)) {
+          return (false, null);
+        }
+      }
+    }
+
+    if (AchievementsBooster.Config.IgnorePublishers.Count > 0) {
+      foreach (string publisher in AchievementsBooster.Config.IgnorePublishers) {
+        if (productInfo.Publishers.Contains(publisher)) {
+          return (false, null);
+        }
+      }
     }
 
     if (productInfo.IsAchievementsEnabled.HasValue && !productInfo.IsAchievementsEnabled.Value) {
       _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
-      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID), Caller.Name());
       return (false, null);
     }
 
@@ -297,6 +319,7 @@ internal sealed class Booster : IDisposable {
     if (statDatas == null || statDatas.Count == 0) {
       productInfo.IsAchievementsEnabled = false;
       _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
+      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID), Caller.Name());
       return (false, null);
     }
 
