@@ -89,7 +89,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       app.UnlockFailed(stat);
       Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, app.ID), Caller.Name());
     }
-    return (success, app.UnlockableStats.Count > 0);
+    return (success, app.IsCompletedBoosting);
   }
 
   private async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {

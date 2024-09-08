@@ -21,11 +21,11 @@ internal sealed class AppBooster {
 
   private readonly Dictionary<string, byte> FailedUnlockStats = [];
 
-  internal AppBooster(uint id, ProductInfo info, FrozenDictionary<string, double> achievementPercentages) {
+  internal AppBooster(uint id, ProductInfo info, FrozenDictionary<string, double> achievementPercentages, List<StatData> unlockableStats) {
     ID = id;
     ProductInfo = info;
     AchievementPercentages = achievementPercentages;
-    UnlockableStats = [];
+    UnlockableStats = unlockableStats;
   }
 
   internal void AddAndSortUnlockableStats(List<StatData> unlockableStats) {
@@ -51,4 +51,6 @@ internal sealed class AppBooster {
   }
 
   internal bool ShouldSkipBoosting() => FailedUnlockStats.Count > 0 && FailedUnlockStats.First().Value > MaxUnlockTries;
+
+  internal bool IsCompletedBoosting => UnlockableStats.Count == 0;
 }
