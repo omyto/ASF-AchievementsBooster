@@ -115,6 +115,24 @@ internal sealed class Booster : IDisposable {
   private bool Ready() => OwnedGames.Count > 0 && Bot.IsConnectedAndLoggedOn && Bot.IsPlayingPossible;
 
   private async void OnBoosterTimer(object? state) {
+    if (GlobalConfig.SleepingHours > 0) {
+      DateTime now = DateTime.Now;
+      DateTime weakUpTime = new(now.Year, now.Month, now.Day, 6, 0, 0, 0);
+      if (now < weakUpTime) {
+        DateTime sleepStartTime = weakUpTime.AddHours(-GlobalConfig.SleepingHours);
+        if (now > sleepStartTime) {
+          if (BoostingState == EBoostingState.BoosterPlayed && BoostingApps.Count > 0) {
+            foreach (AppBooster app in BoostingApps.Values) {
+              WaitingApps.Add(app);
+            }
+            BoostingApps.Clear();
+            _ = Bot.Actions.Play([]).ConfigureAwait(false);
+          }
+          return;
+        }
+      }
+    }
+
     if (IsBoostingInProgress) {
       return;
     }

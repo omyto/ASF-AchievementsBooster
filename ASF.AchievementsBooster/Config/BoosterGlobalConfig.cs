@@ -12,6 +12,7 @@ namespace AchievementsBooster.Config;
 public sealed class BoosterGlobalConfig {
   public const byte DefaultBoostTimeInterval = 15;
   public const byte DefaultExpandBoostTimeInterval = 5;
+  public const byte DefaultSleepingHours = 0;
   public const byte DefaultMaxBoostingApps = 1;
   public const byte DefaultMaxBoostingHours = 10;
   public const bool DefaultIgnoreAppWithVAC = true;
@@ -27,6 +28,10 @@ public sealed class BoosterGlobalConfig {
   [JsonInclude]
   [Range(byte.MinValue, byte.MaxValue)]
   public byte ExpandBoostTimeInterval { get; private set; } = DefaultExpandBoostTimeInterval;
+
+  [JsonInclude]
+  [Range(byte.MinValue, 12)]
+  public byte SleepingHours { get; private set; } = DefaultSleepingHours;
 
   [JsonInclude]
   [Range(1, 10)]
