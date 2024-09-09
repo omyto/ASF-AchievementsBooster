@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
+using AchievementsBooster.Config;
 using AchievementsBooster.Extensions;
 using AchievementsBooster.Stats;
 using ArchiSteamFarm.Core;
@@ -19,6 +20,9 @@ using SteamKit2;
 namespace AchievementsBooster;
 
 internal sealed class Booster : IDisposable {
+  internal static BoosterGlobalConfig GlobalConfig => AchievementsBooster.Config;
+  internal static GlobalCache GlobalCache => AchievementsBooster.GlobalCache;
+
   internal BoosterHandler BoosterHandler { get; }
 
   private readonly Bot Bot;
@@ -34,6 +38,10 @@ internal sealed class Booster : IDisposable {
   // Boosting status
   private EBoostingState BoostingState = EBoostingState.None;
   private Dictionary<uint, AppBooster> BoostingApps = [];
+
+  //
+  private double LastDueTime;
+  private readonly List<AppBooster> WaitingApps = [];
 
   internal Booster(Bot bot) {
     Bot = bot;
@@ -118,11 +126,12 @@ internal sealed class Booster : IDisposable {
     IsBoostingInProgress = false;
 
     // Calculate the delay time for the next boosting
-    TimeSpan dueTime = TimeSpan.FromMinutes(AchievementsBooster.Config.BoostTimeInterval);
-    if (AchievementsBooster.Config.ExpandBoostTimeInterval > 0) {
-      dueTime += TimeSpanUtils.InMinutesRange(0, AchievementsBooster.Config.ExpandBoostTimeInterval);
+    TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval);
+    if (GlobalConfig.ExpandBoostTimeInterval > 0) {
+      dueTime += TimeSpanUtils.InMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
     }
     _ = BoosterTimer?.Change(dueTime, Timeout.InfiniteTimeSpan);
+    LastDueTime = dueTime.TotalHours;
   }
 
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
@@ -179,9 +188,46 @@ internal sealed class Booster : IDisposable {
     // Switch the state if difference
     BoostingState = newState;
 
+    if (GlobalConfig.MaxBoostingHours > 0) {
+      // Update boosting hours
+      DateTime now = DateTime.Now;
+      List<AppBooster> newWaitingApps = [];
+      foreach (AppBooster app in BoostingApps.Values) {
+        app.ContinuousBoostingHours += LastDueTime;
+        app.LastPlayedTime = now;
+
+        if (app.ContinuousBoostingHours >= GlobalConfig.MaxBoostingHours) {
+          _ = keepBoostingApps.Remove(app.ID);
+          newWaitingApps.Add(app);
+        }
+      }
+
+      // Add new apps for boosting from WaitingApps
+      for (int i = 0; i < WaitingApps.Count; i++) {
+        if (keepBoostingApps.Count >= GlobalConfig.MaxBoostingApps) {
+          break;
+        }
+
+        AppBooster app = WaitingApps[i];
+        if (keepBoostingApps.ContainsKey(app.ID)) {
+          continue;
+        }
+
+        if ((now - app.LastPlayedTime).TotalHours > (GlobalConfig.MaxBoostingHours * 2.0 / 3.0)) {
+          app.ContinuousBoostingHours = 0;
+          keepBoostingApps.Add(app.ID, app);
+          WaitingApps.RemoveAt(i);
+          i--;
+        }
+      }
+
+      // Add new waiting list
+      WaitingApps.AddRange(newWaitingApps);
+    }
+
     // Add new apps for boosting
     foreach (uint appID in toBeBoostedApps) {
-      if (keepBoostingApps.Count >= AchievementsBooster.Config.MaxBoostingApps) {
+      if (keepBoostingApps.Count >= GlobalConfig.MaxBoostingApps) {
         break;
       }
 
@@ -258,11 +304,11 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    if (AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID)) {
+    if (GlobalCache.NonAchievementApps.Contains(appID)) {
       return (false, null);
     }
 
-    if (AchievementsBooster.Config.IgnoreAppWithVAC && AchievementsBooster.GlobalCache.VACApps.Contains(appID)) {
+    if (GlobalConfig.IgnoreAppWithVAC && GlobalCache.VACApps.Contains(appID)) {
       return (false, null);
     }
 
@@ -282,28 +328,28 @@ internal sealed class Booster : IDisposable {
     }
 
     if (productInfo.IsVACEnabled) {
-      _ = AchievementsBooster.GlobalCache.VACApps.Add(appID);
-      if (AchievementsBooster.Config.IgnoreAppWithVAC) {
+      _ = GlobalCache.VACApps.Add(appID);
+      if (GlobalConfig.IgnoreAppWithVAC) {
         Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID), Caller.Name());
         return (false, null);
       }
     }
 
-    if (AchievementsBooster.Config.IgnoreAppWithDLC && productInfo.DLCs.Count > 0) {
+    if (GlobalConfig.IgnoreAppWithDLC && productInfo.DLCs.Count > 0) {
       //TODO: Cache ?
       return (false, null);
     }
 
-    if (AchievementsBooster.Config.IgnoreDevelopers.Count > 0) {
-      foreach (string developer in AchievementsBooster.Config.IgnoreDevelopers) {
+    if (GlobalConfig.IgnoreDevelopers.Count > 0) {
+      foreach (string developer in GlobalConfig.IgnoreDevelopers) {
         if (productInfo.Developers.Contains(developer)) {
           return (false, null);
         }
       }
     }
 
-    if (AchievementsBooster.Config.IgnorePublishers.Count > 0) {
-      foreach (string publisher in AchievementsBooster.Config.IgnorePublishers) {
+    if (GlobalConfig.IgnorePublishers.Count > 0) {
+      foreach (string publisher in GlobalConfig.IgnorePublishers) {
         if (productInfo.Publishers.Contains(publisher)) {
           return (false, null);
         }
@@ -311,14 +357,14 @@ internal sealed class Booster : IDisposable {
     }
 
     if (productInfo.IsAchievementsEnabled.HasValue && !productInfo.IsAchievementsEnabled.Value) {
-      _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
+      _ = GlobalCache.NonAchievementApps.Add(appID);
       return (false, null);
     }
 
     List<StatData>? statDatas = await BoosterHandler.GetStats(appID).ConfigureAwait(false);
     if (statDatas == null || statDatas.Count == 0) {
       productInfo.IsAchievementsEnabled = false;
-      _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
+      _ = GlobalCache.NonAchievementApps.Add(appID);
       Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID), Caller.Name());
       return (false, null);
     }

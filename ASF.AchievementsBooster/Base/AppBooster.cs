@@ -1,4 +1,5 @@
 
+using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,6 +14,10 @@ internal sealed class AppBooster {
 
   internal string Name => ProductInfo.Name;
 
+  internal double ContinuousBoostingHours { get; set; }
+
+  internal DateTime LastPlayedTime { get; set; }
+
   internal ProductInfo ProductInfo { get; }
 
   internal FrozenDictionary<string, double> AchievementPercentages { get; }
@@ -26,6 +31,7 @@ internal sealed class AppBooster {
     ProductInfo = info;
     AchievementPercentages = achievementPercentages;
     UnlockableStats = unlockableStats;
+    ContinuousBoostingHours = 0;
   }
 
   internal void AddAndSortUnlockableStats(List<StatData> unlockableStats) {

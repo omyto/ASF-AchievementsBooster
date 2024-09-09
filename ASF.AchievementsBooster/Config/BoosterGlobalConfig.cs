@@ -13,6 +13,7 @@ public sealed class BoosterGlobalConfig {
   public const byte DefaultBoostTimeInterval = 15;
   public const byte DefaultExpandBoostTimeInterval = 5;
   public const byte DefaultMaxBoostingApps = 1;
+  public const byte DefaultMaxBoostingHours = 10;
   public const bool DefaultIgnoreAppWithVAC = true;
   public const bool DefaultIgnoreAppWithDLC = true;
 
@@ -30,6 +31,10 @@ public sealed class BoosterGlobalConfig {
   [JsonInclude]
   [Range(1, 10)]
   public byte MaxBoostingApps { get; private set; } = DefaultMaxBoostingApps;
+
+  [JsonInclude]
+  [Range(byte.MinValue, byte.MaxValue)]
+  public byte MaxBoostingHours { get; private set; } = DefaultMaxBoostingHours;
 
   [JsonInclude]
   public bool IgnoreAppWithVAC { get; private set; } = DefaultIgnoreAppWithVAC;
@@ -51,6 +56,16 @@ public sealed class BoosterGlobalConfig {
     foreach (PropertyInfo property in properties) {
       if (property.PropertyType == typeof(byte)) {
         ValidateRange(property);
+      }
+    }
+
+    // MaxBoostingHours must be greater than the maximum duration of the boosting cycle
+    if (MaxBoostingHours > 0) {
+      int maxTimeInterval = BoostTimeInterval + ExpandBoostTimeInterval;
+      if (maxTimeInterval > 60 * MaxBoostingHours) {
+        byte newMaxBoostingHours = (byte) Math.Ceiling(maxTimeInterval / 60.0);
+        ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingHours), MaxBoostingHours, newMaxBoostingHours), Caller.Name());
+        MaxBoostingHours = newMaxBoostingHours;
       }
     }
   }
