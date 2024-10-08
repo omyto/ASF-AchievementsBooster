@@ -25,7 +25,7 @@ internal static class CommandsHandler {
 
     switch (args[0].ToUpperInvariant()) {
       case "ABSTART":
-        return args.Length == 1 ? await ResponseStart(access, bot).ConfigureAwait(false) : await ResponseStart(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
+        return args.Length == 1 ? ResponseStart(access, bot) : await ResponseStart(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
       case "ABSTOP":
         return args.Length == 1 ? ResponseStop(access, bot) : await ResponseStop(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
       default:
@@ -50,7 +50,7 @@ internal static class CommandsHandler {
     return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
   }
 
-  private static async Task<string?> ResponseStart(EAccess access, Bot bot) {
+  private static string? ResponseStart(EAccess access, Bot bot) {
     if (access < EAccess.Master) {
       return null;
     }
@@ -59,7 +59,7 @@ internal static class CommandsHandler {
       return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
 
-    string response = await booster.Start(true).ConfigureAwait(false);
+    string response = booster.Start(true);
     return bot.Commands.FormatBotResponse(response);
   }
 

@@ -74,18 +74,12 @@ internal sealed class Booster : IDisposable {
     return Task.CompletedTask;
   }
 
-  internal async Task<string> Start(bool command = false) {
+  internal string Start(bool command = false) {
     if (IsBoostingStarted) {
       Bot.ArchiLogger.LogGenericWarning(Messages.BoostingStarted, Caller.Name());
       return Messages.BoostingStarted;
     }
     IsBoostingStarted = true;
-
-    if (OwnedGames.Count == 0) {
-      OwnedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false) ?? [];
-      BoostableGames = [.. OwnedGames.Keys];
-      Bot.ArchiLogger.LogGenericTrace($"OwnedGames: {string.Join(",", OwnedGames.Keys)}", Caller.Name());
-    }
 
     Bot.ArchiLogger.LogGenericInfo("Achievements Booster Starting...", Caller.Name());
     TimeSpan dueTime = command ? TimeSpan.Zero : TimeSpan.FromMinutes(Constants.AutoStartDelayTime);
@@ -115,6 +109,12 @@ internal sealed class Booster : IDisposable {
   private bool Ready() => OwnedGames.Count > 0 && Bot.IsConnectedAndLoggedOn && Bot.IsPlayingPossible;
 
   private async void OnBoosterTimer(object? state) {
+    if (OwnedGames.Count == 0) {
+      OwnedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false) ?? [];
+      BoostableGames = [.. OwnedGames.Keys];
+      Bot.ArchiLogger.LogGenericTrace($"OwnedGames: {string.Join(",", OwnedGames.Keys)}", Caller.Name());
+    }
+
     if (GlobalConfig.SleepingHours > 0) {
       DateTime now = DateTime.Now;
       DateTime weakUpTime = new(now.Year, now.Month, now.Day, 6, 0, 0, 0);
@@ -396,6 +396,10 @@ internal sealed class Booster : IDisposable {
 
     FrozenDictionary<string, double>? percentages = await BoosterHandler.GetAppAchievementPercentages(appID).ConfigureAwait(false);
     if (percentages == null) {
+      return (false, null);
+    }
+
+    if (percentages.Count == 0) {
       return (false, null);
     }
 
