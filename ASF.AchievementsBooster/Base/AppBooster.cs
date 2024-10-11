@@ -18,13 +18,15 @@ internal sealed class AppBooster {
 
   internal DateTime LastPlayedTime { get; set; }
 
-  internal ProductInfo ProductInfo { get; }
+  internal bool HasRemainingAchievements => UnlockableStats.Count > 0;
 
-  internal FrozenDictionary<string, double> AchievementPercentages { get; }
+  private readonly ProductInfo ProductInfo;
 
-  internal List<StatData> UnlockableStats { get; private set; }
+  private readonly FrozenDictionary<string, double> AchievementPercentages;
 
   private readonly Dictionary<string, byte> FailedUnlockStats = [];
+
+  private List<StatData> UnlockableStats { get; set; }
 
   internal AppBooster(uint id, ProductInfo info, FrozenDictionary<string, double> achievementPercentages, List<StatData> unlockableStats) {
     ID = id;
@@ -34,29 +36,41 @@ internal sealed class AppBooster {
     ContinuousBoostingHours = 0;
   }
 
-  internal void AddAndSortUnlockableStats(List<StatData> unlockableStats) {
-    UnlockableStats = unlockableStats;
-    if (UnlockableStats.Count > 1) {
-      foreach (StatData statData in UnlockableStats) {
-        if (AchievementPercentages.TryGetValue(statData.APIName, out double percentage)) {
-          statData.Percentage = percentage;
-        }
-      }
-      UnlockableStats.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
+  internal StatData? GetUpcomingUnlockableStat(List<StatData> statDatas) {
+    UnlockableStats = statDatas.Where(e => e.Unlockable()).ToList();
+    if (UnlockableStats.Count == 0) {
+      return null;
     }
+
+    foreach (StatData statData in UnlockableStats) {
+      if (AchievementPercentages.TryGetValue(statData.APIName, out double percentage)) {
+        statData.Percentage = percentage;
+      }
+    }
+    UnlockableStats.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
+
+    return UnlockableStats.First();
   }
 
-  internal void UnlockFailed(StatData statData) {
-    if (FailedUnlockStats.TryGetValue(statData.APIName, out byte count)) {
-      FailedUnlockStats[statData.APIName] = ++count;
+  internal void UpdateUnlockStatus(StatData stat, bool success) {
+    if (success) {
+      for (int i = 0; i < UnlockableStats.Count; i++) {
+        if (stat.APIName.Equals(UnlockableStats[i].APIName, StringComparison.Ordinal)) {
+          UnlockableStats.RemoveAt(i);
+          break;
+        }
+      }
     }
     else {
-      FailedUnlockStats.Clear();
-      _ = FailedUnlockStats.TryAdd(statData.APIName, 1);
+      if (FailedUnlockStats.TryGetValue(stat.APIName, out byte count)) {
+        FailedUnlockStats[stat.APIName] = ++count;
+      }
+      else {
+        FailedUnlockStats.Clear();
+        _ = FailedUnlockStats.TryAdd(stat.APIName, 1);
+      }
     }
   }
 
   internal bool ShouldSkipBoosting() => FailedUnlockStats.Count > 0 && FailedUnlockStats.First().Value > MaxUnlockTries;
-
-  internal bool IsCompletedBoosting => UnlockableStats.Count == 0;
 }

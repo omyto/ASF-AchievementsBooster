@@ -64,32 +64,31 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     return response.StatDatas;
   }
 
-  internal async Task<(bool success, bool completed)> UnlockNextStat(AppBooster app) {
+  internal async Task<bool> UnlockNextStat(AppBooster app) {
     GetUserStatsResponseCallback? response = await RequestUserStats(app.ID).ConfigureAwait(false);
     if (response == null || !response.Success) {
       string message = string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, app.ID);
       Bot.ArchiLogger.LogGenericDebug(message, Caller.Name());
-      return (false, false);
+      return false;
     }
 
-    app.AddAndSortUnlockableStats(response.StatDatas.Where(e => e.Unlockable()).ToList());
-    if (app.UnlockableStats.Count == 0) {
+    StatData? nextStat = app.GetUpcomingUnlockableStat(response.StatDatas);
+    if (nextStat == null) {
       Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, app.ID), Caller.Name());
-      return (true, true);
+      return false;
     }
 
     // Unlock next achievement
-    StatData stat = app.UnlockableStats.First();
-    bool success = await UnlockStat(app.ID, stat, response.CrcStats).ConfigureAwait(false);
+    bool success = await UnlockStat(app.ID, nextStat, response.CrcStats).ConfigureAwait(false);
+    app.UpdateUnlockStatus(nextStat, success);
+
     if (success) {
-      app.UnlockableStats.RemoveAt(0);
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, stat.Name, app.ID), Caller.Name());
+      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, nextStat.Name, app.ID), Caller.Name());
     }
     else {
-      app.UnlockFailed(stat);
-      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, stat.Name, app.ID), Caller.Name());
+      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, nextStat.Name, app.ID), Caller.Name());
     }
-    return (success, app.IsCompletedBoosting);
+    return success;
   }
 
   private async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {

@@ -298,7 +298,7 @@ internal sealed class Booster : IDisposable {
   private async Task<bool> UnlockAchievement(AppBooster app) {
     _ = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
 
-    if (app.IsCompletedBoosting) {
+    if (!app.HasRemainingAchievements) {
       _ = Cache.PerfectGames.Add(app.ID);
       _ = BoostableGames.Remove(app.ID);
       Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name), Caller.Name());
