@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using AchievementsBooster.Base;
 using AchievementsBooster.Config;
 using AchievementsBooster.Extensions;
+using AchievementsBooster.Logger;
 using AchievementsBooster.Stats;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
@@ -27,6 +28,7 @@ internal sealed class Booster : IDisposable {
 
   private readonly Bot Bot;
   private readonly BotCache Cache;
+  private readonly PLogger Logger;
 
   private bool IsBoostingStarted;
   private bool IsBoostingInProgress;
@@ -45,7 +47,8 @@ internal sealed class Booster : IDisposable {
 
   internal Booster(Bot bot) {
     Bot = bot;
-    BoosterHandler = new BoosterHandler(bot);
+    Logger = new PLogger(Bot.ArchiLogger);
+    BoosterHandler = new BoosterHandler(bot, Logger);
     IsBoostingStarted = false;
     IsBoostingInProgress = false;
     OwnedGames = [];
@@ -76,12 +79,12 @@ internal sealed class Booster : IDisposable {
 
   internal string Start(bool command = false) {
     if (IsBoostingStarted) {
-      Bot.ArchiLogger.LogGenericWarning(Messages.BoostingStarted, Caller.Name());
+      Logger.Warning(Messages.BoostingStarted);
       return Messages.BoostingStarted;
     }
     IsBoostingStarted = true;
 
-    Bot.ArchiLogger.LogGenericInfo("Achievements Booster Starting...", Caller.Name());
+    Logger.Info("Achievements Booster Starting...");
     TimeSpan dueTime = command ? TimeSpan.Zero : TimeSpan.FromMinutes(Constants.AutoStartDelayTime);
     BoosterTimer = new Timer(OnBoosterTimer, null, dueTime, Timeout.InfiniteTimeSpan);
 
@@ -90,7 +93,7 @@ internal sealed class Booster : IDisposable {
 
   internal string Stop() {
     if (!IsBoostingStarted) {
-      Bot.ArchiLogger.LogGenericWarning(Messages.BoostingNotStart, Caller.Name());
+      Logger.Warning(Messages.BoostingNotStart);
       return Messages.BoostingNotStart;
     }
     IsBoostingStarted = false;
@@ -101,7 +104,7 @@ internal sealed class Booster : IDisposable {
     BoostingState = EBoostingState.None;
     BoostingApps.Clear();
     BoosterTimer?.Dispose();
-    Bot.ArchiLogger.LogGenericInfo("Achievements Booster Stopped!", Caller.Name());
+    Logger.Info("Achievements Booster Stopped!");
 
     return Strings.Done;
   }
@@ -112,7 +115,7 @@ internal sealed class Booster : IDisposable {
     if (OwnedGames.Count == 0) {
       OwnedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false) ?? [];
       BoostableGames = [.. OwnedGames.Keys];
-      Bot.ArchiLogger.LogGenericTrace($"OwnedGames: {string.Join(",", OwnedGames.Keys)}", Caller.Name());
+      Logger.Trace($"OwnedGames: {string.Join(",", OwnedGames.Keys)}");
     }
 
     if (GlobalConfig.SleepingHours > 0) {
@@ -166,9 +169,9 @@ internal sealed class Booster : IDisposable {
   }
 
   private async Task<bool> BoostingAchievements() {
-    Bot.ArchiLogger.LogGenericDebug("Boosting is in progress...", Caller.Name());
+    Logger.Debug("Boosting is in progress...");
     if (!Ready()) {
-      Bot.ArchiLogger.LogGenericWarning("Bot not ready!", Caller.Name());
+      Logger.Warning("Bot not ready!");
       return false;
     }
 
@@ -272,18 +275,18 @@ internal sealed class Booster : IDisposable {
       string message = isBoosting ? string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys))
         : (BoostingState is EBoostingState.ArchiFarming ? Messages.NoBoostingAppsInArchiFarming : Messages.NoBoostingAppsInArchiPlayedWhileIdle);
 
-      Bot.ArchiLogger.LogGenericInfo(message, Caller.Name());
+      Logger.Info(message);
       return isBoosting;
     }
 
     // Manual play & and boosting by AchievementsBooster
     if (BoostingApps.Count > 0) {
       List<uint> playAppIDs = [.. BoostingApps.Keys];
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", playAppIDs)), Caller.Name());
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", playAppIDs)));
       (bool success, string message) = await Bot.Actions.Play(playAppIDs).ConfigureAwait(false);
       if (!success) {
         BoostingState = EBoostingState.None;
-        Bot.ArchiLogger.LogGenericWarning($"Boosting apps failed! Reason: {message}", Caller.Name());
+        Logger.Warning($"Boosting apps failed! Reason: {message}");
         return false;
       }
       return true;
@@ -301,7 +304,7 @@ internal sealed class Booster : IDisposable {
     if (!app.HasRemainingAchievements) {
       _ = Cache.PerfectGames.Add(app.ID);
       _ = BoostableGames.Remove(app.ID);
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name), Caller.Name());
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name));
       return false;
     }
     else if (!app.ShouldSkipBoosting()) {
@@ -313,12 +316,12 @@ internal sealed class Booster : IDisposable {
   private async Task<(bool boostable, AppBooster? app)> GetAppForBoosting(uint appID) {
     if (!OwnedGames.ContainsKey(appID)) {
       // Oh God! Why?
-      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID), Caller.Name());
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID));
       return (false, null);
     }
 
     if (ASF.GlobalConfig?.Blacklist.Contains(appID) == true) {
-      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID), Caller.Name());
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
       return (false, null);
     }
 
@@ -336,19 +339,19 @@ internal sealed class Booster : IDisposable {
 
     ProductInfo? productInfo = await BoosterHandler.GetProductInfo(appID).ConfigureAwait(false);
     if (productInfo == null) {
-      Bot.ArchiLogger.LogGenericWarning($"Can't get product info for app {appID}", Caller.Name());
+      Logger.Warning($"Can't get product info for app {appID}");
       return (false, null);
     }
 
     if (!productInfo.IsPlayable()) {
-      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.InvalidApp, appID), Caller.Name());
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.InvalidApp, appID));
       return (false, null);
     }
 
     if (productInfo.IsVACEnabled) {
       _ = GlobalCache.VACApps.Add(appID);
       if (GlobalConfig.IgnoreAppWithVAC) {
-        Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID), Caller.Name());
+        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID));
         return (false, null);
       }
     }
@@ -383,14 +386,14 @@ internal sealed class Booster : IDisposable {
     if (statDatas == null || statDatas.Count == 0) {
       productInfo.IsAchievementsEnabled = false;
       _ = GlobalCache.NonAchievementApps.Add(appID);
-      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID), Caller.Name());
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
       return (false, null);
     }
 
     List<StatData> unlockableStats = statDatas.Where(e => e.Unlockable()).ToList();
     if (unlockableStats.Count == 0) {
       _ = Cache.PerfectGames.Add(appID);
-      Bot.ArchiLogger.LogGenericDebug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID), Caller.Name());
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID));
       return (false, null);
     }
 

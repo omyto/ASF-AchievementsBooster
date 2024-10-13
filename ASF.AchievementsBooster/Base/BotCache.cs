@@ -38,7 +38,7 @@ internal sealed class BotCache {
         }
       }
       catch (Exception ex) {
-        bot.ArchiLogger.LogGenericException(ex, Caller.Name());
+        bot.ArchiLogger.LogGenericException(ex, $"{nameof(AchievementsBooster)}|{nameof(LoadFromDatabase)}");
       }
     }
 

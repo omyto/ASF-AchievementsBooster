@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
 using AchievementsBooster.Config;
+using AchievementsBooster.Logger;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Plugins.Interfaces;
@@ -17,6 +18,8 @@ namespace AchievementsBooster;
 
 [Export(typeof(IPlugin))]
 internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnection, IBotSteamClient, IBotCommand2 {
+
+  internal static readonly PLogger GlobalLogger = new(ASF.ArchiLogger);
 
   internal static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
@@ -51,7 +54,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
             Config.Validate();
           }
           else {
-            ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.PluginDisabledInConfig, Name), Caller.Name());
+            GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.PluginDisabledInConfig, Name));
           }
         }
       }
@@ -78,7 +81,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
         _ = booster.Stop();
       }
       else {
-        ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName), Caller.Name());
+        GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
       }
     }
     return Task.CompletedTask;
@@ -90,7 +93,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
         _ = booster.Start();
       }
       else {
-        ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName), Caller.Name());
+        GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
       }
     }
     return Task.CompletedTask;
@@ -105,7 +108,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
       if (Boosters.TryGetValue(bot, out Booster? booster)) {
         return booster.OnInitModules(additionalConfigProperties);
       }
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName), Caller.Name());
+      GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
     return Task.CompletedTask;
   }
@@ -117,7 +120,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
       if (Boosters.TryGetValue(bot, out Booster? botBooster)) {
         return botBooster.OnSteamCallbacksInit(callbackManager);
       }
-      ASF.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName), Caller.Name());
+      GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
     return Task.CompletedTask;
   }
@@ -131,7 +134,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
       }
 
       booster.Destroy();
-      ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName), Caller.Name());
+      GlobalLogger.Error(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
     }
     return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(null);
   }

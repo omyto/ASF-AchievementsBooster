@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using ArchiSteamFarm;
-using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
 using SteamKit2;
 using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
@@ -93,7 +92,7 @@ public sealed class ProductInfo {
         DLCs = listOfDlc.Split(SharedInfo.ListElementSeparators, StringSplitOptions.RemoveEmptyEntries)
         .Select(e => {
           if (!uint.TryParse(e, out uint id) || id == 0) {
-            ASF.ArchiLogger.LogGenericWarning($"Invalid DLC ID {e} for app {productInfoApp.ID}", Caller.Name());
+            AchievementsBooster.GlobalLogger.Warning($"Invalid DLC ID {e} for app {productInfoApp.ID}");
             return (uint) 0;
           }
           return id;
@@ -113,7 +112,7 @@ public sealed class ProductInfo {
       case "PRELOADONLY" or "PRERELEASE":
         return false;
       default:
-        ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Strings.WarningUnknownValuePleaseReport, nameof(ReleaseState), ReleaseState), Caller.Name());
+        AchievementsBooster.GlobalLogger.Error(string.Format(CultureInfo.CurrentCulture, Strings.WarningUnknownValuePleaseReport, nameof(ReleaseState), ReleaseState));
         break;
     }
 

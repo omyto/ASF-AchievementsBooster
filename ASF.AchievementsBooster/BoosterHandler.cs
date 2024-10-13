@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
+using AchievementsBooster.Logger;
 using AchievementsBooster.Stats;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam;
@@ -25,10 +26,14 @@ internal sealed class BoosterHandler : ClientMsgHandler {
   private static readonly ConcurrentDictionary<uint, FrozenDictionary<string, double>> GlobalAchievementPercentages = new();
 
   private readonly Bot Bot;
+  private readonly PLogger Logger;
 
   private SteamUnifiedMessages.UnifiedService<IPlayer>? UnifiedPlayerService;
 
-  internal BoosterHandler(Bot bot) => Bot = bot;
+  internal BoosterHandler(Bot bot, PLogger logger) {
+    Bot = bot;
+    Logger = logger;
+  }
 
   internal void Init() {
     ArgumentNullException.ThrowIfNull(Client);
@@ -57,7 +62,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
   internal async Task<List<StatData>?> GetStats(uint appID) {
     GetUserStatsResponseCallback? response = await RequestUserStats(appID).ConfigureAwait(false);
     if (response == null || !response.Success) {
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID), Caller.Name());
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID));
       return null;
     }
 
@@ -68,13 +73,13 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     GetUserStatsResponseCallback? response = await RequestUserStats(app.ID).ConfigureAwait(false);
     if (response == null || !response.Success) {
       string message = string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, app.ID);
-      Bot.ArchiLogger.LogGenericDebug(message, Caller.Name());
+      Logger.Debug(message);
       return false;
     }
 
     StatData? nextStat = app.GetUpcomingUnlockableStat(response.StatDatas);
     if (nextStat == null) {
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, app.ID), Caller.Name());
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, app.ID));
       return false;
     }
 
@@ -83,10 +88,10 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     app.UpdateUnlockStatus(nextStat, success);
 
     if (success) {
-      Bot.ArchiLogger.LogGenericInfo(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, nextStat.Name, app.ID), Caller.Name());
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, nextStat.Name, app.ID));
     }
     else {
-      Bot.ArchiLogger.LogGenericWarning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, nextStat.Name, app.ID), Caller.Name());
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, nextStat.Name, app.ID));
     }
     return success;
   }
@@ -124,7 +129,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       return await new AsyncJob<GetUserStatsResponseCallback>(Client, request.SourceJobID).ToLongRunningTask().ConfigureAwait(false);
     }
     catch (Exception e) {
-      Bot.ArchiLogger.LogGenericException(e, Caller.Name());
+      Logger.Exception(e);
       return null;
     }
   }
@@ -136,13 +141,13 @@ internal sealed class BoosterHandler : ClientMsgHandler {
 
     List<GameAchievement>? gameAchievements = await GetGameAchievements(appID).ConfigureAwait(false);
     if (gameAchievements == null) {
-      Bot.ArchiLogger.LogGenericWarning($"No global achievement percentages exist for app {appID}", Caller.Name());
+      Logger.Warning($"No global achievement percentages exist for app {appID}");
       return null;
     }
 
     percentages = gameAchievements.ToFrozenDictionary(k => k.internal_name, v => double.TryParse(v.player_percent_unlocked, out double value) ? value : 0.0);
     if (!GlobalAchievementPercentages.TryAdd(appID, percentages)) {
-      Bot.ArchiLogger.LogGenericWarning($"The global achievement percentages for app {appID} are already present", Caller.Name());
+      Logger.Warning($"The global achievement percentages for app {appID} are already present");
     }
     return percentages;
   }
@@ -165,8 +170,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     try {
       response = await UnifiedPlayerService.SendMessage(e => e.GetGameAchievements(request)).ToLongRunningTask().ConfigureAwait(false);
     }
-    catch (Exception e) {
-      ASF.ArchiLogger.LogGenericWarningException(e, Caller.Name());
+    catch (Exception exception) {
+      AchievementsBooster.GlobalLogger.Warning(exception);
       return null;
     }
 
@@ -193,8 +198,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       try {
         productInfoResultSet = await Bot.SteamApps.PICSGetProductInfo(request.ToEnumerable(), []).ToLongRunningTask().ConfigureAwait(false);
       }
-      catch (Exception e) {
-        Bot.ArchiLogger.LogGenericWarningException(e, Caller.Name());
+      catch (Exception exception) {
+        Logger.Warning(exception);
       }
     }
 
@@ -206,11 +211,11 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       if (!productInfoApps.TryGetValue(appID, out PICSProductInfo? productInfoApp)) {
         continue;
       }
-      Bot.ArchiLogger.LogGenericTrace($"PICSProductInfo {appID}: {JsonSerializer.Serialize(productInfoApp)}", Caller.Name());
+      Logger.Trace($"PICSProductInfo {appID}: {JsonSerializer.Serialize(productInfoApp)}");
 
       KeyValue productInfo = productInfoApp.KeyValues;
       if (productInfo == KeyValue.Invalid) {
-        Bot.ArchiLogger.LogNullError(productInfo, Caller.Name());
+        Logger.NullError(productInfo);
         break;
       }
 
@@ -220,7 +225,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       }
 
       info = new ProductInfo(productInfoApp);
-      Bot.ArchiLogger.LogGenericTrace($"ProductInfo {appID}: {JsonSerializer.Serialize(info)}", Caller.Name());
+      Logger.Trace($"ProductInfo {appID}: {JsonSerializer.Serialize(info)}");
       _ = AllProducts.TryAdd(appID, info);
       return info;
     }
@@ -235,8 +240,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       try {
         tokenCallback = await Bot.SteamApps.PICSGetAccessTokens(appID, null).ToLongRunningTask().ConfigureAwait(false);
       }
-      catch (Exception e) {
-        Bot.ArchiLogger.LogGenericWarningException(e, Caller.Name());
+      catch (Exception exception) {
+        Logger.Warning(exception);
       }
     }
 

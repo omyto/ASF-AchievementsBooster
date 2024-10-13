@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using AchievementsBooster.Base;
-using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
 using SteamKit2;
 using SteamKit2.Internal;
@@ -20,7 +18,7 @@ internal static class UserStatsUtils {
     if (response.schema != null) {
       using (MemoryStream ms = new(response.schema)) {
         if (!keyValues.TryReadAsBinary(ms)) {
-          ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(response.schema)), Caller.Name());
+          AchievementsBooster.GlobalLogger.Error(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(response.schema)));
           return null;
         };
       }
@@ -39,7 +37,7 @@ internal static class UserStatsUtils {
                 string? dependancyName = (achievement.Children.Find(child => child.Name == "progress") == null) ? "" : achievement.Children.Find(child => child.Name == "progress")?.Children?.Find(child => child.Name == "value")?.Children?.Find(child => child.Name == "operand1")?.Value;
 
                 if (!uint.TryParse((achievement.Children.Find(child => child.Name == "progress") == null) ? "0" : achievement.Children.Find(child => child.Name == "progress")!.Children.Find(child => child.Name == "max_val")?.Value, out uint dependancyValue)) {
-                  ASF.ArchiLogger.LogGenericError(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(dependancyValue)), Caller.Name());
+                  AchievementsBooster.GlobalLogger.Error(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(dependancyValue)));
                   return null;
                 }
 
