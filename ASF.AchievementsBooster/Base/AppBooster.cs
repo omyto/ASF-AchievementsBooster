@@ -1,6 +1,5 @@
 
 using System;
-using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Linq;
 using AchievementsBooster.Stats;
@@ -22,13 +21,13 @@ internal sealed class AppBooster {
 
   private readonly ProductInfo ProductInfo;
 
-  private readonly FrozenDictionary<string, double> AchievementPercentages;
+  private readonly AchievementPercentages AchievementPercentages;
 
   private readonly Dictionary<string, byte> FailedUnlockStats = [];
 
   private List<StatData> UnlockableStats { get; set; }
 
-  internal AppBooster(uint id, ProductInfo info, FrozenDictionary<string, double> achievementPercentages, List<StatData> unlockableStats) {
+  internal AppBooster(uint id, ProductInfo info, AchievementPercentages achievementPercentages, List<StatData> unlockableStats) {
     ID = id;
     ProductInfo = info;
     AchievementPercentages = achievementPercentages;
@@ -43,9 +42,7 @@ internal sealed class AppBooster {
     }
 
     foreach (StatData statData in UnlockableStats) {
-      if (AchievementPercentages.TryGetValue(statData.APIName, out double percentage)) {
-        statData.Percentage = percentage;
-      }
+      statData.Percentage = AchievementPercentages.GetPercentage(statData.APIName, 0);
     }
     UnlockableStats.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
 

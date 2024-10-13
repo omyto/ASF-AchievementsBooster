@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -21,10 +20,6 @@ using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductI
 namespace AchievementsBooster;
 
 internal sealed class BoosterHandler : ClientMsgHandler {
-  // Global
-  private static readonly ConcurrentDictionary<uint, ProductInfo> AllProducts = new();
-  private static readonly ConcurrentDictionary<uint, FrozenDictionary<string, double>> GlobalAchievementPercentages = new();
-
   private readonly Bot Bot;
   private readonly PLogger Logger;
 
@@ -134,22 +129,15 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     }
   }
 
-  internal async Task<FrozenDictionary<string, double>?> GetAppAchievementPercentages(uint appID) {
-    if (GlobalAchievementPercentages.TryGetValue(appID, out FrozenDictionary<string, double>? percentages)) {
-      return percentages;
-    }
-
+  internal async Task<AchievementPercentages?> GetAchievementPercentages(uint appID) {
     List<GameAchievement>? gameAchievements = await GetGameAchievements(appID).ConfigureAwait(false);
-    if (gameAchievements == null) {
+    if (gameAchievements == null || gameAchievements.Count == 0) {
       Logger.Warning($"No global achievement percentages exist for app {appID}");
       return null;
     }
 
-    percentages = gameAchievements.ToFrozenDictionary(k => k.internal_name, v => double.TryParse(v.player_percent_unlocked, out double value) ? value : 0.0);
-    if (!GlobalAchievementPercentages.TryAdd(appID, percentages)) {
-      Logger.Warning($"The global achievement percentages for app {appID} are already present");
-    }
-    return percentages;
+    FrozenDictionary<string, double> percentages = gameAchievements.ToFrozenDictionary(k => k.internal_name, v => double.TryParse(v.player_percent_unlocked, out double value) ? value : 0.0);
+    return new AchievementPercentages(appID, percentages);
   }
 
   private async Task<List<GameAchievement>?> GetGameAchievements(uint appid) {
@@ -184,11 +172,6 @@ internal sealed class BoosterHandler : ClientMsgHandler {
   }
 
   internal async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries = WebBrowser.MaxTries) {
-    // Get if exist
-    if (AllProducts.TryGetValue(appID, out ProductInfo? info)) {
-      return info;
-    }
-
     ulong? accessToken = await GetPICSAccessTokens(appID, maxTries).ConfigureAwait(false);
     SteamApps.PICSRequest request = new(appID, accessToken ?? 0);
 
@@ -224,9 +207,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
         continue;
       }
 
-      info = new ProductInfo(productInfoApp);
+      ProductInfo? info = new(productInfoApp);
       Logger.Trace($"ProductInfo {appID}: {JsonSerializer.Serialize(info)}");
-      _ = AllProducts.TryAdd(appID, info);
       return info;
     }
 

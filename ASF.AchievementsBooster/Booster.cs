@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
@@ -11,6 +10,7 @@ using System.Threading.Tasks;
 using AchievementsBooster.Base;
 using AchievementsBooster.Config;
 using AchievementsBooster.Extensions;
+using AchievementsBooster.Handler;
 using AchievementsBooster.Logger;
 using AchievementsBooster.Stats;
 using ArchiSteamFarm.Core;
@@ -25,6 +25,7 @@ internal sealed class Booster : IDisposable {
   internal static GlobalCache GlobalCache => AchievementsBooster.GlobalCache;
 
   internal BoosterHandler BoosterHandler { get; }
+  internal AppHandler AppHandler { get; }
 
   private readonly Bot Bot;
   private readonly BotCache Cache;
@@ -55,6 +56,7 @@ internal sealed class Booster : IDisposable {
     BoostableGames = [];
     Cache = BotCache.LoadFromDatabase(bot) ?? new BotCache(bot);
     Cache.Init();
+    AppHandler = new AppHandler(Cache, BoosterHandler, Logger);
   }
 
   public void Dispose() => Stop();
@@ -337,7 +339,7 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    ProductInfo? productInfo = await BoosterHandler.GetProductInfo(appID).ConfigureAwait(false);
+    ProductInfo? productInfo = await AppHandler.GetProduct(appID).ConfigureAwait(false);
     if (productInfo == null) {
       Logger.Warning($"Can't get product info for app {appID}");
       return (false, null);
@@ -397,12 +399,8 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    FrozenDictionary<string, double>? percentages = await BoosterHandler.GetAppAchievementPercentages(appID).ConfigureAwait(false);
+    AchievementPercentages? percentages = await AppHandler.GetAchievementPercentages(appID).ConfigureAwait(false);
     if (percentages == null) {
-      return (false, null);
-    }
-
-    if (percentages.Count == 0) {
       return (false, null);
     }
 
