@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
+using AchievementsBooster.Helpers;
 using AchievementsBooster.Logger;
 using AchievementsBooster.Stats;
 using ArchiSteamFarm.Core;
@@ -207,7 +208,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
         continue;
       }
 
-      ProductInfo? info = new(productInfoApp);
+      ProductInfo info = ProductUtils.GenerateProduct(productInfoApp);
       Logger.Trace($"ProductInfo {appID}: {JsonSerializer.Serialize(info)}");
       return info;
     }

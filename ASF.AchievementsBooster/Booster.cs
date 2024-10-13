@@ -9,8 +9,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
 using AchievementsBooster.Config;
-using AchievementsBooster.Extensions;
 using AchievementsBooster.Handler;
+using AchievementsBooster.Helpers;
 using AchievementsBooster.Logger;
 using AchievementsBooster.Stats;
 using ArchiSteamFarm.Core;
@@ -345,7 +345,7 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    if (!productInfo.IsPlayable()) {
+    if (!productInfo.IsBoostable) {
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.InvalidApp, appID));
       return (false, null);
     }
@@ -379,15 +379,10 @@ internal sealed class Booster : IDisposable {
       }
     }
 
-    if (productInfo.IsAchievementsEnabled.HasValue && !productInfo.IsAchievementsEnabled.Value) {
-      _ = GlobalCache.NonAchievementApps.Add(appID);
-      return (false, null);
-    }
-
     List<StatData>? statDatas = await BoosterHandler.GetStats(appID).ConfigureAwait(false);
     if (statDatas == null || statDatas.Count == 0) {
-      productInfo.IsAchievementsEnabled = false;
       _ = GlobalCache.NonAchievementApps.Add(appID);
+      productInfo.IsBoostable = false;
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
       return (false, null);
     }

@@ -4,13 +4,13 @@ namespace AchievementsBooster.Base;
 
 public sealed class AchievementPercentages {
   public uint AppID { get; }
-  private FrozenDictionary<string, double> Dictionary { get; }
+  public FrozenDictionary<string, double> Percentages { get; }
 
-  internal AchievementPercentages(uint appID, FrozenDictionary<string, double> dictionary) {
+  internal AchievementPercentages(uint appID, FrozenDictionary<string, double> percentages) {
     AppID = appID;
-    Dictionary = dictionary;
+    Percentages = percentages;
   }
 
   public double GetPercentage(string apiName, double defaultValue = 0)
-    => Dictionary.TryGetValue(apiName, out double value) ? value : defaultValue;
+    => Percentages.TryGetValue(apiName, out double value) ? value : defaultValue;
 }

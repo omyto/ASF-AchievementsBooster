@@ -1,6 +1,6 @@
 using System;
 
-namespace AchievementsBooster.Extensions;
+namespace AchievementsBooster.Helpers;
 
 internal static class TimeSpanUtils {
   [System.Diagnostics.CodeAnalysis.SuppressMessage("Security", "CA5394:Do not use insecure randomness", Justification = "<Pending>")]
