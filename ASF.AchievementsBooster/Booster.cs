@@ -13,7 +13,6 @@ using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Logger;
 using AchievementsBooster.Stats;
-using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using SteamKit2;
@@ -306,6 +305,7 @@ internal sealed class Booster : IDisposable {
     if (!app.HasRemainingAchievements) {
       _ = Cache.PerfectGames.Add(app.ID);
       _ = BoostableGames.Remove(app.ID);
+      AppHandler.IgnoreApp(app.ID);
       Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name));
       return false;
     }
@@ -322,20 +322,10 @@ internal sealed class Booster : IDisposable {
       return (false, null);
     }
 
-    if (ASF.GlobalConfig?.Blacklist.Contains(appID) == true) {
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
-      return (false, null);
-    }
-
-    if (GlobalCache.NonAchievementApps.Contains(appID)) {
-      return (false, null);
-    }
-
-    if (GlobalConfig.IgnoreAppWithVAC && GlobalCache.VACApps.Contains(appID)) {
-      return (false, null);
-    }
-
-    if (Cache.PerfectGames.Contains(appID)) {
+    if (!AppHandler.IsBoostableApp(appID)) {
+      //if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
+      //  Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
+      //}
       return (false, null);
     }
 
@@ -359,13 +349,14 @@ internal sealed class Booster : IDisposable {
     }
 
     if (GlobalConfig.IgnoreAppWithDLC && productInfo.DLCs.Count > 0) {
-      //TODO: Cache ?
+      AppHandler.IgnoreApp(appID);
       return (false, null);
     }
 
     if (GlobalConfig.IgnoreDevelopers.Count > 0) {
       foreach (string developer in GlobalConfig.IgnoreDevelopers) {
         if (productInfo.Developers.Contains(developer)) {
+          AppHandler.IgnoreApp(appID);
           return (false, null);
         }
       }
@@ -374,6 +365,7 @@ internal sealed class Booster : IDisposable {
     if (GlobalConfig.IgnorePublishers.Count > 0) {
       foreach (string publisher in GlobalConfig.IgnorePublishers) {
         if (productInfo.Publishers.Contains(publisher)) {
+          AppHandler.IgnoreApp(appID);
           return (false, null);
         }
       }
@@ -390,6 +382,7 @@ internal sealed class Booster : IDisposable {
     List<StatData> unlockableStats = statDatas.Where(e => e.Unlockable()).ToList();
     if (unlockableStats.Count == 0) {
       _ = Cache.PerfectGames.Add(appID);
+      AppHandler.IgnoreApp(appID);
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID));
       return (false, null);
     }

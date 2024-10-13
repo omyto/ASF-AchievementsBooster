@@ -10,6 +10,7 @@ using SteamKit2;
 using static SteamKit2.SteamApps.PICSProductInfoCallback;
 
 namespace AchievementsBooster.Helpers;
+
 internal static class ProductUtils {
   internal static ProductInfo GenerateProduct(PICSProductInfo productInfoApp) {
     KeyValue productInfo = productInfoApp.KeyValues;
@@ -74,7 +75,7 @@ internal static class ProductUtils {
     return product;
   }
 
-  internal static bool IsBoostableProduct(ProductInfo product) {
+  private static bool IsBoostableProduct(ProductInfo product) {
     switch (product.ReleaseState?.ToUpperInvariant()) {
       case null or "":
         break;

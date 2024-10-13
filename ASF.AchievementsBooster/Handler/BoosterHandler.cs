@@ -18,7 +18,7 @@ using SteamKit2.Internal;
 using GameAchievement = SteamKit2.Internal.CPlayer_GetGameAchievements_Response.Achievement;
 using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
 
-namespace AchievementsBooster;
+namespace AchievementsBooster.Handler;
 
 internal sealed class BoosterHandler : ClientMsgHandler {
   private readonly Bot Bot;

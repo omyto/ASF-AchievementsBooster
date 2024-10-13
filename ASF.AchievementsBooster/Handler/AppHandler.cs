@@ -1,12 +1,15 @@
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
 using AchievementsBooster.Logger;
+using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Handler;
 
-internal sealed class AppHandler(BotCache cache, BoosterHandler boosterHandler, PLogger logger) {
+internal sealed class AppHandler {
   private static class Holder {
     internal static ConcurrentDictionary<uint, SemaphoreSlim> ProductSemaphores { get; } = new();
     internal static ConcurrentDictionary<uint, ProductInfo> ProductDictionary { get; } = new();
@@ -14,9 +17,37 @@ internal sealed class AppHandler(BotCache cache, BoosterHandler boosterHandler, 
     internal static ConcurrentDictionary<uint, AchievementPercentages> AchievementPercentagesDictionary { get; } = new();
   }
 
-  private readonly BotCache Cache = cache;
-  private readonly BoosterHandler BoosterHandler = boosterHandler;
-  private readonly PLogger Logger = logger;
+  private readonly BotCache Cache;
+  private readonly BoosterHandler BoosterHandler;
+  private readonly PLogger Logger;
+
+  private HashSet<uint> NonBoostableApps { get; }
+
+  internal AppHandler(BotCache cache, BoosterHandler boosterHandler, PLogger logger) {
+    Cache = cache;
+    BoosterHandler = boosterHandler;
+    Logger = logger;
+    NonBoostableApps = [.. Cache.PerfectGames];
+  }
+
+  internal void IgnoreApp(uint appID) => NonBoostableApps.Add(appID);
+
+  [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
+  internal bool IsBoostableApp(uint appID) {
+    if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
+      return false;
+    }
+
+    if (AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID)) {
+      return false;
+    }
+
+    if (AchievementsBooster.Config.IgnoreAppWithVAC && AchievementsBooster.GlobalCache.VACApps.Contains(appID)) {
+      return false;
+    }
+
+    return !NonBoostableApps.Contains(appID);
+  }
 
   internal async Task<ProductInfo?> GetProduct(uint appID) {
     SemaphoreSlim semaphore = Holder.ProductSemaphores.GetOrAdd(appID, _ => new SemaphoreSlim(1, 1));

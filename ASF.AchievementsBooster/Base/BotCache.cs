@@ -19,10 +19,6 @@ internal sealed class BotCache {
   [JsonInclude]
   internal ConcurrentHashSet<uint> PerfectGames { get; private init; } = [];
 
-  //[JsonDisallowNull]
-  //[JsonInclude]
-  //internal ConcurrentHashSet<uint> NonBoostableGames { get; private init; } = [];
-
   internal static BotCache? LoadFromDatabase(Bot bot) {
     if (bot.BotDatabase == null) {
       throw new InvalidOperationException(nameof(bot.BotDatabase));
@@ -56,7 +52,6 @@ internal sealed class BotCache {
   internal void Init() {
     if (!Initialized) {
       PerfectGames.OnModified += OnObjectModified;
-      //NonBoostableGames.OnModified += OnObjectModified;
       Initialized = true;
     }
   }
@@ -64,7 +59,6 @@ internal sealed class BotCache {
   internal void Destroy() {
     if (Initialized) {
       PerfectGames.OnModified -= OnObjectModified;
-      //NonBoostableGames.OnModified -= OnObjectModified;
       Initialized = false;
     }
   }
@@ -73,7 +67,4 @@ internal sealed class BotCache {
 
   [UsedImplicitly]
   public bool ShouldSerializePerfectGames() => PerfectGames.Count > 0;
-
-  //[UsedImplicitly]
-  //public bool ShouldSerializeNonBoostableGames() => NonBoostableGames.Count > 0;
 }
