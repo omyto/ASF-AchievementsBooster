@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
 using AchievementsBooster.Config;
+using AchievementsBooster.Handler;
 using AchievementsBooster.Logger;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Helpers.Json;

@@ -10,7 +10,7 @@ using System.Linq;
 using System.ComponentModel;
 using AchievementsBooster.Base;
 
-namespace AchievementsBooster;
+namespace AchievementsBooster.Handler;
 
 internal static class CommandsHandler {
 
@@ -39,7 +39,7 @@ internal static class CommandsHandler {
 
     HashSet<Bot>? bots = Bot.GetBots(botNames);
 
-    if ((bots == null) || (bots.Count == 0)) {
+    if (bots == null || bots.Count == 0) {
       return access >= EAccess.Owner ? Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Strings.BotNotFound, botNames)) : null;
     }
 
@@ -81,7 +81,7 @@ internal static class CommandsHandler {
 
     HashSet<Bot>? bots = Bot.GetBots(botNames);
 
-    if ((bots == null) || (bots.Count == 0)) {
+    if (bots == null || bots.Count == 0) {
       return access >= EAccess.Owner ? Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Strings.BotNotFound, botNames)) : null;
     }
 
