@@ -16,4 +16,6 @@ public static class Constants {
   public const string VACCategory = "category_8";
 
   public const string AchievementsCategory = "category_22";
+
+  public const byte MaxUnlockAchievementTries = 3;
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
@@ -12,50 +11,51 @@ using AchievementsBooster.Config;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Logger;
-using AchievementsBooster.Stats;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
+using ArchiSteamFarm.Steam.Cards;
 using SteamKit2;
 
 namespace AchievementsBooster;
 
 internal sealed class Booster : IDisposable {
-  internal static BoosterGlobalConfig GlobalConfig => AchievementsBooster.Config;
-  internal static GlobalCache GlobalCache => AchievementsBooster.GlobalCache;
+  private static BoosterGlobalConfig GlobalConfig => AchievementsBooster.GlobalConfig;
 
-  internal BoosterHandler BoosterHandler { get; }
+  internal BoosterHandler BoosterHandler => AppHandler.BoosterHandler;
+
   internal AppHandler AppHandler { get; }
 
   private readonly Bot Bot;
   private readonly BotCache Cache;
   private readonly PLogger Logger;
 
-  private bool IsBoostingStarted;
-  private bool IsBoostingInProgress;
-  private Timer? BoosterTimer;
+  private bool IsBoostingStarted { get; set; }
+  private bool IsBoostingInProgress { get; set; }
+  private Timer? BoosterTimer { get; set; }
 
-  private Dictionary<uint, string> OwnedGames;
-  private HashSet<uint> BoostableGames;
+  private Dictionary<uint, string> OwnedGames { get; set; } = [];
+
+  private Queue<uint> BoostableAppsWhenArchiPlayedWhileIdle { get; }
 
   // Boosting status
-  private EBoostingState BoostingState = EBoostingState.None;
-  private Dictionary<uint, AppBooster> BoostingApps = [];
+  private EBoostingState BoostingState { get; set; } = EBoostingState.None;
+
+  private Dictionary<uint, BoostableApp> BoostingApps { get; } = [];
 
   //
-  private double LastDueTime;
-  private readonly List<AppBooster> WaitingApps = [];
+  private double LastDueTime { get; set; }//TODO: delta time?
 
   internal Booster(Bot bot) {
     Bot = bot;
     Logger = new PLogger(Bot.ArchiLogger);
-    BoosterHandler = new BoosterHandler(bot, Logger);
     IsBoostingStarted = false;
     IsBoostingInProgress = false;
-    OwnedGames = [];
-    BoostableGames = [];
     Cache = BotCache.LoadFromDatabase(bot) ?? new BotCache(bot);
     Cache.Init();
-    AppHandler = new AppHandler(Cache, BoosterHandler, Logger);
+    AppHandler = new AppHandler(Cache, new BoosterHandler(bot, Logger), Logger);
+
+    // Since GamesPlayedWhileIdle may never change
+    BoostableAppsWhenArchiPlayedWhileIdle = new Queue<uint>(Bot.BotConfig?.GamesPlayedWhileIdle ?? []);
   }
 
   public void Dispose() => Stop();
@@ -100,6 +100,7 @@ internal sealed class Booster : IDisposable {
     IsBoostingStarted = false;
 
     if (BoostingState == EBoostingState.BoosterPlayed) {
+      //_ = Bot.Actions.Resume();
       _ = Bot.Actions.Play([]).ConfigureAwait(false);
     }
     BoostingState = EBoostingState.None;
@@ -114,9 +115,16 @@ internal sealed class Booster : IDisposable {
 
   private async void OnBoosterTimer(object? state) {
     if (OwnedGames.Count == 0) {
-      OwnedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false) ?? [];
-      BoostableGames = [.. OwnedGames.Keys];
+      Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
+      OwnedGames = ownedGames ?? [];
       Logger.Trace($"OwnedGames: {string.Join(",", OwnedGames.Keys)}");
+
+      if (ownedGames != null) {
+        AppHandler.Update([.. ownedGames.Keys]);
+      }
+    }
+    else {
+      AppHandler.Update();
     }
 
     if (GlobalConfig.SleepingHours > 0) {
@@ -125,9 +133,10 @@ internal sealed class Booster : IDisposable {
       if (now < weakUpTime) {
         DateTime sleepStartTime = weakUpTime.AddHours(-GlobalConfig.SleepingHours);
         if (now > sleepStartTime) {
+          //FIXME: Still boosting one tick in case BoostingState is not BoosterPlayed
           if (BoostingState == EBoostingState.BoosterPlayed && BoostingApps.Count > 0) {
-            foreach (AppBooster app in BoostingApps.Values) {
-              WaitingApps.Add(app);
+            foreach (BoostableApp app in BoostingApps.Values) {
+              AppHandler.SetAppToSleep(app);
             }
             BoostingApps.Clear();
             _ = Bot.Actions.Play([]).ConfigureAwait(false);
@@ -156,19 +165,6 @@ internal sealed class Booster : IDisposable {
     LastDueTime = dueTime.TotalHours;
   }
 
-  [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
-  private (EBoostingState newState, ImmutableList<uint> appsForBoosting) GetNewStateAndAppsForBoosting() {
-    if (Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0) {
-      return (EBoostingState.ArchiFarming, Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Select(e => e.AppID).ToImmutableList());
-    }
-
-    if (Bot.BotConfig?.GamesPlayedWhileIdle.Count > 0) {
-      return (EBoostingState.ArchiPlayedWhileIdle, Bot.BotConfig.GamesPlayedWhileIdle.Where(OwnedGames.ContainsKey).ToImmutableList());
-    }
-
-    return (EBoostingState.BoosterPlayed, BoostableGames.ToImmutableList());
-  }
-
   private async Task<bool> BoostingAchievements() {
     Logger.Debug("Boosting is in progress...");
     if (!Ready()) {
@@ -176,223 +172,126 @@ internal sealed class Booster : IDisposable {
       return false;
     }
 
-    (EBoostingState newState, ImmutableList<uint> appsForBoosting) = GetNewStateAndAppsForBoosting();
-    Dictionary<uint, AppBooster> keepBoostingApps = [];
-    List<uint> toBeBoostedApps = [.. appsForBoosting];
+    DateTime currentTime = DateTime.Now;
 
-    if (newState == BoostingState) {
-      // Unlock achievement
-      if (BoostingState is EBoostingState.ArchiPlayedWhileIdle or EBoostingState.BoosterPlayed) {
-        // Since GamesPlayedWhileIdle may never change, just boost all apps in BoostingApps.
-        foreach (AppBooster app in BoostingApps.Values) {
-          bool keepBoosting = await UnlockAchievement(app).ConfigureAwait(false);
-          if (keepBoosting) {
-            keepBoostingApps.Add(app.ID, app);
+    EBoostingState currentBoostingState = Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
+      ? EBoostingState.ArchiFarming
+      : Bot.BotConfig?.GamesPlayedWhileIdle.Count > 0
+        ? EBoostingState.ArchiPlayedWhileIdle
+        : EBoostingState.BoosterPlayed;
+
+    if (currentBoostingState == BoostingState) {
+      if (BoostingState is EBoostingState.ArchiFarming) {
+        IEnumerable<uint> boostingAppIDs = BoostingApps.Keys.Intersect(Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Select(e => e.AppID));
+        List<uint> exceptAppIDs = BoostingApps.Keys.Except(boostingAppIDs).ToList();
+        exceptAppIDs.ForEach(appID => BoostingApps.Remove(appID));
+      }
+
+      foreach (BoostableApp app in BoostingApps.Values) {
+        (bool success, string message) = await app.UnlockNextAchievement(BoosterHandler).ConfigureAwait(false);
+        if (success) {
+          Logger.Info(message);
+          if (app.RemainingAchievementsCount == 0) {
+            _ = BoostingApps.Remove(app.ID);
+            _ = Cache.PerfectGames.Add(app.ID);
+            Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name));
+          }
+        }
+        else {
+          Logger.Warning(message);
+          if (app.FailedUnlockCount > Constants.MaxUnlockAchievementTries) {
+            _ = BoostingApps.Remove(app.ID);
+            AppHandler.PlaceAtLastStandQueue(app);
           }
         }
       }
-      else if (BoostingState is EBoostingState.ArchiFarming && BoostingApps.Count > 0) {
-        toBeBoostedApps.Clear();
-        foreach (uint appID in appsForBoosting) {
-          if (BoostingApps.TryGetValue(appID, out AppBooster? app)) {
-            bool keepBoosting = await UnlockAchievement(app).ConfigureAwait(false);
-            if (keepBoosting) {
-              keepBoostingApps.Add(app.ID, app);
-            }
+
+      // Update boosting over hours
+      if (GlobalConfig.MaxBoostingHours > 0) {
+        foreach (uint appID in BoostingApps.Keys.ToList()) {
+          BoostableApp app = BoostingApps[appID];
+          app.LastPlayedTime = currentTime;
+          app.ContinuousBoostingHours += LastDueTime;
+
+          if (app.ContinuousBoostingHours >= GlobalConfig.MaxBoostingHours) {
+            _ = BoostingApps.Remove(appID);
+            AppHandler.SetAppToSleep(app);
           }
-          else {
-            toBeBoostedApps.Add(appID);
-          }
         }
       }
-    }
-
-    // Switch the state if difference
-    BoostingState = newState;
-
-    if (GlobalConfig.MaxBoostingHours > 0) {
-      // Update boosting hours
-      DateTime now = DateTime.Now;
-      List<AppBooster> newWaitingApps = [];
-      foreach (AppBooster app in BoostingApps.Values) {
-        app.ContinuousBoostingHours += LastDueTime;
-        app.LastPlayedTime = now;
-
-        if (app.ContinuousBoostingHours >= GlobalConfig.MaxBoostingHours) {
-          _ = keepBoostingApps.Remove(app.ID);
-          newWaitingApps.Add(app);
-        }
-      }
-
-      // Add new apps for boosting from WaitingApps
-      for (int i = 0; i < WaitingApps.Count; i++) {
-        if (keepBoostingApps.Count >= GlobalConfig.MaxBoostingApps) {
-          break;
-        }
-
-        AppBooster app = WaitingApps[i];
-        if (keepBoostingApps.ContainsKey(app.ID)) {
-          continue;
-        }
-
-        if ((now - app.LastPlayedTime).TotalHours > (GlobalConfig.MaxBoostingHours * 2.0 / 3.0)) {
-          app.ContinuousBoostingHours = 0;
-          keepBoostingApps.Add(app.ID, app);
-          WaitingApps.RemoveAt(i);
-          i--;
-        }
-      }
-
-      // Add new waiting list
-      WaitingApps.AddRange(newWaitingApps);
-    }
-
-    // Add new apps for boosting
-    foreach (uint appID in toBeBoostedApps) {
-      if (keepBoostingApps.Count >= GlobalConfig.MaxBoostingApps) {
-        break;
-      }
-
-      if (keepBoostingApps.ContainsKey(appID)) {
-        continue;
-      }
-
-      (bool boostable, AppBooster? app) = await GetAppForBoosting(appID).ConfigureAwait(false);
-      if (boostable) {
-        ArgumentNullException.ThrowIfNull(app);
-        keepBoostingApps.Add(appID, app);
-      }
-      else {
-        _ = BoostableGames.Remove(appID);
-      }
-    }
-
-    // Assign new boosting apps list
-    BoostingApps = keepBoostingApps;
-
-    // Archi farming card or played games while idle
-    if (BoostingState is EBoostingState.ArchiFarming or EBoostingState.ArchiPlayedWhileIdle) {
-      bool isBoosting = BoostingApps.Count > 0;
-      string message = isBoosting ? string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys))
-        : (BoostingState is EBoostingState.ArchiFarming ? Messages.NoBoostingAppsInArchiFarming : Messages.NoBoostingAppsInArchiPlayedWhileIdle);
-
-      Logger.Info(message);
-      return isBoosting;
-    }
-
-    // Manual play & and boosting by AchievementsBooster
-    if (BoostingApps.Count > 0) {
-      List<uint> playAppIDs = [.. BoostingApps.Keys];
-      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", playAppIDs)));
-      (bool success, string message) = await Bot.Actions.Play(playAppIDs).ConfigureAwait(false);
-      if (!success) {
-        BoostingState = EBoostingState.None;
-        Logger.Warning($"Boosting apps failed! Reason: {message}");
-        return false;
-      }
-      return true;
     }
     else {
-      BoostingState = EBoostingState.None;
-      _ = await Bot.Actions.Play([]).ConfigureAwait(false);
-      return false;
+      BoostingState = currentBoostingState;
+      BoostingApps.Clear();
     }
-  }
 
-  private async Task<bool> UnlockAchievement(AppBooster app) {
-    _ = await BoosterHandler.UnlockNextStat(app).ConfigureAwait(false);
+    // Add new apps for boosting if need
+    if (BoostingApps.Count < GlobalConfig.MaxBoostingApps) {
+      switch (BoostingState) {
+        case EBoostingState.ArchiFarming:
+          foreach (Game game in Bot.CardsFarmer.CurrentGamesFarmingReadOnly) {
+            if (!BoostingApps.ContainsKey(game.AppID)) {
+              BoostableApp? app = await AppHandler.GetBoostableApp(game.AppID).ConfigureAwait(false);
+              if (app != null) {
+                _ = BoostingApps.TryAdd(game.AppID, app);
+                if (BoostingApps.Count == GlobalConfig.MaxBoostingApps) {
+                  break;
+                }
+              }
+            }
+          }
+          break;
+        case EBoostingState.ArchiPlayedWhileIdle:
+          while (BoostableAppsWhenArchiPlayedWhileIdle.Count > 0 && BoostingApps.Count < GlobalConfig.MaxBoostingApps) {
+            uint appID = BoostableAppsWhenArchiPlayedWhileIdle.Dequeue();
+            BoostableApp? app = await AppHandler.GetBoostableApp(appID).ConfigureAwait(false);
+            if (app != null) {
+              _ = BoostingApps.TryAdd(appID, app);
+            }
+          }
+          break;
+        case EBoostingState.BoosterPlayed:
+          List<BoostableApp> apps = await AppHandler.NextBoosterApps(GlobalConfig.MaxBoostingApps - BoostingApps.Count).ConfigureAwait(false);
+          apps.ForEach(app => BoostingApps.TryAdd(app.ID, app));
+          break;
+        case EBoostingState.None:
+        default:
+          break;
+      }
+    }
 
-    if (!app.HasRemainingAchievements) {
-      _ = Cache.PerfectGames.Add(app.ID);
-      _ = BoostableGames.Remove(app.ID);
-      AppHandler.IgnoreApp(app.ID);
-      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name));
-      return false;
+    switch (BoostingState) {
+      case EBoostingState.ArchiFarming:
+      case EBoostingState.ArchiPlayedWhileIdle: {
+        bool isBoosting = BoostingApps.Count > 0;
+        string message = isBoosting ? string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys))
+          : (BoostingState is EBoostingState.ArchiFarming ? Messages.NoBoostingAppsInArchiFarming : Messages.NoBoostingAppsInArchiPlayedWhileIdle);
+
+        Logger.Info(message);
+        return isBoosting;
+      }
+      case EBoostingState.BoosterPlayed:
+        if (BoostingApps.Count > 0) {
+          List<uint> playAppIDs = [.. BoostingApps.Keys];
+          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", playAppIDs)));
+          (bool success, string message) = await Bot.Actions.Play(playAppIDs).ConfigureAwait(false);
+          if (!success) {
+            BoostingState = EBoostingState.None;
+            Logger.Warning($"Boosting apps failed! Reason: {message}");
+            return false;
+          }
+          return true;
+        }
+        else {
+          BoostingState = EBoostingState.None;
+          _ = await Bot.Actions.Play([]).ConfigureAwait(false);
+          return false;
+        }
+      case EBoostingState.None:
+      default:
+        break;
     }
-    else if (!app.ShouldSkipBoosting()) {
-      return true;
-    }
+
     return false;
-  }
-
-  private async Task<(bool boostable, AppBooster? app)> GetAppForBoosting(uint appID) {
-    if (!OwnedGames.ContainsKey(appID)) {
-      // Oh God! Why?
-      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID));
-      return (false, null);
-    }
-
-    if (!AppHandler.IsBoostableApp(appID)) {
-      //if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
-      //  Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
-      //}
-      return (false, null);
-    }
-
-    ProductInfo? productInfo = await AppHandler.GetProduct(appID).ConfigureAwait(false);
-    if (productInfo == null) {
-      Logger.Warning($"Can't get product info for app {appID}");
-      return (false, null);
-    }
-
-    if (!productInfo.IsBoostable) {
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.InvalidApp, appID));
-      return (false, null);
-    }
-
-    if (productInfo.IsVACEnabled) {
-      _ = GlobalCache.VACApps.Add(appID);
-      if (GlobalConfig.IgnoreAppWithVAC) {
-        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID));
-        return (false, null);
-      }
-    }
-
-    if (GlobalConfig.IgnoreAppWithDLC && productInfo.DLCs.Count > 0) {
-      AppHandler.IgnoreApp(appID);
-      return (false, null);
-    }
-
-    if (GlobalConfig.IgnoreDevelopers.Count > 0) {
-      foreach (string developer in GlobalConfig.IgnoreDevelopers) {
-        if (productInfo.Developers.Contains(developer)) {
-          AppHandler.IgnoreApp(appID);
-          return (false, null);
-        }
-      }
-    }
-
-    if (GlobalConfig.IgnorePublishers.Count > 0) {
-      foreach (string publisher in GlobalConfig.IgnorePublishers) {
-        if (productInfo.Publishers.Contains(publisher)) {
-          AppHandler.IgnoreApp(appID);
-          return (false, null);
-        }
-      }
-    }
-
-    List<StatData>? statDatas = await BoosterHandler.GetStats(appID).ConfigureAwait(false);
-    if (statDatas == null || statDatas.Count == 0) {
-      _ = GlobalCache.NonAchievementApps.Add(appID);
-      productInfo.IsBoostable = false;
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
-      return (false, null);
-    }
-
-    List<StatData> unlockableStats = statDatas.Where(e => e.Unlockable()).ToList();
-    if (unlockableStats.Count == 0) {
-      _ = Cache.PerfectGames.Add(appID);
-      AppHandler.IgnoreApp(appID);
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID));
-      return (false, null);
-    }
-
-    AchievementPercentages? percentages = await AppHandler.GetAchievementPercentages(appID).ConfigureAwait(false);
-    if (percentages == null) {
-      return (false, null);
-    }
-
-    AppBooster app = new(appID, productInfo, percentages, unlockableStats);
-    return (true, app);
   }
 }

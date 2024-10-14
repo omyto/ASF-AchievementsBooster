@@ -24,7 +24,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   internal static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
-  internal static BoosterGlobalConfig Config { get; private set; } = new();
+  internal static BoosterGlobalConfig GlobalConfig { get; private set; } = new();
 
   internal static GlobalCache GlobalCache { get; private set; } = new();
 
@@ -50,9 +50,9 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
       if (additionalConfigProperties.TryGetValue(Constants.AchievementsBoosterConfigKey, out JsonElement configValue)) {
         BoosterGlobalConfig? config = configValue.ToJsonObject<BoosterGlobalConfig>();
         if (config != null) {
-          Config = config;
-          if (Config.Enabled) {
-            Config.Validate();
+          GlobalConfig = config;
+          if (GlobalConfig.Enabled) {
+            GlobalConfig.Validate();
           }
           else {
             GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.PluginDisabledInConfig, Name));
@@ -68,7 +68,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   public Task OnBotInit(Bot bot) => Task.CompletedTask;
 
   public Task OnBotDestroy(Bot bot) {
-    if (Config.Enabled) {
+    if (GlobalConfig.Enabled) {
       RemoveBoosterBot(bot);
     }
     return Task.CompletedTask;
@@ -77,7 +77,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   /* IBotConnection */
 
   public Task OnBotDisconnected(Bot bot, EResult reason) {
-    if (Config.Enabled) {
+    if (GlobalConfig.Enabled) {
       if (Boosters.TryGetValue(bot, out Booster? booster)) {
         _ = booster.Stop();
       }
@@ -89,7 +89,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   }
 
   public Task OnBotLoggedOn(Bot bot) {
-    if (Config.Enabled) {
+    if (GlobalConfig.Enabled) {
       if (Boosters.TryGetValue(bot, out Booster? booster)) {
         _ = booster.Start();
       }
@@ -102,7 +102,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   /** IBotModules */
   public Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
-    if (Config.Enabled) {
+    if (GlobalConfig.Enabled) {
       if (additionalConfigProperties == null || additionalConfigProperties.Count == 0) {
         return Task.CompletedTask;
       }
@@ -117,7 +117,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   /** IBotSteamClient */
 
   public Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager) {
-    if (Config.Enabled) {
+    if (GlobalConfig.Enabled) {
       if (Boosters.TryGetValue(bot, out Booster? botBooster)) {
         return botBooster.OnSteamCallbacksInit(callbackManager);
       }
@@ -127,7 +127,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   }
 
   public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
-    if (Config.Enabled) {
+    if (GlobalConfig.Enabled) {
       RemoveBoosterBot(bot);
       Booster booster = new(bot);
       if (Boosters.TryAdd(bot, booster)) {
@@ -141,7 +141,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   }
 
   /** IBotCommand */
-  public async Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0) => Config.Enabled ? await CommandsHandler.OnBotCommand(bot, access, message, args, steamID).ConfigureAwait(false) : null;
+  public async Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0) => GlobalConfig.Enabled ? await CommandsHandler.OnBotCommand(bot, access, message, args, steamID).ConfigureAwait(false) : null;
 
   /** Internal Method */
   private static void RemoveBoosterBot(Bot bot) {

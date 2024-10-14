@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AchievementsBooster.Base;
+using AchievementsBooster.Callback;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Logger;
 using AchievementsBooster.Stats;
@@ -55,44 +56,17 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     }
   }
 
-  internal async Task<List<StatData>?> GetStats(uint appID) {
+  internal async Task<UserStatsResponse?> GetStats(uint appID) {
     GetUserStatsResponseCallback? response = await RequestUserStats(appID).ConfigureAwait(false);
     if (response == null || !response.Success) {
       Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID));
       return null;
     }
 
-    return response.StatDatas;
+    return response.UserStats;
   }
 
-  internal async Task<bool> UnlockNextStat(AppBooster app) {
-    GetUserStatsResponseCallback? response = await RequestUserStats(app.ID).ConfigureAwait(false);
-    if (response == null || !response.Success) {
-      string message = string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, app.ID);
-      Logger.Debug(message);
-      return false;
-    }
-
-    StatData? nextStat = app.GetUpcomingUnlockableStat(response.StatDatas);
-    if (nextStat == null) {
-      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, app.ID));
-      return false;
-    }
-
-    // Unlock next achievement
-    bool success = await UnlockStat(app.ID, nextStat, response.CrcStats).ConfigureAwait(false);
-    app.UpdateUnlockStatus(nextStat, success);
-
-    if (success) {
-      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, nextStat.Name, app.ID));
-    }
-    else {
-      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, nextStat.Name, app.ID));
-    }
-    return success;
-  }
-
-  private async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {
+  internal async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {
     ClientMsgProtobuf<CMsgClientStoreUserStats2> request = new(EMsg.ClientStoreUserStats2) {
       SourceJobID = Client.GetNextJobID(),
       Body = {
