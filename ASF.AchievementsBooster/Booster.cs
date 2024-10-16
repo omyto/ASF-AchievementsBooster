@@ -30,7 +30,6 @@ internal sealed class Booster : IDisposable {
   private readonly PLogger Logger;
 
   private bool IsBoostingStarted { get; set; }
-  private bool IsBoostingInProgress { get; set; }
   private Timer? BoosterTimer { get; set; }
 
   private Dictionary<uint, string> OwnedGames { get; set; } = [];
@@ -42,14 +41,14 @@ internal sealed class Booster : IDisposable {
 
   private Dictionary<uint, BoostableApp> BoostingApps { get; } = [];
 
-  //
-  private double LastDueTime { get; set; }//TODO: delta time?
+  private DateTime LastBoosterTime { get; set; }
+
+  private SemaphoreSlim BoosterHeartBeatSemaphore { get; } = new SemaphoreSlim(1);
 
   internal Booster(Bot bot) {
     Bot = bot;
     Logger = new PLogger(Bot.ArchiLogger);
     IsBoostingStarted = false;
-    IsBoostingInProgress = false;
     Cache = BotCache.LoadFromDatabase(bot) ?? new BotCache(bot);
     Cache.Init();
     AppHandler = new AppHandler(Cache, new BoosterHandler(bot, Logger), Logger);
@@ -87,7 +86,7 @@ internal sealed class Booster : IDisposable {
 
     Logger.Info("Achievements Booster Starting...");
     TimeSpan dueTime = command ? TimeSpan.Zero : TimeSpan.FromMinutes(Constants.AutoStartDelayTime);
-    BoosterTimer = new Timer(OnBoosterTimer, null, dueTime, Timeout.InfiniteTimeSpan);
+    BoosterTimer = new Timer(OnBoosterHeartBeat, null, dueTime, Timeout.InfiniteTimeSpan);
 
     return Strings.Done;
   }
@@ -113,7 +112,20 @@ internal sealed class Booster : IDisposable {
 
   private bool Ready() => OwnedGames.Count > 0 && Bot.IsConnectedAndLoggedOn && Bot.IsPlayingPossible;
 
-  private async void OnBoosterTimer(object? state) {
+  private async void OnBoosterHeartBeat(object? state) {
+    if (!BoosterHeartBeatSemaphore.Wait(0)) {
+      return;
+    }
+
+    try {
+      await OnBoosterTimer().ConfigureAwait(false);
+    }
+    finally {
+      _ = BoosterHeartBeatSemaphore.Release();
+    }
+  }
+
+  private async Task OnBoosterTimer() {
     if (OwnedGames.Count == 0) {
       Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
       OwnedGames = ownedGames ?? [];
@@ -127,12 +139,14 @@ internal sealed class Booster : IDisposable {
       AppHandler.Update();
     }
 
+    DateTime currentTime = DateTime.Now;
+    TimeSpan deltaTime = currentTime - LastBoosterTime;
+
     if (GlobalConfig.SleepingHours > 0) {
-      DateTime now = DateTime.Now;
-      DateTime weakUpTime = new(now.Year, now.Month, now.Day, 6, 0, 0, 0);
-      if (now < weakUpTime) {
+      DateTime weakUpTime = new(currentTime.Year, currentTime.Month, currentTime.Day, 6, 0, 0, 0);
+      if (currentTime < weakUpTime) {
         DateTime sleepStartTime = weakUpTime.AddHours(-GlobalConfig.SleepingHours);
-        if (now > sleepStartTime) {
+        if (currentTime > sleepStartTime) {
           //FIXME: Still boosting one tick in case BoostingState is not BoosterPlayed
           if (BoostingState == EBoostingState.BoosterPlayed && BoostingApps.Count > 0) {
             foreach (BoostableApp app in BoostingApps.Values) {
@@ -146,15 +160,7 @@ internal sealed class Booster : IDisposable {
       }
     }
 
-    if (IsBoostingInProgress) {
-      return;
-    }
-
-    IsBoostingInProgress = true;
-
-    _ = await BoostingAchievements().ConfigureAwait(false);
-
-    IsBoostingInProgress = false;
+    _ = await BoostingAchievements(deltaTime).ConfigureAwait(false);
 
     // Calculate the delay time for the next boosting
     TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval);
@@ -162,10 +168,11 @@ internal sealed class Booster : IDisposable {
       dueTime += TimeSpanUtils.InMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
     }
     _ = BoosterTimer?.Change(dueTime, Timeout.InfiniteTimeSpan);
-    LastDueTime = dueTime.TotalHours;
+
+    LastBoosterTime = currentTime;
   }
 
-  private async Task<bool> BoostingAchievements() {
+  private async Task<bool> BoostingAchievements(TimeSpan deltaTime) {
     Logger.Debug("Boosting is in progress...");
     if (!Ready()) {
       Logger.Warning("Bot not ready!");
@@ -211,7 +218,7 @@ internal sealed class Booster : IDisposable {
         foreach (uint appID in BoostingApps.Keys.ToList()) {
           BoostableApp app = BoostingApps[appID];
           app.LastPlayedTime = currentTime;
-          app.ContinuousBoostingHours += LastDueTime;
+          app.ContinuousBoostingHours += deltaTime.TotalHours;
 
           if (app.ContinuousBoostingHours >= GlobalConfig.MaxBoostingHours) {
             _ = BoostingApps.Remove(appID);
