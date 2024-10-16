@@ -2,7 +2,7 @@ using System;
 using SteamKit2;
 using SteamKit2.Internal;
 
-namespace AchievementsBooster.Callback;
+namespace AchievementsBooster.Handler.Callback;
 
 internal sealed class StoreUserStatsResponseCallback : CallbackMsg {
 

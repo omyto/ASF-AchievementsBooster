@@ -5,10 +5,8 @@ using System.Composition;
 using System.Globalization;
 using System.Text.Json;
 using System.Threading.Tasks;
-using AchievementsBooster.Base;
-using AchievementsBooster.Config;
 using AchievementsBooster.Handler;
-using AchievementsBooster.Logger;
+using AchievementsBooster.Helpers;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Helpers.Json;
@@ -21,7 +19,7 @@ namespace AchievementsBooster;
 [Export(typeof(IPlugin))]
 internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnection, IBotSteamClient, IBotCommand2 {
 
-  internal static readonly PLogger GlobalLogger = new(ASF.ArchiLogger);
+  internal static readonly Logger GlobalLogger = new(ASF.ArchiLogger);
 
   internal static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 

@@ -8,7 +8,7 @@ using ArchiSteamFarm.Steam.Interaction;
 using ArchiSteamFarm.Localization;
 using System.Linq;
 using System.ComponentModel;
-using AchievementsBooster.Base;
+using AchievementsBooster.Helpers;
 
 namespace AchievementsBooster.Handler;
 

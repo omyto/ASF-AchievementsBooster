@@ -2,9 +2,9 @@ using System;
 using System.Runtime.CompilerServices;
 using ArchiSteamFarm.NLog;
 
-namespace AchievementsBooster.Logger;
+namespace AchievementsBooster.Helpers;
 
-public sealed class PLogger(ArchiLogger archiLogger, string pluginName = nameof(AchievementsBooster)) {
+public sealed class Logger(ArchiLogger archiLogger, string pluginName = nameof(AchievementsBooster)) {
   private readonly ArchiLogger ArchiLogger = archiLogger;
   private readonly string PluginName = pluginName;
 

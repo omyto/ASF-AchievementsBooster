@@ -6,11 +6,9 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Base;
-using AchievementsBooster.Config;
+using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
-using AchievementsBooster.Logger;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Localization;
@@ -21,6 +19,13 @@ using SteamKit2;
 namespace AchievementsBooster;
 
 internal sealed class Booster : IDisposable {
+  private enum EBoostingState : byte {
+    None,
+    ArchiFarming,
+    ArchiPlayedWhileIdle,
+    BoosterPlayed
+  }
+
   private static BoosterGlobalConfig GlobalConfig => AchievementsBooster.GlobalConfig;
 
   internal BoosterHandler BoosterHandler => AppHandler.BoosterHandler;
@@ -29,7 +34,7 @@ internal sealed class Booster : IDisposable {
 
   private readonly Bot Bot;
   private readonly BotCache Cache;
-  private readonly PLogger Logger;
+  private readonly Logger Logger;
 
   private bool IsBoostingStarted { get; set; }
   private EBoostingState BoostingState { get; set; } = EBoostingState.None;
@@ -44,7 +49,7 @@ internal sealed class Booster : IDisposable {
 
   internal Booster(Bot bot) {
     Bot = bot;
-    Logger = new PLogger(bot.ArchiLogger);
+    Logger = new Logger(bot.ArchiLogger);
     Cache = LoadOrCreateCacheForBot(bot);
     AppHandler = new AppHandler(Cache, new BoosterHandler(bot, Logger), Logger);
     BoosterHeartBeatTimer = new Timer(OnBoosterHeartBeat, null, Timeout.Infinite, Timeout.Infinite);

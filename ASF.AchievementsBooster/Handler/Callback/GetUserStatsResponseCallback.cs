@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
-using AchievementsBooster.Stats;
+using AchievementsBooster.Helpers;
 using SteamKit2;
 using CMsgClientGetUserStatsResponse = SteamKit2.Internal.CMsgClientGetUserStatsResponse;
 
-namespace AchievementsBooster.Callback;
+namespace AchievementsBooster.Handler.Callback;
 
 internal sealed class UserStatsResponse {
   internal uint CrcStats { get; }

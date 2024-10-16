@@ -1,4 +1,4 @@
-namespace AchievementsBooster.Base;
+namespace AchievementsBooster.Helpers;
 
 public static class Constants {
   public const string AchievementsBoosterConfigKey = "AchievementsBooster";

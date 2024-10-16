@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
-using AchievementsBooster.Base;
+using AchievementsBooster.Data;
 using ArchiSteamFarm;
 using ArchiSteamFarm.Localization;
 using SteamKit2;

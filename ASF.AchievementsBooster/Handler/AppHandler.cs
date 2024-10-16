@@ -6,16 +6,22 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Base;
-using AchievementsBooster.Callback;
-using AchievementsBooster.Logger;
-using AchievementsBooster.Stats;
+using AchievementsBooster.Data;
+using AchievementsBooster.Handler.Callback;
+using AchievementsBooster.Helpers;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Handler;
 
 internal sealed class AppHandler {
+  private enum EGetAppStatus : byte {
+    OK,
+    ProductNotFound,
+    AchievementPercentagesNotFound,
+    NonBoostable
+  }
+
   private static class Holder {
     internal static ConcurrentDictionary<uint, SemaphoreSlim> ProductSemaphores { get; } = new();
     internal static ConcurrentDictionary<uint, ProductInfo> ProductDictionary { get; } = new();
@@ -24,7 +30,7 @@ internal sealed class AppHandler {
   }
 
   private readonly BotCache Cache;
-  private readonly PLogger Logger;
+  private readonly Logger Logger;
 
   internal BoosterHandler BoosterHandler { get; }
 
@@ -38,7 +44,7 @@ internal sealed class AppHandler {
 
   private List<BoostableApp> SleepingApps { get; } = [];
 
-  internal AppHandler(BotCache cache, BoosterHandler boosterHandler, PLogger logger) {
+  internal AppHandler(BotCache cache, BoosterHandler boosterHandler, Logger logger) {
     Cache = cache;
     BoosterHandler = boosterHandler;
     Logger = logger;

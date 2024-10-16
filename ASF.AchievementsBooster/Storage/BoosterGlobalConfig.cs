@@ -4,9 +4,9 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json.Serialization;
-using AchievementsBooster.Base;
+using AchievementsBooster.Helpers;
 
-namespace AchievementsBooster.Config;
+namespace AchievementsBooster.Storage;
 
 public sealed class BoosterGlobalConfig {
   public const byte DefaultBoostTimeInterval = 15;

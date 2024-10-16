@@ -1,4 +1,4 @@
-namespace AchievementsBooster.Base;
+namespace AchievementsBooster.Helpers;
 
 internal static class Messages {
   internal const string PluginDisabledInConfig = "{0} is currently disabled according to your configuration!";

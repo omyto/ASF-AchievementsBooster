@@ -9,7 +9,7 @@ using ArchiSteamFarm.Localization;
 using SteamKit2;
 using CMsgClientGetUserStatsResponse = SteamKit2.Internal.CMsgClientGetUserStatsResponse;
 
-namespace AchievementsBooster.Stats;
+namespace AchievementsBooster.Helpers;
 
 internal static class UserStatsDump {
   private static readonly ConcurrentHashSet<ulong> GameIDs = [];

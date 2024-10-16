@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using AchievementsBooster.Callback;
 using AchievementsBooster.Handler;
-using AchievementsBooster.Stats;
+using AchievementsBooster.Handler.Callback;
+using AchievementsBooster.Helpers;
 
-namespace AchievementsBooster.Base;
+namespace AchievementsBooster.Data;
 
 public sealed class BoostableApp {
   public uint ID { get; }

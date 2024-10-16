@@ -6,11 +6,9 @@ using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-using AchievementsBooster.Base;
-using AchievementsBooster.Callback;
+using AchievementsBooster.Data;
+using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helpers;
-using AchievementsBooster.Logger;
-using AchievementsBooster.Stats;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Web;
@@ -23,11 +21,11 @@ namespace AchievementsBooster.Handler;
 
 internal sealed class BoosterHandler : ClientMsgHandler {
   private readonly Bot Bot;
-  private readonly PLogger Logger;
+  private readonly Logger Logger;
 
   private SteamUnifiedMessages.UnifiedService<IPlayer>? UnifiedPlayerService;
 
-  internal BoosterHandler(Bot bot, PLogger logger) {
+  internal BoosterHandler(Bot bot, Logger logger) {
     Bot = bot;
     Logger = logger;
   }
