@@ -27,11 +27,15 @@ internal sealed class AppHandler {
 
   internal BoosterHandler BoosterHandler { get; }
 
-  private HashSet<uint> OwnedGames { get; set; } = [];
-  private Queue<uint> BoostableAppQueue { get; } = new();
-  private HashSet<uint> NonBoostableApps { get; } = [];
+  internal HashSet<uint> OwnedGames { get; private set; } = [];
+
   private List<uint> LastStandApps { get; } = [];
-  internal List<BoostableApp> SleepingApps { get; } = [];
+
+  private Queue<uint> BoostableAppQueue { get; } = new();
+
+  private HashSet<uint> NonBoostableApps { get; } = [];
+
+  private List<BoostableApp> SleepingApps { get; } = [];
 
   internal AppHandler(BotCache cache, BoosterHandler boosterHandler, PLogger logger) {
     Cache = cache;
@@ -39,11 +43,13 @@ internal sealed class AppHandler {
     Logger = logger;
   }
 
-  internal void Update(HashSet<uint>? ownedGames = null) {
-    if (ownedGames != null) {
+  internal void Update(Dictionary<uint, string>? ownedGamesDictionary) {
+    if (ownedGamesDictionary != null && ownedGamesDictionary.Count > 0) {
       if (OwnedGames.Count == 0) {
-        OwnedGames = ownedGames;
-        foreach (uint appID in ownedGames) {
+        OwnedGames = [.. ownedGamesDictionary.Keys];
+        Logger.Trace($"OwnedGames: {string.Join(",", OwnedGames)}");
+
+        foreach (uint appID in OwnedGames) {
           if (IsBoostableApp(appID)) {
             BoostableAppQueue.Enqueue(appID);
           }

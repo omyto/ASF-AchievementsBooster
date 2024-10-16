@@ -23,26 +23,21 @@ internal sealed class Booster : IDisposable {
 
   internal BoosterHandler BoosterHandler => AppHandler.BoosterHandler;
 
-  internal AppHandler AppHandler { get; }
+  private AppHandler AppHandler { get; }
 
   private readonly Bot Bot;
   private readonly BotCache Cache;
   private readonly PLogger Logger;
 
   private bool IsBoostingStarted { get; set; }
-  private Timer? BoosterTimer { get; set; }
-
-  private Dictionary<uint, string> OwnedGames { get; set; } = [];
-
-  private Queue<uint> BoostableAppsWhenArchiPlayedWhileIdle { get; }
-
-  // Boosting status
   private EBoostingState BoostingState { get; set; } = EBoostingState.None;
 
   private Dictionary<uint, BoostableApp> BoostingApps { get; } = [];
+  private Queue<uint> ArchiBoostableAppsPlayedWhileIdle { get; }
 
-  private DateTime LastBoosterTime { get; set; }
-
+  private Timer BoosterHeartBeatTimer { get; }
+  private DateTime LastBoosterHeartBeatTime { get; set; }
+  private DateTime LastUpdateOwnedGamesTime { get; set; }
   private SemaphoreSlim BoosterHeartBeatSemaphore { get; } = new SemaphoreSlim(1);
 
   internal Booster(Bot bot) {
@@ -54,7 +49,9 @@ internal sealed class Booster : IDisposable {
     AppHandler = new AppHandler(Cache, new BoosterHandler(bot, Logger), Logger);
 
     // Since GamesPlayedWhileIdle may never change
-    BoostableAppsWhenArchiPlayedWhileIdle = new Queue<uint>(Bot.BotConfig?.GamesPlayedWhileIdle ?? []);
+    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Bot.BotConfig?.GamesPlayedWhileIdle ?? []);
+
+    BoosterHeartBeatTimer = new Timer(OnBoosterHeartBeat, null, Timeout.Infinite, Timeout.Infinite);
   }
 
   public void Dispose() => Stop();
@@ -86,7 +83,7 @@ internal sealed class Booster : IDisposable {
 
     Logger.Info("Achievements Booster Starting...");
     TimeSpan dueTime = command ? TimeSpan.Zero : TimeSpan.FromMinutes(Constants.AutoStartDelayTime);
-    BoosterTimer = new Timer(OnBoosterHeartBeat, null, dueTime, Timeout.InfiniteTimeSpan);
+    _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
 
     return Strings.Done;
   }
@@ -104,13 +101,13 @@ internal sealed class Booster : IDisposable {
     }
     BoostingState = EBoostingState.None;
     BoostingApps.Clear();
-    BoosterTimer?.Dispose();
+    BoosterHeartBeatTimer.Dispose();
     Logger.Info("Achievements Booster Stopped!");
 
     return Strings.Done;
   }
 
-  private bool Ready() => OwnedGames.Count > 0 && Bot.IsConnectedAndLoggedOn && Bot.IsPlayingPossible;
+  private bool Ready() => Bot.IsConnectedAndLoggedOn && Bot.IsPlayingPossible;
 
   private async void OnBoosterHeartBeat(object? state) {
     if (!BoosterHeartBeatSemaphore.Wait(0)) {
@@ -118,63 +115,70 @@ internal sealed class Booster : IDisposable {
     }
 
     try {
-      await OnBoosterTimer().ConfigureAwait(false);
+      DateTime currentTime = DateTime.Now;
+      await UpdateOwnedGames(currentTime).ConfigureAwait(false);
+      if (AppHandler.OwnedGames.Count > 0) {
+        return;
+      }
+
+      if (GlobalConfig.SleepingHours > 0) {
+        bool isSleeping = await CheckSleepTimeAndSuspendBoosting(currentTime).ConfigureAwait(false);
+        if (isSleeping) {
+          return;
+        }
+      }
+
+      _ = await BoostingAchievements(currentTime - LastBoosterHeartBeatTime).ConfigureAwait(false);
+
+      // Calculate the delay time for the next boosting
+      TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval);
+      if (GlobalConfig.ExpandBoostTimeInterval > 0) {
+        dueTime += TimeSpanUtils.InMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
+      }
+
+      _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
+      LastBoosterHeartBeatTime = currentTime;
     }
     finally {
       _ = BoosterHeartBeatSemaphore.Release();
     }
   }
 
-  private async Task OnBoosterTimer() {
-    if (OwnedGames.Count == 0) {
-      Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
-      OwnedGames = ownedGames ?? [];
-      Logger.Trace($"OwnedGames: {string.Join(",", OwnedGames.Keys)}");
-
-      if (ownedGames != null) {
-        AppHandler.Update([.. ownedGames.Keys]);
-      }
-    }
-    else {
-      AppHandler.Update();
+  private async Task UpdateOwnedGames(DateTime currentTime) {
+    Dictionary<uint, string>? ownedGames = null;
+    if (AppHandler.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 6.0) {
+      ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
     }
 
-    DateTime currentTime = DateTime.Now;
-    TimeSpan deltaTime = currentTime - LastBoosterTime;
+    if (ownedGames != null) {
+      LastUpdateOwnedGamesTime = currentTime;
+    }
+    AppHandler.Update(ownedGames);
+  }
 
-    if (GlobalConfig.SleepingHours > 0) {
-      DateTime weakUpTime = new(currentTime.Year, currentTime.Month, currentTime.Day, 6, 0, 0, 0);
-      if (currentTime < weakUpTime) {
-        DateTime sleepStartTime = weakUpTime.AddHours(-GlobalConfig.SleepingHours);
-        if (currentTime > sleepStartTime) {
-          //FIXME: Still boosting one tick in case BoostingState is not BoosterPlayed
-          if (BoostingState == EBoostingState.BoosterPlayed && BoostingApps.Count > 0) {
-            foreach (BoostableApp app in BoostingApps.Values) {
-              AppHandler.SetAppToSleep(app);
-            }
-            BoostingApps.Clear();
-            _ = Bot.Actions.Play([]).ConfigureAwait(false);
+  private async Task<bool> CheckSleepTimeAndSuspendBoosting(DateTime currentTime) {
+    DateTime weakUpTime = new(currentTime.Year, currentTime.Month, currentTime.Day, 6, 0, 0, 0);
+    if (currentTime < weakUpTime) {
+      DateTime sleepStartTime = weakUpTime.AddHours(-GlobalConfig.SleepingHours);
+      if (currentTime > sleepStartTime) {
+        //FIXME: Still boosting one tick in case BoostingState is not BoosterPlayed
+        if (BoostingState == EBoostingState.BoosterPlayed && BoostingApps.Count > 0) {
+          foreach (BoostableApp app in BoostingApps.Values) {
+            AppHandler.SetAppToSleep(app);
           }
-          return;
+          BoostingApps.Clear();
+          _ = await Bot.Actions.Play([]).ConfigureAwait(false);
         }
+        return true;
       }
     }
 
-    _ = await BoostingAchievements(deltaTime).ConfigureAwait(false);
-
-    // Calculate the delay time for the next boosting
-    TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval);
-    if (GlobalConfig.ExpandBoostTimeInterval > 0) {
-      dueTime += TimeSpanUtils.InMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
-    }
-    _ = BoosterTimer?.Change(dueTime, Timeout.InfiniteTimeSpan);
-
-    LastBoosterTime = currentTime;
+    return false;
   }
 
   private async Task<bool> BoostingAchievements(TimeSpan deltaTime) {
     Logger.Debug("Boosting is in progress...");
-    if (!Ready()) {
+    if (!Ready() || AppHandler.OwnedGames.Count == 0) {
       Logger.Warning("Bot not ready!");
       return false;
     }
@@ -249,8 +253,8 @@ internal sealed class Booster : IDisposable {
           }
           break;
         case EBoostingState.ArchiPlayedWhileIdle:
-          while (BoostableAppsWhenArchiPlayedWhileIdle.Count > 0 && BoostingApps.Count < GlobalConfig.MaxBoostingApps) {
-            uint appID = BoostableAppsWhenArchiPlayedWhileIdle.Dequeue();
+          while (ArchiBoostableAppsPlayedWhileIdle.Count > 0 && BoostingApps.Count < GlobalConfig.MaxBoostingApps) {
+            uint appID = ArchiBoostableAppsPlayedWhileIdle.Dequeue();
             BoostableApp? app = await AppHandler.GetBoostableApp(appID).ConfigureAwait(false);
             if (app != null) {
               _ = BoostingApps.TryAdd(appID, app);
