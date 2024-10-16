@@ -36,45 +36,89 @@ internal sealed class AppHandler {
 
   internal HashSet<uint> OwnedGames { get; private set; } = [];
 
-  private List<uint> LastStandApps { get; } = [];
+  private Queue<uint> LastStandAppQueue { get; set; } = new();
 
-  private Queue<uint> BoostableAppQueue { get; } = new();
+  private Queue<uint> BoostableAppQueue { get; set; } = new();
 
   private HashSet<uint> NonBoostableApps { get; } = [];
 
   private List<BoostableApp> SleepingApps { get; } = [];
 
-  internal AppHandler(BotCache cache, BoosterHandler boosterHandler, Logger logger) {
-    Cache = cache;
+  internal AppHandler(BoosterHandler boosterHandler, BotCache cache, Logger logger) {
     BoosterHandler = boosterHandler;
+    Cache = cache;
     Logger = logger;
   }
 
   internal void Update(Dictionary<uint, string>? ownedGamesDictionary) {
     if (ownedGamesDictionary != null && ownedGamesDictionary.Count > 0) {
-      if (OwnedGames.Count == 0) {
-        OwnedGames = [.. ownedGamesDictionary.Keys];
-        Logger.Trace($"OwnedGames: {string.Join(",", OwnedGames)}");
+      HashSet<uint> newOwnedGames = [.. ownedGamesDictionary.Keys];
 
-        foreach (uint appID in OwnedGames) {
+      if (OwnedGames.Count == 0) {
+        Logger.Debug($"Games owned: {string.Join(",", newOwnedGames)}");
+
+        foreach (uint appID in newOwnedGames) {
           if (IsBoostableApp(appID)) {
             BoostableAppQueue.Enqueue(appID);
           }
         }
       }
       else {
-        //TODO: intersec
+        List<uint> gamesAdded = newOwnedGames.Except(OwnedGames).ToList();
+        if (gamesAdded.Count > 0) {
+          Logger.Debug($"New games added: {string.Join(",", gamesAdded)}");
+          foreach (uint appID in gamesAdded) {
+            if (IsBoostableApp(appID)) {
+              BoostableAppQueue.Enqueue(appID);
+            }
+          }
+        }
+
+        HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
+        if (gamesRemoved.Count > 0) {
+          Logger.Debug($"Games was removed: {string.Join(",", gamesRemoved)}");
+          // Sleeping apps list
+          for (int index = 0; index < SleepingApps.Count; index++) {
+            BoostableApp app = SleepingApps[index];
+            if (gamesRemoved.Contains(app.ID)) {
+              SleepingApps.RemoveAt(index);
+              index--;
+            }
+          }
+
+          // Last stand Apps queue
+          Queue<uint> newLastStandAppQueue = new();
+          while (LastStandAppQueue.Count > 0) {
+            uint appID = LastStandAppQueue.Dequeue();
+            if (!gamesRemoved.Contains(appID)) {
+              newLastStandAppQueue.Enqueue(appID);
+            }
+          }
+          LastStandAppQueue = newLastStandAppQueue;
+
+          // Boostable apps queue
+          Queue<uint> newBoostableAppQueue = new();
+          while (BoostableAppQueue.Count > 0) {
+            uint appID = BoostableAppQueue.Dequeue();
+            if (!gamesRemoved.Remove(appID)) {
+              newBoostableAppQueue.Enqueue(appID);
+            }
+          }
+          BoostableAppQueue = newBoostableAppQueue;
+        }
       }
+
+      OwnedGames = newOwnedGames;
     }
 
-    if (BoostableAppQueue.Count == 0 && LastStandApps.Count > 0) {
-      LastStandApps.ForEach(BoostableAppQueue.Enqueue);
-      LastStandApps.Clear();
+    if (BoostableAppQueue.Count == 0 && LastStandAppQueue.Count > 0) {
+      BoostableAppQueue = LastStandAppQueue;
+      LastStandAppQueue = new();
     }
   }
 
   internal void SetAppToSleep(BoostableApp app) => SleepingApps.Add(app);
-  internal void PlaceAtLastStandQueue(BoostableApp app) => LastStandApps.Add(app.ID);
+  internal void PlaceAtLastStandQueue(BoostableApp app) => LastStandAppQueue.Enqueue(app.ID);
 
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
   internal bool IsBoostableApp(uint appID) {

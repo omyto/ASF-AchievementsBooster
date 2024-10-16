@@ -51,7 +51,7 @@ internal sealed class Booster : IDisposable {
     Bot = bot;
     Logger = new Logger(bot.ArchiLogger);
     Cache = LoadOrCreateCacheForBot(bot);
-    AppHandler = new AppHandler(Cache, new BoosterHandler(bot, Logger), Logger);
+    AppHandler = new AppHandler(new BoosterHandler(bot, Logger), Cache, Logger);
     BoosterHeartBeatTimer = new Timer(OnBoosterHeartBeat, null, Timeout.Infinite, Timeout.Infinite);
 
     // Since GamesPlayedWhileIdle may never change
