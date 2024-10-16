@@ -11,6 +11,8 @@ using AchievementsBooster.Config;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Logger;
+using AchievementsBooster.Storage;
+using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Steam.Cards;
@@ -42,16 +44,13 @@ internal sealed class Booster : IDisposable {
 
   internal Booster(Bot bot) {
     Bot = bot;
-    Logger = new PLogger(Bot.ArchiLogger);
-    IsBoostingStarted = false;
-    Cache = BotCache.LoadFromDatabase(bot) ?? new BotCache(bot);
-    Cache.Init();
+    Logger = new PLogger(bot.ArchiLogger);
+    Cache = LoadOrCreateCacheForBot(bot);
     AppHandler = new AppHandler(Cache, new BoosterHandler(bot, Logger), Logger);
+    BoosterHeartBeatTimer = new Timer(OnBoosterHeartBeat, null, Timeout.Infinite, Timeout.Infinite);
 
     // Since GamesPlayedWhileIdle may never change
-    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Bot.BotConfig?.GamesPlayedWhileIdle ?? []);
-
-    BoosterHeartBeatTimer = new Timer(OnBoosterHeartBeat, null, Timeout.Infinite, Timeout.Infinite);
+    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(bot.BotConfig?.GamesPlayedWhileIdle ?? []);
   }
 
   public void Dispose() => Stop();
@@ -111,6 +110,7 @@ internal sealed class Booster : IDisposable {
 
   private async void OnBoosterHeartBeat(object? state) {
     if (!BoosterHeartBeatSemaphore.Wait(0)) {
+      Logger.Warning("OnBoosterHeartBeat already running !!!");
       return;
     }
 
@@ -128,7 +128,7 @@ internal sealed class Booster : IDisposable {
         }
       }
 
-      _ = await BoostingAchievements(currentTime - LastBoosterHeartBeatTime).ConfigureAwait(false);
+      _ = await BoostingAchievements(currentTime).ConfigureAwait(false);
 
       // Calculate the delay time for the next boosting
       TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval);
@@ -176,14 +176,12 @@ internal sealed class Booster : IDisposable {
     return false;
   }
 
-  private async Task<bool> BoostingAchievements(TimeSpan deltaTime) {
+  private async Task<bool> BoostingAchievements(DateTime currentTime) {
     Logger.Debug("Boosting is in progress...");
     if (!Ready() || AppHandler.OwnedGames.Count == 0) {
       Logger.Warning("Bot not ready!");
       return false;
     }
-
-    DateTime currentTime = DateTime.Now;
 
     EBoostingState currentBoostingState = Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
       ? EBoostingState.ArchiFarming
@@ -219,6 +217,8 @@ internal sealed class Booster : IDisposable {
 
       // Update boosting over hours
       if (GlobalConfig.MaxBoostingHours > 0) {
+        TimeSpan deltaTime = currentTime - LastBoosterHeartBeatTime;
+
         foreach (uint appID in BoostingApps.Keys.ToList()) {
           BoostableApp app = BoostingApps[appID];
           app.LastPlayedTime = currentTime;
@@ -304,5 +304,27 @@ internal sealed class Booster : IDisposable {
     }
 
     return false;
+  }
+
+  private BotCache LoadOrCreateCacheForBot(Bot bot) {
+    if (bot.BotDatabase == null) {
+      throw new InvalidOperationException(nameof(bot.BotDatabase));
+    }
+
+    BotCache? cache = null;
+    JsonElement jsonElement = bot.BotDatabase.LoadFromJsonStorage(Constants.BotCacheKey);
+    if (jsonElement.ValueKind == JsonValueKind.Object) {
+      try {
+        cache = jsonElement.ToJsonObject<BotCache>();
+      }
+      catch (Exception ex) {
+        Logger.Exception(ex);
+      }
+    }
+
+    cache ??= new BotCache();
+    cache.Init(bot.BotDatabase);
+
+    return cache;
   }
 }

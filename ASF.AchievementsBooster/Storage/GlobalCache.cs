@@ -1,12 +1,13 @@
 using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AchievementsBooster.Base;
 using ArchiSteamFarm.Collections;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Helpers.Json;
 using JetBrains.Annotations;
 
-namespace AchievementsBooster.Base;
+namespace AchievementsBooster.Storage;
 
 internal sealed class GlobalCache {
   [JsonIgnore]

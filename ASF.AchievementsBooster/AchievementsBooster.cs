@@ -9,6 +9,7 @@ using AchievementsBooster.Base;
 using AchievementsBooster.Config;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Logger;
+using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Plugins.Interfaces;

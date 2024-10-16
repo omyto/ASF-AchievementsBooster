@@ -10,6 +10,7 @@ using AchievementsBooster.Base;
 using AchievementsBooster.Callback;
 using AchievementsBooster.Logger;
 using AchievementsBooster.Stats;
+using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Handler;
