@@ -33,6 +33,8 @@ internal static class Messages {
 
   internal const string NoUnlockableStats = "No unlockable stats for app {0}";
 
+  internal const string AlreadyUnlockedAll = "Already achieved all achievements for app {0}";
+
   internal const string UnlockAchievementSuccess = "Achieved achievement '{0}' for app {1}";
 
   internal const string UnlockAchievementFailed = "Failed to achieve achievement '{0}' for app {1}";

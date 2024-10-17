@@ -45,12 +45,22 @@ public sealed class BoostableApp {
       return (false, string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, ID));
     }
 
-    StatData? nextStat = GetUpcomingUnlockableStat(response.StatDatas);
-    if (nextStat == null) {
-      return (false, string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, ID));//TODO: change message to already perfect
+    // Find next un-achieved achievement
+    List<StatData> unlockableStats = response.StatDatas.Where(e => e.Unlockable()).ToList();
+    RemainingAchievementsCount = unlockableStats.Count;
+
+    if (RemainingAchievementsCount == 0) {
+      return (false, string.Format(CultureInfo.CurrentCulture, Messages.AlreadyUnlockedAll, ID));
     }
 
-    // Unlock next achievement
+    foreach (StatData statData in unlockableStats) {
+      statData.Percentage = AchievementPercentages.GetPercentage(statData.APIName, 0);
+    }
+    unlockableStats.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
+
+    StatData nextStat = unlockableStats.First();
+
+    // Achieve next achievement
     if (await boosterHandler.UnlockStat(ID, nextStat, response.CrcStats).ConfigureAwait(false)) {
       RemainingAchievementsCount--;
       return (true, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, nextStat.Name, ID));
@@ -65,23 +75,5 @@ public sealed class BoostableApp {
       }
       return (false, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, nextStat.Name, ID));
     }
-  }
-
-  private StatData? GetUpcomingUnlockableStat(List<StatData> statDatas) {
-    ArgumentNullException.ThrowIfNull(AchievementPercentages);
-
-    List<StatData> unlockableStats = statDatas.Where(e => e.Unlockable()).ToList();
-    RemainingAchievementsCount = unlockableStats.Count;
-
-    if (RemainingAchievementsCount == 0) {
-      return null;
-    }
-
-    foreach (StatData statData in unlockableStats) {
-      statData.Percentage = AchievementPercentages.GetPercentage(statData.APIName, 0);
-    }
-    unlockableStats.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
-
-    return unlockableStats.First();
   }
 }
