@@ -100,18 +100,24 @@ internal sealed class Booster : IDisposable {
     IsBoostingStarted = false;
 
     if (BoostingState == EBoostingState.BoosterPlayed) {
-      //_ = Bot.Actions.Resume();
-      _ = Bot.Actions.Play([]).ConfigureAwait(false);
+      SetBoostingAppsToSleep();
+      _ = Bot.Actions.Resume();
     }
     BoostingState = EBoostingState.None;
-    BoostingApps.Clear();
     BoosterHeartBeatTimer.Dispose();
     Logger.Info("Achievements Booster Stopped!");
 
     return Strings.Done;
   }
 
-  private bool Ready() => Bot.IsConnectedAndLoggedOn && Bot.IsPlayingPossible;
+  private void SetBoostingAppsToSleep() {
+    if (BoostingState is EBoostingState.BoosterPlayed) {
+      foreach (BoostableApp app in BoostingApps.Values) {
+        AppHandler.SetAppToSleep(app);
+      }
+    }
+    BoostingApps.Clear();
+  }
 
   private async void OnBoosterHeartBeat(object? state) {
     if (!BoosterHeartBeatSemaphore.Wait(0)) {
@@ -120,15 +126,29 @@ internal sealed class Booster : IDisposable {
     }
 
     try {
+      if (!Bot.IsPlayingPossible) {
+        Logger.Warning("Bot not ready for play !!!");
+        if (BoostingApps.Count > 0) {
+          SetBoostingAppsToSleep();
+          BoostingState = EBoostingState.None;
+        }
+        return;
+      }
+
       DateTime currentTime = DateTime.Now;
+
       await UpdateOwnedGames(currentTime).ConfigureAwait(false);
-      if (AppHandler.OwnedGames.Count > 0) {
+      if (AppHandler.OwnedGames.Count == 0) {
         return;
       }
 
       if (GlobalConfig.SleepingHours > 0) {
-        bool isSleeping = await CheckSleepTimeAndSuspendBoosting(currentTime).ConfigureAwait(false);
-        if (isSleeping) {
+        if (IsSleepingTime(currentTime)) {
+          if (BoostingApps.Count > 0) {
+            SetBoostingAppsToSleep();
+            BoostingState = EBoostingState.None;
+            _ = Bot.Actions.Resume();
+          }
           return;
         }
       }
@@ -161,33 +181,7 @@ internal sealed class Booster : IDisposable {
     AppHandler.Update(ownedGames);
   }
 
-  private async Task<bool> CheckSleepTimeAndSuspendBoosting(DateTime currentTime) {
-    DateTime weakUpTime = new(currentTime.Year, currentTime.Month, currentTime.Day, 6, 0, 0, 0);
-    if (currentTime < weakUpTime) {
-      DateTime sleepStartTime = weakUpTime.AddHours(-GlobalConfig.SleepingHours);
-      if (currentTime > sleepStartTime) {
-        //FIXME: Still boosting one tick in case BoostingState is not BoosterPlayed
-        if (BoostingState == EBoostingState.BoosterPlayed && BoostingApps.Count > 0) {
-          foreach (BoostableApp app in BoostingApps.Values) {
-            AppHandler.SetAppToSleep(app);
-          }
-          BoostingApps.Clear();
-          _ = await Bot.Actions.Play([]).ConfigureAwait(false);
-        }
-        return true;
-      }
-    }
-
-    return false;
-  }
-
   private async Task<bool> BoostingAchievements(DateTime currentTime) {
-    Logger.Debug("Boosting is in progress...");
-    if (!Ready() || AppHandler.OwnedGames.Count == 0) {
-      Logger.Warning("Bot not ready!");
-      return false;
-    }
-
     EBoostingState currentBoostingState = Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
       ? EBoostingState.ArchiFarming
       : Bot.BotConfig?.GamesPlayedWhileIdle.Count > 0
@@ -280,8 +274,11 @@ internal sealed class Booster : IDisposable {
       case EBoostingState.ArchiFarming:
       case EBoostingState.ArchiPlayedWhileIdle: {
         bool isBoosting = BoostingApps.Count > 0;
-        string message = isBoosting ? string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys))
-          : (BoostingState is EBoostingState.ArchiFarming ? Messages.NoBoostingAppsInArchiFarming : Messages.NoBoostingAppsInArchiPlayedWhileIdle);
+        string message = isBoosting
+          ? string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys))
+          : BoostingState is EBoostingState.ArchiFarming
+            ? Messages.NoBoostingAppsInArchiFarming
+            : Messages.NoBoostingAppsInArchiPlayedWhileIdle;
 
         Logger.Info(message);
         return isBoosting;
@@ -300,7 +297,7 @@ internal sealed class Booster : IDisposable {
         }
         else {
           BoostingState = EBoostingState.None;
-          _ = await Bot.Actions.Play([]).ConfigureAwait(false);
+          _ = Bot.Actions.Resume();
           return false;
         }
       case EBoostingState.None:
@@ -331,5 +328,17 @@ internal sealed class Booster : IDisposable {
     cache.Init(bot.BotDatabase);
 
     return cache;
+  }
+
+  private static bool IsSleepingTime(DateTime currentTime) {
+    DateTime weakUpTime = new(currentTime.Year, currentTime.Month, currentTime.Day, 6, 0, 0, 0);
+    if (currentTime < weakUpTime) {
+      DateTime sleepStartTime = weakUpTime.AddHours(-GlobalConfig.SleepingHours);
+      if (currentTime > sleepStartTime) {
+        return true;
+      }
+    }
+
+    return false;
   }
 }
