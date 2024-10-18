@@ -36,7 +36,8 @@ internal sealed class Booster : IDisposable {
   private readonly BotCache Cache;
   private readonly Logger Logger;
 
-  private bool IsBoostingStarted { get; set; }
+  internal volatile bool IsBoostingStarted;
+
   private EBoostingState BoostingState { get; set; } = EBoostingState.None;
 
   private Dictionary<uint, BoostableApp> BoostingApps { get; } = [];
@@ -58,12 +59,7 @@ internal sealed class Booster : IDisposable {
     ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(bot.BotConfig?.GamesPlayedWhileIdle ?? []);
   }
 
-  public void Dispose() => Stop();
-
-  internal void Destroy() {
-    Cache.Destroy();
-    Dispose();
-  }
+  public void Dispose() => BoosterHeartBeatTimer.Dispose();
 
   internal Task OnSteamCallbacksInit(CallbackManager callbackManager) {
     ArgumentNullException.ThrowIfNull(callbackManager);
@@ -80,7 +76,7 @@ internal sealed class Booster : IDisposable {
 
   internal string Start(bool command = false) {
     if (IsBoostingStarted) {
-      Logger.Warning(Messages.BoostingStarted);
+      Logger.Trace(Messages.BoostingStarted);
       return Messages.BoostingStarted;
     }
     IsBoostingStarted = true;
@@ -94,19 +90,21 @@ internal sealed class Booster : IDisposable {
 
   internal string Stop() {
     if (!IsBoostingStarted) {
-      Logger.Warning(Messages.BoostingNotStart);
+      Logger.Trace(Messages.BoostingNotStart);
       return Messages.BoostingNotStart;
     }
+
     IsBoostingStarted = false;
 
     if (BoostingState == EBoostingState.BoosterPlayed) {
       SetBoostingAppsToSleep();
       _ = Bot.Actions.Resume();
     }
-    BoostingState = EBoostingState.None;
-    BoosterHeartBeatTimer.Dispose();
-    Logger.Info("Achievements Booster Stopped!");
 
+    _ = BoosterHeartBeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
+    BoostingState = EBoostingState.None;
+
+    Logger.Info("Achievements Booster Stopped!");
     return Strings.Done;
   }
 
@@ -124,16 +122,18 @@ internal sealed class Booster : IDisposable {
       Logger.Warning("OnBoosterHeartBeat already running !!!");
       return;
     }
+    Logger.Trace("Booster heartbeating ...");
 
     try {
       DateTime currentTime = DateTime.Now;
       await Boostering(currentTime).ConfigureAwait(false);
-
-      // Due time for the next boosting
-      TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval) + TimeSpanUtils.RandomInMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
-      _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
-
       LastBoosterHeartBeatTime = currentTime;
+
+      if (IsBoostingStarted) {
+        // Due time for the next boosting
+        TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval) + TimeSpanUtils.RandomInMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
+        _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
+      }
     }
     finally {
       _ = BoosterHeartBeatSemaphore.Release();
@@ -142,7 +142,7 @@ internal sealed class Booster : IDisposable {
 
   private async Task Boostering(DateTime currentTime) {
     if (!Bot.IsPlayingPossible || IsSleepingTime(currentTime)) {
-      Logger.Warning($"Bot not ready for play: {(!Bot.IsPlayingPossible ? "blocked" : "sleeping")}");
+      Logger.Info($"Bot not ready for play: {(!Bot.IsPlayingPossible ? "blocked" : "sleeping")}");
       if (BoostingApps.Count > 0) {
         SetBoostingAppsToSleep();
         BoostingState = EBoostingState.None;
@@ -319,4 +319,5 @@ internal sealed class Booster : IDisposable {
 
     return false;
   }
+
 }

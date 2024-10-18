@@ -68,7 +68,9 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   public Task OnBotDestroy(Bot bot) {
     if (GlobalConfig.Enabled) {
-      RemoveBoosterBot(bot);
+      if (Boosters.TryRemove(bot, out Booster? booster)) {
+        booster.Dispose();
+      }
     }
     return Task.CompletedTask;
   }
@@ -78,7 +80,9 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   public Task OnBotDisconnected(Bot bot, EResult reason) {
     if (GlobalConfig.Enabled) {
       if (Boosters.TryGetValue(bot, out Booster? booster)) {
-        _ = booster.Stop();
+        if (booster.IsBoostingStarted) {
+          _ = booster.Stop();
+        }
       }
       else {
         GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
@@ -127,26 +131,18 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
     if (GlobalConfig.Enabled) {
-      RemoveBoosterBot(bot);
       Booster booster = new(bot);
       if (Boosters.TryAdd(bot, booster)) {
         return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.BoosterHandler]);
       }
 
-      booster.Destroy();
+      booster.Dispose();
       GlobalLogger.Error(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
     }
     return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(null);
   }
 
   /** IBotCommand */
-  public async Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0) => GlobalConfig.Enabled ? await CommandsHandler.OnBotCommand(bot, access, message, args, steamID).ConfigureAwait(false) : null;
-
-  /** Internal Method */
-  private static void RemoveBoosterBot(Bot bot) {
-    if (Boosters.TryRemove(bot, out Booster? booster)) {
-      booster.Dispose();
-      booster.Destroy();
-    }
-  }
+  public async Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0)
+    => GlobalConfig.Enabled ? await CommandsHandler.OnBotCommand(bot, access, message, args, steamID).ConfigureAwait(false) : null;
 }

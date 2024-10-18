@@ -252,7 +252,6 @@ internal sealed class AppHandler {
       _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
       productInfo.IsBoostable = false;
-      //TODO: Consider adding to the NonBoostableApps set, same above
       return (EGetAppStatus.NonBoostable, null);
     }
 
@@ -264,9 +263,12 @@ internal sealed class AppHandler {
     }
 
     AchievementPercentages? percentages = await GetAchievementPercentages(appID).ConfigureAwait(false);
-    return percentages == null
-      ? (EGetAppStatus.AchievementPercentagesNotFound, null)
-      : (EGetAppStatus.OK, new BoostableApp(appID, productInfo, percentages));
+    if (percentages == null) {
+      Logger.Warning($"Can't get global achievement percentages infor for app {appID}");
+      return (EGetAppStatus.AchievementPercentagesNotFound, null);
+    }
+
+    return (EGetAppStatus.OK, new BoostableApp(appID, productInfo, percentages));
   }
 
   private async Task<ProductInfo?> GetProduct(uint appID) {

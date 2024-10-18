@@ -23,21 +23,17 @@ internal sealed class BotCache {
   internal BotCache() {
   }
 
-  ~BotCache() => Destroy();
+  ~BotCache() {
+    BotDatabase = null;
+    PerfectGames.OnModified -= OnObjectModified;
+    Initialized = false;
+  }
 
   internal void Init(BotDatabase botDatabase) {
     if (!Initialized) {
       BotDatabase = botDatabase;
       PerfectGames.OnModified += OnObjectModified;
       Initialized = true;
-    }
-  }
-
-  internal void Destroy() {
-    if (Initialized) {
-      BotDatabase = null;
-      PerfectGames.OnModified -= OnObjectModified;
-      Initialized = false;
     }
   }
 
