@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helpers;
+using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Web;
@@ -167,7 +167,6 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       if (!productInfoApps.TryGetValue(appID, out PICSProductInfo? productInfoApp)) {
         continue;
       }
-      Logger.Trace($"PICSProductInfo {appID}: {JsonSerializer.Serialize(productInfoApp)}");
 
       KeyValue productInfo = productInfoApp.KeyValues;
       if (productInfo == KeyValue.Invalid) {
@@ -181,7 +180,12 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       }
 
       ProductInfo info = ProductUtils.GenerateProduct(productInfoApp);
-      Logger.Trace($"ProductInfo {appID}: {JsonSerializer.Serialize(info)}");
+
+#if DEBUG
+      string fileName = $"{appID} ({info.Name}) - {Bot.BotName}";
+      await FileSerializer.WriteToFile(productInfoApp, fileName).ConfigureAwait(false);
+#endif
+
       return info;
     }
 

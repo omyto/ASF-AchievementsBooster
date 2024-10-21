@@ -30,7 +30,6 @@ internal sealed class GetUserStatsResponseCallback : CallbackMsg {
 
     if (Success) {
       UserStats = new(UserStatsUtils.ParseResponse(msg) ?? [], msg.crc_stats);
-      UserStatsDump.Dump(msg, UserStats.StatDatas);
     }
   }
 }
