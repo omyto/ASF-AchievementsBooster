@@ -45,7 +45,7 @@ internal static class Messages {
 
   internal const string IgnoreAppWithVAC = "Valve Anti-Cheat is enabled for app {0}";
 
-  internal const string IgnoreAppWithDLC = "The app {0} has one or more DLCs, and the current configuration does not allow boosting for this type of app";
+  internal const string IgnoreAppWithDLC = "The app {0} has one or more DLCs";
 
   internal const string IgnoreDeveloper = "The app {0} developed by '{1}' is on the boosting ignore list";
 

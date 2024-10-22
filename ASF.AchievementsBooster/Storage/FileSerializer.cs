@@ -14,6 +14,7 @@ internal static class FileSerializer {
 
   internal static async Task WriteToFile<T>(T obj, string name) {
     await Semaphore.WaitAsync().ConfigureAwait(false);
+    string validName = string.Concat(name.Split(Path.GetInvalidFileNameChars()));
 
     try {
       if (!Directory.Exists(BoosterDirectory)) {
@@ -28,7 +29,7 @@ internal static class FileSerializer {
 
       string filePath = "";
       do {
-        filePath = Path.Combine(BoosterDirectory, $"{name} - {DateTime.Now:yyMMddHHmmssfff}.json");
+        filePath = Path.Combine(BoosterDirectory, $"{validName} - {DateTime.Now:yyMMddHHmmssfff}.json");
       }
       while (File.Exists(filePath));
 

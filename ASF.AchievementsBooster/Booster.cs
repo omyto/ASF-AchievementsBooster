@@ -133,6 +133,7 @@ internal sealed class Booster : IDisposable {
         // Due time for the next boosting
         TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval) + TimeSpanUtils.RandomInMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
         _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
+        Logger.Trace($"The next heartbeat will occur in {dueTime.Minutes} minutes {(dueTime.Seconds > 0 ? $"and {dueTime.Seconds} seconds" : "")}!");
       }
     }
     finally {
