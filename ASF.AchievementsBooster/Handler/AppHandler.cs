@@ -55,7 +55,7 @@ internal sealed class AppHandler {
       HashSet<uint> newOwnedGames = [.. ownedGamesDictionary.Keys];
 
       if (OwnedGames.Count == 0) {
-        Logger.Debug($"Games owned: {string.Join(",", newOwnedGames)}");
+        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
 
         foreach (uint appID in newOwnedGames) {
           if (IsBoostableApp(appID)) {
@@ -66,7 +66,7 @@ internal sealed class AppHandler {
       else {
         List<uint> gamesAdded = newOwnedGames.Except(OwnedGames).ToList();
         if (gamesAdded.Count > 0) {
-          Logger.Debug($"New games added: {string.Join(",", gamesAdded)}");
+          Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesAdded, string.Join(",", gamesAdded)));
           foreach (uint appID in gamesAdded) {
             if (IsBoostableApp(appID)) {
               BoostableAppQueue.Enqueue(appID);
@@ -76,7 +76,7 @@ internal sealed class AppHandler {
 
         HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
         if (gamesRemoved.Count > 0) {
-          Logger.Debug($"Games was removed: {string.Join(",", gamesRemoved)}");
+          Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
           // Sleeping apps list
           for (int index = 0; index < SleepingApps.Count; index++) {
             BoostableApp app = SleepingApps[index];
@@ -205,25 +205,26 @@ internal sealed class AppHandler {
   private async Task<(EGetAppStatus status, BoostableApp?)> GetApp(uint appID) {
     ProductInfo? productInfo = await GetProduct(appID).ConfigureAwait(false);
     if (productInfo == null) {
-      Logger.Warning($"Can't get product info for app {appID}");
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ProductInfoNotFound, appID));
       return (EGetAppStatus.ProductNotFound, null);
     }
 
     if (!productInfo.IsBoostable) {
       //TODO: Consider adding to the NonBoostableApps set
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.InvalidApp, appID));
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NonBoostableApp, productInfo.FullName));
       return (EGetAppStatus.NonBoostable, null);
     }
 
     if (productInfo.IsVACEnabled) {
       _ = AchievementsBooster.GlobalCache.VACApps.Add(appID);
       if (AchievementsBooster.GlobalConfig.IgnoreAppWithVAC) {
-        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.VACEnabled, appID));
+        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, productInfo.FullName));
         return (EGetAppStatus.NonBoostable, null);
       }
     }
 
     if (AchievementsBooster.GlobalConfig.IgnoreAppWithDLC && productInfo.DLCs.Count > 0) {
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, productInfo.FullName));
       _ = NonBoostableApps.Add(appID);
       return (EGetAppStatus.NonBoostable, null);
     }
@@ -231,6 +232,7 @@ internal sealed class AppHandler {
     if (AchievementsBooster.GlobalConfig.IgnoreDevelopers.Count > 0) {
       foreach (string developer in AchievementsBooster.GlobalConfig.IgnoreDevelopers) {
         if (productInfo.Developers.Contains(developer)) {
+          Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, productInfo.FullName, developer));
           _ = NonBoostableApps.Add(appID);
           return (EGetAppStatus.NonBoostable, null);
         }
@@ -240,6 +242,7 @@ internal sealed class AppHandler {
     if (AchievementsBooster.GlobalConfig.IgnorePublishers.Count > 0) {
       foreach (string publisher in AchievementsBooster.GlobalConfig.IgnorePublishers) {
         if (productInfo.Publishers.Contains(publisher)) {
+          Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, productInfo.FullName, publisher));
           _ = NonBoostableApps.Add(appID);
           return (EGetAppStatus.NonBoostable, null);
         }
@@ -250,7 +253,7 @@ internal sealed class AppHandler {
     List<StatData>? statDatas = response?.StatDatas;
     if (statDatas == null || statDatas.Count == 0) {
       _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, productInfo.FullName));
       productInfo.IsBoostable = false;
       return (EGetAppStatus.NonBoostable, null);
     }
@@ -258,13 +261,13 @@ internal sealed class AppHandler {
     List<StatData> unlockableStats = statDatas.Where(e => e.Unlockable()).ToList();
     if (unlockableStats.Count == 0) {
       _ = Cache.PerfectGames.Add(appID);
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, appID));
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, productInfo.FullName));
       return (EGetAppStatus.NonBoostable, null);
     }
 
     AchievementPercentages? percentages = await GetAchievementPercentages(appID).ConfigureAwait(false);
     if (percentages == null) {
-      Logger.Warning($"Can't get global achievement percentages infor for app {appID}");
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AchievementPercentagesNotFound, productInfo.FullName));
       return (EGetAppStatus.AchievementPercentagesNotFound, null);
     }
 

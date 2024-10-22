@@ -7,6 +7,8 @@ public sealed class ProductInfo {
 
   public string Name { get; }
 
+  public string FullName => $"{ID} ({Name})";
+
   public string Type { get; internal set; }
 
   public bool IsBoostable { get; internal set; }

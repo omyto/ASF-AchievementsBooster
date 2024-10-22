@@ -68,7 +68,7 @@ public sealed class BoosterGlobalConfig {
       int maxTimeInterval = BoostTimeInterval + ExpandBoostTimeInterval;
       if (maxTimeInterval > 60 * MaxBoostingHours) {
         byte newMaxBoostingHours = (byte) Math.Ceiling(maxTimeInterval / 60.0);
-        AchievementsBooster.GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingHours), MaxBoostingHours, newMaxBoostingHours));
+        AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingHours), MaxBoostingHours, newMaxBoostingHours));
         MaxBoostingHours = newMaxBoostingHours;
       }
     }
@@ -91,7 +91,7 @@ public sealed class BoosterGlobalConfig {
 
     if (value != newValue) {
       property.SetValue(this, newValue);
-      AchievementsBooster.GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, newValue));
+      AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, newValue));
     }
   }
 }

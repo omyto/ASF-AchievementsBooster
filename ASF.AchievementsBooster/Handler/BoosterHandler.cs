@@ -57,7 +57,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
   internal async Task<UserStatsResponse?> GetStats(uint appID) {
     GetUserStatsResponseCallback? response = await RequestUserStats(appID).ConfigureAwait(false);
     if (response == null || !response.Success) {
-      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID));
+      Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID));
       return null;
     }
 
@@ -105,7 +105,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
   internal async Task<AchievementPercentages?> GetAchievementPercentages(uint appID) {
     List<GameAchievement>? gameAchievements = await GetGameAchievements(appID).ConfigureAwait(false);
     if (gameAchievements == null || gameAchievements.Count == 0) {
-      Logger.Warning($"No global achievement percentages exist for app {appID}");
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.GameAchievementNotExist, appID));
       return null;
     }
 
@@ -132,7 +132,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       response = await UnifiedPlayerService.SendMessage(e => e.GetGameAchievements(request)).ToLongRunningTask().ConfigureAwait(false);
     }
     catch (Exception exception) {
-      AchievementsBooster.GlobalLogger.Warning(exception);
+      AchievementsBooster.Logger.Warning(exception);
       return null;
     }
 

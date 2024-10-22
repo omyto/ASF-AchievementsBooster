@@ -19,7 +19,7 @@ namespace AchievementsBooster;
 [Export(typeof(IPlugin))]
 internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnection, IBotSteamClient, IBotCommand2 {
 
-  internal static readonly Logger GlobalLogger = new(ASF.ArchiLogger);
+  internal static readonly Logger Logger = new(ASF.ArchiLogger);
 
   internal static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
@@ -54,7 +54,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
             GlobalConfig.Validate();
           }
           else {
-            GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.PluginDisabledInConfig, Name));
+            Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.PluginDisabledInConfig, Name));
           }
         }
       }
@@ -85,7 +85,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
         }
       }
       else {
-        GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+        Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
       }
     }
     return Task.CompletedTask;
@@ -97,7 +97,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
         _ = booster.Start();
       }
       else {
-        GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+        Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
       }
     }
     return Task.CompletedTask;
@@ -112,7 +112,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
       if (Boosters.TryGetValue(bot, out Booster? booster)) {
         return booster.OnInitModules(additionalConfigProperties);
       }
-      GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
     return Task.CompletedTask;
   }
@@ -124,7 +124,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
       if (Boosters.TryGetValue(bot, out Booster? botBooster)) {
         return botBooster.OnSteamCallbacksInit(callbackManager);
       }
-      GlobalLogger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
     return Task.CompletedTask;
   }
@@ -137,7 +137,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
       }
 
       booster.Dispose();
-      GlobalLogger.Error(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
+      Logger.Error(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
     }
     return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(null);
   }

@@ -35,7 +35,7 @@ internal static class FileSerializer {
       await File.WriteAllTextAsync(filePath, json).ConfigureAwait(false);
     }
     catch (Exception exception) {
-      AchievementsBooster.GlobalLogger.Exception(exception);
+      AchievementsBooster.Logger.Exception(exception);
     }
     finally {
       _ = Semaphore.Release();

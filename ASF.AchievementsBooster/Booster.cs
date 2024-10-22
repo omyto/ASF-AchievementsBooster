@@ -122,7 +122,7 @@ internal sealed class Booster : IDisposable {
       Logger.Warning("OnBoosterHeartBeat already running !!!");
       return;
     }
-    Logger.Trace("Booster heartbeating ...");
+    Logger.Trace("Heartbeating ...");
 
     try {
       DateTime currentTime = DateTime.Now;
@@ -142,7 +142,7 @@ internal sealed class Booster : IDisposable {
 
   private async Task Boostering(DateTime currentTime) {
     if (!Bot.IsPlayingPossible || IsSleepingTime(currentTime)) {
-      Logger.Info($"Bot not ready for play: {(!Bot.IsPlayingPossible ? "blocked" : "sleeping")}");
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BotNotReadyPlay, !Bot.IsPlayingPossible ? "blocked" : "sleeping"));
       if (BoostingApps.Count > 0) {
         SetBoostingAppsToSleep();
         BoostingState = EBoostingState.None;
@@ -153,7 +153,7 @@ internal sealed class Booster : IDisposable {
 
     await UpdateOwnedGames(currentTime).ConfigureAwait(false);
     if (AppHandler.OwnedGames.Count == 0) {
-      Logger.Info("Bot don't have any games for boosting");
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.NoGamesBoosting));
       return;
     }
 
@@ -193,7 +193,7 @@ internal sealed class Booster : IDisposable {
           if (app.RemainingAchievementsCount == 0) {
             _ = BoostingApps.Remove(app.ID);
             _ = Cache.PerfectGames.Add(app.ID);
-            Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.ID, app.Name));
+            Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.FullName));
           }
         }
         else {
@@ -271,7 +271,7 @@ internal sealed class Booster : IDisposable {
           if (!success) {
             SetBoostingAppsToSleep();
             BoostingState = EBoostingState.None;
-            Logger.Warning($"Boosting apps failed! Reason: {message}");
+            Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
           }
           break;
 

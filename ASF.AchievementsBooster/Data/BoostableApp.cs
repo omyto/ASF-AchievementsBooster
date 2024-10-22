@@ -15,6 +15,8 @@ public sealed class BoostableApp {
 
   public string Name => ProductInfo.Name;
 
+  public string FullName => ProductInfo.FullName;
+
   public bool IsReady => ProductInfo.IsBoostable;
 
   internal double ContinuousBoostingHours { get; set; }
@@ -42,7 +44,7 @@ public sealed class BoostableApp {
     UserStatsResponse? response = await boosterHandler.GetStats(ID).ConfigureAwait(false);
     if (response == null) {
       // Not reachable
-      return (false, string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, ID));
+      return (false, string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, FullName));
     }
 
     // Find next un-achieved achievement
@@ -50,7 +52,7 @@ public sealed class BoostableApp {
     RemainingAchievementsCount = unlockableStats.Count;
 
     if (RemainingAchievementsCount == 0) {
-      return (false, string.Format(CultureInfo.CurrentCulture, Messages.AlreadyUnlockedAll, ID));
+      return (false, string.Format(CultureInfo.CurrentCulture, Messages.AlreadyUnlockedAll, FullName));
     }
 
     foreach (StatData statData in unlockableStats) {
@@ -63,7 +65,7 @@ public sealed class BoostableApp {
     // Achieve next achievement
     if (await boosterHandler.UnlockStat(ID, nextStat, response.CrcStats).ConfigureAwait(false)) {
       RemainingAchievementsCount--;
-      return (true, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, nextStat.Name, ID));
+      return (true, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, nextStat.Name, FullName));
     }
     else {
       if (nextStat.APIName.Equals(FailedUnlockStat?.APIName, StringComparison.Ordinal)) {
@@ -73,7 +75,7 @@ public sealed class BoostableApp {
         FailedUnlockStat = nextStat;
         FailedUnlockCount = 0;
       }
-      return (false, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, nextStat.Name, ID));
+      return (false, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, nextStat.Name, FullName));
     }
   }
 }
