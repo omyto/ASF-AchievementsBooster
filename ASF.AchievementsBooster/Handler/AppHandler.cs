@@ -286,6 +286,11 @@ internal sealed class AppHandler {
           _ = Holder.ProductDictionary.TryAdd(appID, product);
         }
       }
+#if DEBUG
+      else {
+        Logger.Trace($"Get product infor for app {product.FullName} from cache");
+      }
+#endif
     }
     finally {
       _ = semaphore.Release();
@@ -307,6 +312,11 @@ internal sealed class AppHandler {
           _ = Holder.AchievementPercentagesDictionary.TryAdd(appID, percentages);
         }
       }
+#if DEBUG
+      else {
+        Logger.Trace($"Get achievement percentages for app {appID} from cache");
+      }
+#endif
     }
     finally {
       _ = semaphore.Release();

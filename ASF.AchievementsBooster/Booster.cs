@@ -133,7 +133,7 @@ internal sealed class Booster : IDisposable {
         // Due time for the next boosting
         TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval) + TimeSpanUtils.RandomInMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
         _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
-        Logger.Trace($"The next heartbeat will occur in {dueTime.Minutes} minutes {(dueTime.Seconds > 0 ? $"and {dueTime.Seconds} seconds" : "")}!");
+        Logger.Trace($"The next heartbeat will occur in {dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}!");
       }
     }
     finally {
@@ -242,7 +242,7 @@ internal sealed class Booster : IDisposable {
               }
             }
           }
-          Logger.Info(BoostingApps.Count == 0 ? Messages.NoBoostingAppsInArchiFarming : string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys)));
+          Logger.Info(BoostingApps.Count == 0 ? Messages.NoBoostingAppsInArchiFarming : BoostingAppsMessage());
           break;
 
         case EBoostingState.ArchiPlayedWhileIdle:
@@ -253,7 +253,7 @@ internal sealed class Booster : IDisposable {
               _ = BoostingApps.TryAdd(appID, app);
             }
           }
-          Logger.Info(BoostingApps.Count == 0 ? Messages.NoBoostingAppsInArchiPlayedWhileIdle : string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys)));
+          Logger.Info(BoostingApps.Count == 0 ? Messages.NoBoostingAppsInArchiPlayedWhileIdle : BoostingAppsMessage());
           break;
 
         case EBoostingState.BoosterPlayed:
@@ -267,7 +267,7 @@ internal sealed class Booster : IDisposable {
           }
 
           List<uint> playAppIDs = [.. BoostingApps.Keys];
-          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", playAppIDs)));
+          Logger.Info(BoostingAppsMessage());
           (bool success, string message) = await Bot.Actions.Play(playAppIDs).ConfigureAwait(false);
           if (!success) {
             SetBoostingAppsToSleep();
@@ -282,6 +282,12 @@ internal sealed class Booster : IDisposable {
       }
     }
   }
+
+  private string BoostingAppsMessage() => BoostingApps.Count switch {
+    0 => throw new ArgumentException($"{nameof(BoostingApps)} is empty"),
+    1 => string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, BoostingApps.First().Value.FullName),
+    _ => string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys)),
+  };
 
   private BotCache LoadOrCreateCacheForBot(Bot bot) {
     if (bot.BotDatabase == null) {
