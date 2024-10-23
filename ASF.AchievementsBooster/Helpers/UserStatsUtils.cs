@@ -7,7 +7,8 @@ using SteamKit2.Internal;
 
 namespace AchievementsBooster.Helpers;
 
-/// This source code was referenced from https://github.com/Rudokhvist/ASF-Achievement-Manager and belongs to Rudokhvist.
+/// Copyright (c) Rudokhvist
+/// This source code was referenced from https://github.com/CatPoweredPlugins/ASFAchievementManager
 /// Special thanks to Rudokhvist
 
 public sealed class StatData {
@@ -48,11 +49,11 @@ internal static class UserStatsUtils {
                 uint? stat_value = response?.stats?.Find(statElement => statElement.stat_id == statNum)?.stat_value;
                 bool isSet = stat_value != null && (stat_value & ((uint) 1 << bitNum)) != 0;
 
-                bool restricted = achievement.Children.Find(child => child.Name == "permission") != null;
+                bool restricted = achievement.Children.Find(child => child.Name == "permission" && child.Value != null) != null;
 
-                string? dependancyName = achievement.Children.Find(child => child.Name == "progress") == null ? "" : achievement.Children.Find(child => child.Name == "progress")?.Children?.Find(child => child.Name == "value")?.Children?.Find(child => child.Name == "operand1")?.Value;
+                string? dependancyName = (achievement.Children.Find(child => child.Name == "progress") == null) ? "" : achievement.Children.Find(child => child.Name == "progress")?.Children?.Find(child => child.Name == "value")?.Children?.Find(child => child.Name == "operand1")?.Value;
 
-                if (!uint.TryParse(achievement.Children.Find(child => child.Name == "progress") == null ? "0" : achievement.Children.Find(child => child.Name == "progress")!.Children.Find(child => child.Name == "max_val")?.Value, out uint dependancyValue)) {
+                if (!uint.TryParse((achievement.Children.Find(child => child.Name == "progress") == null) ? "0" : achievement.Children.Find(child => child.Name == "progress")!.Children.Find(child => child.Name == "max_val")?.Value, out uint dependancyValue)) {
                   AchievementsBooster.Logger.Error(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(dependancyValue)));
                   return null;
                 }
@@ -65,13 +66,14 @@ internal static class UserStatsUtils {
                 //  { "korean", "koreana" },
                 //  { "chinese (traditional)", "tchinese" },
                 //  { "chinese (simplified)", "schinese" }
-                //  };
+                //};
 
                 //if (countryLanguageMap.TryGetValue(lang, out string? value)) {
                 //  lang = value;
-                //} else {
-                //  if (lang.IndexOf('(') > 0) {
-                //    lang = lang[..(lang.IndexOf('(') - 1)];
+                //}
+                //else {
+                //  if (lang.IndexOf('(', StringComparison.Ordinal) > 0) {
+                //    lang = lang[..(lang.IndexOf('(', StringComparison.Ordinal) - 1)];
                 //  }
                 //}
                 //if (achievement.Children.Find(child => child.Name == "display")?.Children?.Find(child => child.Name == "name")?.Children?.Find(child => child.Name == lang) == null) {
@@ -102,7 +104,7 @@ internal static class UserStatsUtils {
       foreach (KeyValue stat in keyValues.Children.Find(child => child.Name == "stats")?.Children ?? []) {
         if (stat.Children.Find(child => child.Name == "type")?.Value == "1") {
           if (uint.TryParse(stat.Name, out uint statNum)) {
-            bool restricted = stat.Children.Find(child => child.Name == "permission") != null;
+            bool restricted = int.TryParse(stat.Children.Find(child => child.Name == "permission")?.Value, out int value) && value > 1;
             string? name = stat.Children.Find(child => child.Name == "name")?.Value;
             if (name != null) {
               StatData? parentStat = result.Find(item => item.DependancyName == name);
