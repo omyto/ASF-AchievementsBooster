@@ -41,6 +41,10 @@ internal static class Messages {
 
   internal const string NonBoostableApp = "The app {0} is not boostable";
 
+  internal const string BoostableApp = "App {0} is boostable, {1} achievements remaining";
+
+  internal const string WillBoostApp = "Will boost {0}, {1} achievements remaining";
+
   internal const string AchievementsNotAvailable = "Achievements are not available for app {0}";
 
   internal const string IgnoreAppWithVAC = "Valve Anti-Cheat is enabled for app {0}";

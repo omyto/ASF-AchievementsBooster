@@ -97,7 +97,7 @@ internal sealed class Booster : IDisposable {
     IsBoostingStarted = false;
 
     if (BoostingState == EBoostingState.BoosterPlayed) {
-      SetBoostingAppsToSleep();
+      SetBoostingAppsToSleep(true, DateTime.Now);
       _ = Bot.Actions.Resume();
     }
 
@@ -108,9 +108,20 @@ internal sealed class Booster : IDisposable {
     return Strings.Done;
   }
 
-  private void SetBoostingAppsToSleep() {
+  private void SetBoostingAppsToSleep(bool updateBoostingHours, DateTime? now = null) {
+    if (BoostingApps.Count == 0) {
+      return;
+    }
+
     if (BoostingState is EBoostingState.BoosterPlayed) {
+      DateTime currentTime = now ?? DateTime.Now;
+      double deltaTime = (currentTime - LastBoosterHeartBeatTime).TotalHours;
+
       foreach (BoostableApp app in BoostingApps.Values) {
+        app.LastPlayedTime = currentTime;
+        if (updateBoostingHours) {
+          app.ContinuousBoostingHours += deltaTime;
+        }
         AppHandler.SetAppToSleep(app);
       }
     }
@@ -145,7 +156,7 @@ internal sealed class Booster : IDisposable {
     if (!Bot.IsPlayingPossible || IsSleepingTime(currentTime)) {
       Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BotNotReadyPlay, !Bot.IsPlayingPossible ? "blocked" : "sleeping"));
       if (BoostingApps.Count > 0) {
-        SetBoostingAppsToSleep();
+        SetBoostingAppsToSleep(true, currentTime);
         BoostingState = EBoostingState.None;
         _ = Bot.Actions.Resume();
       }
@@ -270,7 +281,7 @@ internal sealed class Booster : IDisposable {
           Logger.Info(BoostingAppsMessage());
           (bool success, string message) = await Bot.Actions.Play(playAppIDs).ConfigureAwait(false);
           if (!success) {
-            SetBoostingAppsToSleep();
+            SetBoostingAppsToSleep(false);
             BoostingState = EBoostingState.None;
             Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
           }

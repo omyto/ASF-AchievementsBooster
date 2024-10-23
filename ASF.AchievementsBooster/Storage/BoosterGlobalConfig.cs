@@ -16,6 +16,7 @@ public sealed class BoosterGlobalConfig {
   public const byte DefaultMaxBoostingHours = 10;
   public const bool DefaultIgnoreAppWithVAC = true;
   public const bool DefaultIgnoreAppWithDLC = true;
+  internal const byte MaxGamesPlayedConcurrently = 32; /** ArchiHandler.MaxGamesPlayedConcurrently */
 
   [JsonInclude]
   public bool Enabled { get; internal set; } = true;
@@ -33,7 +34,7 @@ public sealed class BoosterGlobalConfig {
   public byte SleepingHours { get; private set; } = DefaultSleepingHours;
 
   [JsonInclude]
-  [Range(1, 10)]
+  [Range(1, MaxGamesPlayedConcurrently)]
   public byte MaxBoostingApps { get; private set; } = DefaultMaxBoostingApps;
 
   [JsonInclude]

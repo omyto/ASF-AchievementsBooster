@@ -69,6 +69,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   public Task OnBotDestroy(Bot bot) {
     if (GlobalConfig.Enabled) {
       if (Boosters.TryRemove(bot, out Booster? booster)) {
+        Logger.Trace($"Destroy booster for bot: {bot.BotName}");
         booster.Dispose();
       }
     }

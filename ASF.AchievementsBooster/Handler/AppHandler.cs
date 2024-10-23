@@ -11,6 +11,7 @@ using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
+using ArchiSteamFarm.Storage;
 
 namespace AchievementsBooster.Handler;
 
@@ -86,7 +87,7 @@ internal sealed class AppHandler {
             }
           }
 
-          // Last stand Apps queue
+          // Last stand apps queue
           Queue<uint> newLastStandAppQueue = new();
           while (LastStandAppQueue.Count > 0) {
             uint appID = LastStandAppQueue.Dequeue();
@@ -123,6 +124,7 @@ internal sealed class AppHandler {
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
   internal bool IsBoostableApp(uint appID) {
     if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
       return false;
     }
 
@@ -149,12 +151,23 @@ internal sealed class AppHandler {
     DateTime currentTime = DateTime.Now;
     for (int index = 0; index < SleepingApps.Count && apps.Count < size; index++) {
       BoostableApp app = SleepingApps[index];
-      if ((currentTime - app.LastPlayedTime).TotalHours > AchievementsBooster.GlobalConfig.MaxBoostingHours) {
+      bool isValid = false;
+
+      if (app.ContinuousBoostingHours < AchievementsBooster.GlobalConfig.MaxBoostingHours) {
+        isValid = true;
+      }
+      else if ((currentTime - app.LastPlayedTime).TotalHours > AchievementsBooster.GlobalConfig.MaxBoostingHours) {
+        isValid = true;
+        app.ContinuousBoostingHours = 0;
+      }
+
+      if (isValid) {
         SleepingApps.RemoveAt(index);
         index--;
+
         app.LastPlayedTime = currentTime;
-        app.ContinuousBoostingHours = 0;
         apps.Add(app);
+        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.WillBoostApp, app.FullName, app.RemainingAchievementsCount));
       }
     }
 
@@ -185,16 +198,12 @@ internal sealed class AppHandler {
   }
 
   internal async Task<BoostableApp?> GetBoostableApp(uint appID) {
-    //if (!OwnedGames.ContainsKey(appID)) {
-    //  // Oh God! Why?
-    //  Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID));
-    //  return null;
-    //}
+    if (!OwnedGames.Contains(appID)) {
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID));
+      return null;
+    }
 
     if (!IsBoostableApp(appID)) {
-      //if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
-      //  Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
-      //}
       return null;
     }
 
@@ -258,8 +267,8 @@ internal sealed class AppHandler {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    List<StatData> unlockableStats = statDatas.Where(e => e.Unlockable()).ToList();
-    if (unlockableStats.Count == 0) {
+    int remainingAchievementsCount = statDatas.Where(e => e.Unlockable()).Count();
+    if (remainingAchievementsCount == 0) {
       _ = Cache.PerfectGames.Add(appID);
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, productInfo.FullName));
       return (EGetAppStatus.NonBoostable, null);
@@ -271,7 +280,8 @@ internal sealed class AppHandler {
       return (EGetAppStatus.AchievementPercentagesNotFound, null);
     }
 
-    return (EGetAppStatus.OK, new BoostableApp(appID, productInfo, percentages));
+    Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostableApp, productInfo.FullName, remainingAchievementsCount));
+    return (EGetAppStatus.OK, new BoostableApp(appID, productInfo, percentages, remainingAchievementsCount));
   }
 
   private async Task<ProductInfo?> GetProduct(uint appID) {

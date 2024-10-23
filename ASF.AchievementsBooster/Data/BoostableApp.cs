@@ -33,10 +33,11 @@ public sealed class BoostableApp {
 
   private StatData? FailedUnlockStat { get; set; }
 
-  internal BoostableApp(uint id, ProductInfo product, AchievementPercentages percentages) {
+  internal BoostableApp(uint id, ProductInfo product, AchievementPercentages percentages, int remainingAchievementsCount) {
     ID = id;
     ProductInfo = product;
     AchievementPercentages = percentages;
+    RemainingAchievementsCount = remainingAchievementsCount;
     ContinuousBoostingHours = 0;
   }
 

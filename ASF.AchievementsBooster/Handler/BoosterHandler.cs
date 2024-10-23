@@ -22,6 +22,7 @@ namespace AchievementsBooster.Handler;
 internal sealed class BoosterHandler : ClientMsgHandler {
   private readonly Bot Bot;
   private readonly Logger Logger;
+  private const int RequestDelay = 500;
 
   private SteamUnifiedMessages.UnifiedService<IPlayer>? UnifiedPlayerService;
 
@@ -92,8 +93,9 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       }
     };
 
-    Client.Send(request);
     try {
+      await Task.Delay(RequestDelay).ConfigureAwait(false);
+      Client.Send(request);
       return await new AsyncJob<GetUserStatsResponseCallback>(Client, request.SourceJobID).ToLongRunningTask().ConfigureAwait(false);
     }
     catch (Exception e) {
@@ -129,6 +131,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     SteamUnifiedMessages.ServiceMethodResponse response;
 
     try {
+      await Task.Delay(RequestDelay).ConfigureAwait(false);
       response = await UnifiedPlayerService.SendMessage(e => e.GetGameAchievements(request)).ToLongRunningTask().ConfigureAwait(false);
     }
     catch (Exception exception) {
@@ -152,6 +155,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
 
     for (byte i = 0; i < maxTries && productInfoResultSet == null && Bot.IsConnectedAndLoggedOn; i++) {
       try {
+        await Task.Delay(RequestDelay).ConfigureAwait(false);
         productInfoResultSet = await Bot.SteamApps.PICSGetProductInfo(request.ToEnumerable(), []).ToLongRunningTask().ConfigureAwait(false);
       }
       catch (Exception exception) {
@@ -197,6 +201,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
 
     for (byte i = 0; i < maxTries && tokenCallback == null && Bot.IsConnectedAndLoggedOn; i++) {
       try {
+        await Task.Delay(RequestDelay).ConfigureAwait(false);
         tokenCallback = await Bot.SteamApps.PICSGetAccessTokens(appID, null).ToLongRunningTask().ConfigureAwait(false);
       }
       catch (Exception exception) {
