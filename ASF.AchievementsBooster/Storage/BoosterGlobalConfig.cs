@@ -22,6 +22,9 @@ public sealed class BoosterGlobalConfig {
   public bool Enabled { get; internal set; } = true;
 
   [JsonInclude]
+  public bool AutoStart { get; internal set; } = true;
+
+  [JsonInclude]
   [Range(5, byte.MaxValue)]
   public byte BoostTimeInterval { get; private set; } = DefaultBoostTimeInterval;
 

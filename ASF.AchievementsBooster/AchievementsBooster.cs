@@ -95,7 +95,9 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   public Task OnBotLoggedOn(Bot bot) {
     if (GlobalConfig.Enabled) {
       if (Boosters.TryGetValue(bot, out Booster? booster)) {
-        _ = booster.Start();
+        if (GlobalConfig.AutoStart) {
+          _ = booster.Start();
+        }
       }
       else {
         Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
