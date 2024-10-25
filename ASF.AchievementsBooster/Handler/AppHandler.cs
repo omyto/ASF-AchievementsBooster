@@ -50,13 +50,7 @@ internal sealed class AppHandler {
     Logger = logger;
   }
 
-  internal void UpdateOwnedGames(Dictionary<uint, string>? ownedGamesDictionary) {
-    if (ownedGamesDictionary == null) {
-      return;
-    }
-
-    HashSet<uint> newOwnedGames = [.. ownedGamesDictionary.Keys];
-
+  internal void UpdateOwnedGames(HashSet<uint> newOwnedGames) {
     if (OwnedGames.Count == 0) {
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
 
