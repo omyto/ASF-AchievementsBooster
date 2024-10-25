@@ -163,7 +163,7 @@ internal sealed class Booster : IDisposable {
       return;
     }
 
-    await UpdateOwnedGames(currentTime).ConfigureAwait(false);
+    await UpdateAppHandler(currentTime).ConfigureAwait(false);
     if (AppHandler.OwnedGames.Count == 0) {
       Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.NoGamesBoosting));
       return;
@@ -172,7 +172,7 @@ internal sealed class Booster : IDisposable {
     await BoostingAchievements(currentTime).ConfigureAwait(false);
   }
 
-  private async Task UpdateOwnedGames(DateTime currentTime) {
+  private async Task UpdateAppHandler(DateTime currentTime) {
     Dictionary<uint, string>? ownedGames = null;
     if (AppHandler.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 6.0) {
       ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
@@ -181,7 +181,8 @@ internal sealed class Booster : IDisposable {
     if (ownedGames != null) {
       LastUpdateOwnedGamesTime = currentTime;
     }
-    AppHandler.Update(ownedGames);
+    AppHandler.UpdateOwnedGames(ownedGames);
+    AppHandler.Update();
   }
 
   private async Task BoostingAchievements(DateTime currentTime) {

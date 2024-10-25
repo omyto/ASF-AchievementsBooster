@@ -11,7 +11,6 @@ using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
-using ArchiSteamFarm.Storage;
 
 namespace AchievementsBooster.Handler;
 
@@ -51,67 +50,71 @@ internal sealed class AppHandler {
     Logger = logger;
   }
 
-  internal void Update(Dictionary<uint, string>? ownedGamesDictionary) {
-    if (ownedGamesDictionary != null && ownedGamesDictionary.Count > 0) {
-      HashSet<uint> newOwnedGames = [.. ownedGamesDictionary.Keys];
+  internal void UpdateOwnedGames(Dictionary<uint, string>? ownedGamesDictionary) {
+    if (ownedGamesDictionary == null) {
+      return;
+    }
 
-      if (OwnedGames.Count == 0) {
-        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
+    HashSet<uint> newOwnedGames = [.. ownedGamesDictionary.Keys];
 
-        foreach (uint appID in newOwnedGames) {
+    if (OwnedGames.Count == 0) {
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
+
+      foreach (uint appID in newOwnedGames) {
+        if (IsBoostableApp(appID)) {
+          BoostableAppQueue.Enqueue(appID);
+        }
+      }
+    }
+    else {
+      List<uint> gamesAdded = newOwnedGames.Except(OwnedGames).ToList();
+      if (gamesAdded.Count > 0) {
+        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesAdded, string.Join(",", gamesAdded)));
+        foreach (uint appID in gamesAdded) {
           if (IsBoostableApp(appID)) {
             BoostableAppQueue.Enqueue(appID);
           }
         }
       }
-      else {
-        List<uint> gamesAdded = newOwnedGames.Except(OwnedGames).ToList();
-        if (gamesAdded.Count > 0) {
-          Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesAdded, string.Join(",", gamesAdded)));
-          foreach (uint appID in gamesAdded) {
-            if (IsBoostableApp(appID)) {
-              BoostableAppQueue.Enqueue(appID);
-            }
+
+      HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
+      if (gamesRemoved.Count > 0) {
+        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
+        // Sleeping apps list
+        for (int index = 0; index < SleepingApps.Count; index++) {
+          BoostableApp app = SleepingApps[index];
+          if (gamesRemoved.Contains(app.ID)) {
+            SleepingApps.RemoveAt(index);
+            index--;
           }
         }
 
-        HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
-        if (gamesRemoved.Count > 0) {
-          Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
-          // Sleeping apps list
-          for (int index = 0; index < SleepingApps.Count; index++) {
-            BoostableApp app = SleepingApps[index];
-            if (gamesRemoved.Contains(app.ID)) {
-              SleepingApps.RemoveAt(index);
-              index--;
-            }
+        // Last stand apps queue
+        Queue<uint> newLastStandAppQueue = new();
+        while (LastStandAppQueue.Count > 0) {
+          uint appID = LastStandAppQueue.Dequeue();
+          if (!gamesRemoved.Contains(appID)) {
+            newLastStandAppQueue.Enqueue(appID);
           }
-
-          // Last stand apps queue
-          Queue<uint> newLastStandAppQueue = new();
-          while (LastStandAppQueue.Count > 0) {
-            uint appID = LastStandAppQueue.Dequeue();
-            if (!gamesRemoved.Contains(appID)) {
-              newLastStandAppQueue.Enqueue(appID);
-            }
-          }
-          LastStandAppQueue = newLastStandAppQueue;
-
-          // Boostable apps queue
-          Queue<uint> newBoostableAppQueue = new();
-          while (BoostableAppQueue.Count > 0) {
-            uint appID = BoostableAppQueue.Dequeue();
-            if (!gamesRemoved.Remove(appID)) {
-              newBoostableAppQueue.Enqueue(appID);
-            }
-          }
-          BoostableAppQueue = newBoostableAppQueue;
         }
+        LastStandAppQueue = newLastStandAppQueue;
+
+        // Boostable apps queue
+        Queue<uint> newBoostableAppQueue = new();
+        while (BoostableAppQueue.Count > 0) {
+          uint appID = BoostableAppQueue.Dequeue();
+          if (!gamesRemoved.Remove(appID)) {
+            newBoostableAppQueue.Enqueue(appID);
+          }
+        }
+        BoostableAppQueue = newBoostableAppQueue;
       }
-
-      OwnedGames = newOwnedGames;
     }
 
+    OwnedGames = newOwnedGames;
+  }
+
+  internal void Update() {
     if (BoostableAppQueue.Count == 0 && LastStandAppQueue.Count > 0) {
       BoostableAppQueue = LastStandAppQueue;
       LastStandAppQueue = new();
