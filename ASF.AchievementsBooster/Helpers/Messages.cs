@@ -11,11 +11,9 @@ internal static class Messages {
 
   internal const string NoGamesBoosting = "The bot doesn't have any games for boosting";
 
-  internal const string BotNotReadyPlay = "The bot is not ready for play; reason: {0}";
+  internal const string BoostingImpossible = "Not ready to boost; playing is blocked";
 
-  internal const string Blocked = "blocked";
-
-  internal const string Sleeping = "sleeping";
+  internal const string SleepingTime = "Sleeping time";
 
   internal const string GamesOwned = "Games owned: {0}";
 
