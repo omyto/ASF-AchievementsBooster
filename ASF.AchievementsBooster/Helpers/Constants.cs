@@ -7,6 +7,8 @@ public static class Constants {
 
   public const string BotCacheKey = AchievementsBoosterConfigKey;
 
+  public const byte MaxGamesPlayedConcurrently = 32; /** ArchiHandler.MaxGamesPlayedConcurrently */
+
 #if DEBUG
   public const float AutoStartDelayTime = .5f;
 #else

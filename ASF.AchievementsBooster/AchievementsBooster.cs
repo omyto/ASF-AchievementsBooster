@@ -50,11 +50,9 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
         BoosterGlobalConfig? config = configValue.ToJsonObject<BoosterGlobalConfig>();
         if (config != null) {
           GlobalConfig = config;
-          if (GlobalConfig.Enabled) {
-            GlobalConfig.Validate();
-          }
-          else {
-            Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.PluginDisabledInConfig, Name));
+          GlobalConfig.Validate();
+          if (!GlobalConfig.AutoStart) {
+            Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AutoStartDisabled));
           }
         }
       }
@@ -67,11 +65,9 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   public Task OnBotInit(Bot bot) => Task.CompletedTask;
 
   public Task OnBotDestroy(Bot bot) {
-    if (GlobalConfig.Enabled) {
-      if (Boosters.TryRemove(bot, out Booster? booster)) {
-        Logger.Trace($"Destroy booster for bot: {bot.BotName}");
-        booster.Dispose();
-      }
+    if (Boosters.TryRemove(bot, out Booster? booster)) {
+      Logger.Trace($"Destroy booster for bot: {bot.BotName}");
+      booster.Dispose();
     }
     return Task.CompletedTask;
   }
@@ -79,73 +75,63 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   /* IBotConnection */
 
   public Task OnBotDisconnected(Bot bot, EResult reason) {
-    if (GlobalConfig.Enabled) {
-      if (Boosters.TryGetValue(bot, out Booster? booster)) {
-        if (booster.IsBoostingStarted) {
-          _ = booster.Stop();
-        }
+    if (Boosters.TryGetValue(bot, out Booster? booster)) {
+      if (booster.IsBoostingStarted) {
+        _ = booster.Stop();
       }
-      else {
-        Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
-      }
+    }
+    else {
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
     return Task.CompletedTask;
   }
 
   public Task OnBotLoggedOn(Bot bot) {
-    if (GlobalConfig.Enabled) {
-      if (Boosters.TryGetValue(bot, out Booster? booster)) {
-        if (GlobalConfig.AutoStart) {
-          _ = booster.Start();
-        }
+    if (Boosters.TryGetValue(bot, out Booster? booster)) {
+      if (GlobalConfig.AutoStart) {
+        _ = booster.Start();
       }
-      else {
-        Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
-      }
+    }
+    else {
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
     return Task.CompletedTask;
   }
 
   /** IBotModules */
   public Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
-    if (GlobalConfig.Enabled) {
-      if (additionalConfigProperties == null || additionalConfigProperties.Count == 0) {
-        return Task.CompletedTask;
-      }
-      if (Boosters.TryGetValue(bot, out Booster? booster)) {
-        return booster.OnInitModules(additionalConfigProperties);
-      }
-      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+    if (additionalConfigProperties == null || additionalConfigProperties.Count == 0) {
+      return Task.CompletedTask;
     }
+    if (Boosters.TryGetValue(bot, out Booster? booster)) {
+      return booster.OnInitModules(additionalConfigProperties);
+    }
+    Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     return Task.CompletedTask;
   }
 
   /** IBotSteamClient */
 
   public Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager) {
-    if (GlobalConfig.Enabled) {
-      if (Boosters.TryGetValue(bot, out Booster? botBooster)) {
-        return botBooster.OnSteamCallbacksInit(callbackManager);
-      }
-      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+    if (Boosters.TryGetValue(bot, out Booster? botBooster)) {
+      return botBooster.OnSteamCallbacksInit(callbackManager);
     }
+    Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     return Task.CompletedTask;
   }
 
   public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
-    if (GlobalConfig.Enabled) {
-      Booster booster = new(bot);
-      if (Boosters.TryAdd(bot, booster)) {
-        return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.BoosterHandler]);
-      }
-
-      booster.Dispose();
-      Logger.Error(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
+    Booster booster = new(bot);
+    if (Boosters.TryAdd(bot, booster)) {
+      return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.BoosterHandler]);
     }
+
+    booster.Dispose();
+    Logger.Error(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
     return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(null);
   }
 
   /** IBotCommand */
-  public async Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0)
-    => GlobalConfig.Enabled ? await CommandsHandler.OnBotCommand(bot, access, message, args, steamID).ConfigureAwait(false) : null;
+  public Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0)
+    => CommandsHandler.OnBotCommand(bot, access, message, args, steamID);
 }

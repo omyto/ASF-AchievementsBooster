@@ -1,7 +1,7 @@
 namespace AchievementsBooster.Helpers;
 
 internal static class Messages {
-  internal const string PluginDisabledInConfig = "{0} is currently disabled according to your configuration!";
+  internal const string AutoStartDisabled = "The automatic execution of AchievementsBooster is currently disabled";
 
   internal const string ConfigPropertyInvalid = "The configured value {1} of property {0} is invalid! It will be automatically adjusted to {2}";
 
