@@ -48,9 +48,9 @@ internal static class ProductUtils {
       string? listOfDlc = extendedProductInfo["listofdlc"].AsString();
       if (listOfDlc != null) {
         dlcs = listOfDlc.Split(SharedInfo.ListElementSeparators, StringSplitOptions.RemoveEmptyEntries)
-        .Select(e => {
-          if (!uint.TryParse(e, out uint id) || id == 0) {
-            AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.InvalidAppDLC, e, $"{productInfoApp.ID} ({name})"));
+        .Select(dlc => {
+          if (!uint.TryParse(dlc, out uint id) || id == 0) {
+            AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.InvalidAppDLC, $"{productInfoApp.ID} ({name})", dlc));
             return (uint) 0;
           }
           return id;

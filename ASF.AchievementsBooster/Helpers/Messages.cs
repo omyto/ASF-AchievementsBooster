@@ -21,7 +21,7 @@ internal static class Messages {
 
   internal const string GamesRemoved = "Games was removed: {0}";
 
-  internal const string BoostingApps = "Boosting apps: {0}";
+  internal const string BoostingApp = "Boosting {0}: {1} achievements remaining";
 
   internal const string BoostingFailed = "Boosting apps failed; reason: {0}";
 
@@ -29,29 +29,27 @@ internal static class Messages {
 
   internal const string BoostingNotStart = "This booster is currently not running!";
 
-  internal const string BoostingAppComplete = "Boosting for app {0} has been completed !!!";
+  internal const string BoostingAppComplete = "Finished boosting {0}";
 
   internal const string NotOwnedGame = "{0} is not owned by the user";
 
-  internal const string AppInASFBlacklist = "The app {0} is included in the ASF blacklist configuration";
+  internal const string AppInASFBlacklist = "App {0} is on the ASF blacklist";
 
-  internal const string InvalidAppDLC = "The DLC {0} for app {1} is not valid";
+  internal const string InvalidAppDLC = "App {0} has invalid DLC: {1}";
 
-  internal const string NonBoostableApp = "The app {0} is not boostable";
+  internal const string NonBoostableApp = "App {0} is not boostable";
 
-  internal const string BoostableApp = "App {0} is boostable, {1} achievements remaining";
+  internal const string FoundBoostableApp = "Found  {0}: {1} achievements remaining";
 
-  internal const string WillBoostApp = "Will boost {0}, {1} achievements remaining";
+  internal const string AchievementsNotAvailable = "App {0} doesn't have the achievements feature";
 
-  internal const string AchievementsNotAvailable = "Achievements are not available for app {0}";
+  internal const string IgnoreAppWithVAC = "App {0} has the VAC enabled; you configured it to be ignored";
 
-  internal const string IgnoreAppWithVAC = "Valve Anti-Cheat is enabled for app {0}";
+  internal const string IgnoreAppWithDLC = "App {0} has one or more DLCs; you configured it to be ignored";
 
-  internal const string IgnoreAppWithDLC = "The app {0} has one or more DLCs";
+  internal const string IgnoreDeveloper = "App {0}, developed by '{1}', has been configured to be ignored";
 
-  internal const string IgnoreDeveloper = "The app {0} developed by '{1}' is on the boosting ignore list";
-
-  internal const string IgnorePublisher = "The app {0} published by '{1}' is on the boosting ignore list";
+  internal const string IgnorePublisher = "App {0}, published by '{1}', has been configured to be ignored";
 
   internal const string StatsNotFound = "Unable to locate user stats for app {0}";
 
@@ -65,13 +63,13 @@ internal static class Messages {
 
   internal const string AlreadyUnlockedAll = "All achievements for app {0} have been unlocked";
 
-  internal const string UnlockAchievementSuccess = "The '{0}' achievement in app {1} was unlocked successfully";
+  internal const string UnlockAchievementSuccess = "Boosting status for {0}: unlocked the '{1}' achievement";
 
   internal const string UnlockAchievementFailed = "Failed to achieve achievement '{0}' for app {1}";
 
-  internal const string NoBoostingApps = "There are no apps available to boost achievements";
+  internal const string NoBoostingApps = "No apps available to boost achievements";
 
-  internal const string NoBoostingAppsInArchiFarming = "There are no apps available to boost achievements during the card farming process";
+  internal const string NoBoostingAppsInArchiFarming = "No apps available to boost achievements during farming cards";
 
-  internal const string NoBoostingAppsInArchiPlayedWhileIdle = "There are no apps available to boost achievements while playing in idle mode";
+  internal const string NoBoostingAppsInArchiPlayedWhileIdle = "No apps available to boost achievements while playing in idle mode";
 }

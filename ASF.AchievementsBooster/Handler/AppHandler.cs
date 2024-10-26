@@ -164,7 +164,7 @@ internal sealed class AppHandler {
 
         app.LastPlayedTime = currentTime;
         apps.Add(app);
-        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.WillBoostApp, app.FullName, app.RemainingAchievementsCount));
+        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.RemainingAchievementsCount));
       }
     }
 
@@ -277,7 +277,7 @@ internal sealed class AppHandler {
       return (EGetAppStatus.AchievementPercentagesNotFound, null);
     }
 
-    Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostableApp, productInfo.FullName, remainingAchievementsCount));
+    Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, productInfo.FullName, remainingAchievementsCount));
     return (EGetAppStatus.OK, new BoostableApp(appID, productInfo, percentages, remainingAchievementsCount));
   }
 

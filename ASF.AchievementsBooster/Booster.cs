@@ -103,32 +103,22 @@ internal sealed class Booster : IDisposable {
     IsBoostingStarted = false;
 
     if (BoostingState == EBoostingState.BoosterPlayed) {
-      SendBoostingAppsToSleep(true, DateTime.Now);
+      // Update playtime and put app to sleep
+      DateTime currentTime = DateTime.Now;
+      double deltaTime = (currentTime - LastBoosterHeartBeatTime).TotalHours;
+      SendBoostingAppsToSleep((app) => {
+        app.LastPlayedTime = currentTime;
+        app.ContinuousBoostingHours += deltaTime;
+      });
+
       _ = Bot.Actions.Resume();
     }
 
     _ = BoosterHeartBeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
     BoostingState = EBoostingState.None;
 
-    Logger.Info("Achievements Booster Stopped!");
+    Logger.Info("The boosting process has been stopped!");
     return Strings.Done;
-  }
-
-  private void SendBoostingAppsToSleep(bool updateBoostingHours, DateTime? now = null) {
-    if (BoostingApps.Count > 0 && BoostingState is EBoostingState.BoosterPlayed) {
-      DateTime currentTime = now ?? DateTime.Now;
-      double deltaTime = (currentTime - LastBoosterHeartBeatTime).TotalHours;
-
-      foreach (BoostableApp app in BoostingApps.Values) {
-        app.LastPlayedTime = currentTime;
-        if (updateBoostingHours) {
-          app.ContinuousBoostingHours += deltaTime;
-        }
-        AppHandler.SetAppToSleep(app);
-      }
-    }
-
-    BoostingApps.Clear();
   }
 
   private async void Boosting(object? state) {
@@ -168,12 +158,39 @@ internal sealed class Booster : IDisposable {
       }
       else {
         BoostingState = newBoostingState;
-        SendBoostingAppsToSleep(false);
+        SendBoostingAppsToSleep();
       }
 
       // Add new apps for boosting if need
       if (BoostingApps.Count < GlobalConfig.MaxBoostingApps) {
-        await FindNewAppsForBoosting().ConfigureAwait(false);
+        List<BoostableApp> newApps = await FindNewAppsForBoosting(GlobalConfig.MaxBoostingApps - BoostingApps.Count).ConfigureAwait(false);
+        newApps.ForEach(app => BoostingApps.TryAdd(app.ID, app));
+      }
+
+      if (BoostingApps.Count > 0) {
+        if (BoostingState is EBoostingState.BoosterPlayed) {
+          BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
+          (bool success, string message) = await Bot.Actions.Play(BoostingApps.Keys.ToList()).ConfigureAwait(false);
+          if (!success) {
+            throw new BoostingImpossibleException(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
+          }
+        }
+
+        foreach (BoostableApp app in BoostingApps.Values) {
+          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.RemainingAchievementsCount));
+        }
+      }
+      else {
+        if (BoostingState is EBoostingState.ArchiFarming) {
+          Logger.Info(Messages.NoBoostingAppsInArchiFarming);
+        }
+        else if (BoostingState is EBoostingState.ArchiPlayedWhileIdle) {
+          Logger.Info(Messages.NoBoostingAppsInArchiPlayedWhileIdle);
+        }
+        else {
+          // BoostingState is EBoostingState.BoosterPlayed
+          throw new BoostingImpossibleException(Messages.NoBoostingApps);
+        }
       }
     }
     catch (Exception exception) {
@@ -184,7 +201,7 @@ internal sealed class Booster : IDisposable {
         Logger.Exception(exception);
       }
 
-      SendBoostingAppsToSleep(false);
+      SendBoostingAppsToSleep();
       BoostingState = EBoostingState.None;
       _ = Bot.Actions.Resume();
     }
@@ -199,6 +216,17 @@ internal sealed class Booster : IDisposable {
       }
       _ = BoosterHeartBeatSemaphore.Release();
     }
+  }
+
+  private void SendBoostingAppsToSleep(Action<BoostableApp>? action = null) {
+    if (BoostingApps.Count > 0 && BoostingState is EBoostingState.BoosterPlayed) {
+      foreach (BoostableApp app in BoostingApps.Values) {
+        action?.Invoke(app);
+        AppHandler.SetAppToSleep(app);
+      }
+    }
+
+    BoostingApps.Clear();
   }
 
   private async Task UpdateAppHandler(DateTime currentTime) {
@@ -276,70 +304,42 @@ internal sealed class Booster : IDisposable {
     }
   }
 
-  private async Task FindNewAppsForBoosting() {
+  private async Task<List<BoostableApp>> FindNewAppsForBoosting(int count) {
+    List<BoostableApp> results = [];
     switch (BoostingState) {
       case EBoostingState.ArchiFarming:
-        foreach (Game game in Bot.CardsFarmer.CurrentGamesFarmingReadOnly) {
-          if (!BoostingApps.ContainsKey(game.AppID)) {
-            BoostableApp? app = await AppHandler.GetBoostableApp(game.AppID).ConfigureAwait(false);
+        Game[] currentGamesFarming = Bot.CardsFarmer.CurrentGamesFarmingReadOnly.ToArray();
+        for (int index = 0; index < currentGamesFarming.Length && results.Count < count; index++) {
+          uint appID = currentGamesFarming[index].AppID;
+          if (!BoostingApps.ContainsKey(appID)) {
+            BoostableApp? app = await AppHandler.GetBoostableApp(appID).ConfigureAwait(false);
             if (app != null) {
-              _ = BoostingApps.TryAdd(game.AppID, app);
-              if (BoostingApps.Count == GlobalConfig.MaxBoostingApps) {
-                break;
-              }
+              results.Add(app);
             }
           }
         }
-        Logger.Info(BoostingApps.Count == 0 ? Messages.NoBoostingAppsInArchiFarming : BoostingAppsMessage());
         break;
-
       case EBoostingState.ArchiPlayedWhileIdle:
-        while (ArchiBoostableAppsPlayedWhileIdle.Count > 0 && BoostingApps.Count < GlobalConfig.MaxBoostingApps) {
+        while (ArchiBoostableAppsPlayedWhileIdle.Count > 0 && results.Count < count) {
           uint appID = ArchiBoostableAppsPlayedWhileIdle.Dequeue();
           BoostableApp? app = await AppHandler.GetBoostableApp(appID).ConfigureAwait(false);
           if (app != null) {
-            _ = BoostingApps.TryAdd(appID, app);
+            results.Add(app);
           }
         }
-        Logger.Info(BoostingApps.Count == 0 ? Messages.NoBoostingAppsInArchiPlayedWhileIdle : BoostingAppsMessage());
         break;
-
       case EBoostingState.BoosterPlayed:
         BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
-        List<BoostableApp> apps = await AppHandler.NextBoosterApps(GlobalConfig.MaxBoostingApps - BoostingApps.Count).ConfigureAwait(false);
-        apps.ForEach(app => BoostingApps.TryAdd(app.ID, app));
-
-        if (BoostingApps.Count == 0) {
-          _ = Bot.Actions.Resume();
-          BoostingState = EBoostingState.None;
-          Logger.Info(Messages.NoBoostingApps);
-          break;
-        }
-
-        BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
-        (bool success, string message) = await Bot.Actions.Play(BoostingApps.Keys.ToList()).ConfigureAwait(false);
-        if (success) {
-          Logger.Info(BoostingAppsMessage());
-        }
-        else {
-          SendBoostingAppsToSleep(false);
-          BoostingState = EBoostingState.None;
-          Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
-        }
+        results = await AppHandler.NextBoosterApps(count).ConfigureAwait(false);
         break;
-
       case EBoostingState.None:
+      // Not reachable
       default:
         break;
     }
 
+    return results;
   }
-
-  private string BoostingAppsMessage() => BoostingApps.Count switch {
-    0 => throw new ArgumentException($"{nameof(BoostingApps)} is empty"),
-    1 => string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, BoostingApps.First().Value.FullName),
-    _ => string.Format(CultureInfo.CurrentCulture, Messages.BoostingApps, string.Join(",", BoostingApps.Keys)),
-  };
 
   private BotCache LoadOrCreateCacheForBot(Bot bot) {
     if (bot.BotDatabase == null) {
