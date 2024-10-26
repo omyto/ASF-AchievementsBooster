@@ -173,15 +173,14 @@ internal sealed class Booster : IDisposable {
   }
 
   private async Task UpdateAppHandler(DateTime currentTime) {
-    Dictionary<uint, string>? ownedGames = null;
     if (AppHandler.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 6.0) {
-      ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
+      Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
+      if (ownedGames != null) {
+        AppHandler.UpdateOwnedGames(ownedGames.Keys.ToHashSet());
+        LastUpdateOwnedGamesTime = currentTime;
+      }
     }
 
-    if (ownedGames != null) {
-      LastUpdateOwnedGamesTime = currentTime;
-    }
-    AppHandler.UpdateOwnedGames(ownedGames);
     AppHandler.Update();
   }
 
@@ -194,9 +193,21 @@ internal sealed class Booster : IDisposable {
 
     if (newBoostingState == BoostingState) {
       if (BoostingState is EBoostingState.ArchiFarming) {
-        IEnumerable<uint> boostingAppIDs = BoostingApps.Keys.Intersect(Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Select(e => e.AppID));
-        List<uint> exceptAppIDs = BoostingApps.Keys.Except(boostingAppIDs).ToList();
-        exceptAppIDs.ForEach(appID => BoostingApps.Remove(appID));
+        // Intersect between BoostingApps and CurrentGamesFarming
+        List<uint> boostingAppIDs = [];
+        foreach (Game game in Bot.CardsFarmer.CurrentGamesFarmingReadOnly) {
+          if (BoostingApps.ContainsKey(game.AppID)) {
+            boostingAppIDs.Add(game.AppID);
+          }
+        }
+
+        if (boostingAppIDs.Count > 0) {
+          List<uint> exceptAppIDs = BoostingApps.Keys.Except(boostingAppIDs).ToList();
+          exceptAppIDs.ForEach(appID => BoostingApps.Remove(appID));
+        }
+        else {
+          BoostingApps.Clear();
+        }
       }
 
       foreach (BoostableApp app in BoostingApps.Values) {
