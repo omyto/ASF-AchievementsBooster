@@ -66,7 +66,7 @@ public sealed class BoostableApp {
     // Achieve next achievement
     if (await boosterHandler.UnlockStat(ID, nextStat, response.CrcStats).ConfigureAwait(false)) {
       RemainingAchievementsCount--;
-      return (true, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, nextStat.Name, FullName));
+      return (true, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, FullName, nextStat.Name));
     }
     else {
       if (nextStat.APIName.Equals(FailedUnlockStat?.APIName, StringComparison.Ordinal)) {
@@ -74,9 +74,9 @@ public sealed class BoostableApp {
       }
       else {
         FailedUnlockStat = nextStat;
-        FailedUnlockCount = 0;
+        FailedUnlockCount = 1;
       }
-      return (false, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, nextStat.Name, FullName));
+      return (false, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementFailed, FullName, nextStat.Name));
     }
   }
 }

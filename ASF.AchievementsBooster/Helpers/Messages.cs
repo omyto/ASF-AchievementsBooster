@@ -65,7 +65,7 @@ internal static class Messages {
 
   internal const string UnlockAchievementSuccess = "Boosting status for {0}: unlocked the '{1}' achievement";
 
-  internal const string UnlockAchievementFailed = "Failed to achieve achievement '{0}' for app {1}";
+  internal const string UnlockAchievementFailed = "Boosting status for {0}: failed to achieve achievement '{1}'";
 
   internal const string NoBoostingApps = "No apps available to boost achievements";
 
