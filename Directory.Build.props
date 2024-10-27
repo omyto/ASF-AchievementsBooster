@@ -2,19 +2,19 @@
 	<Import Project="ArchiSteamFarm/Directory.Build.props" />
 
 	<PropertyGroup>
-		<PluginName>ASF.AchievementsBooster</PluginName>
+		<PluginName>ASF-AchievementsBooster</PluginName>
 		<Version>1.0.0.0</Version>
 	</PropertyGroup>
 
 	<PropertyGroup>
 		<ApplicationIcon />
-		<Authors>YourName</Authors>
+		<Authors>Omyto</Authors>
 		<Company>$(Authors)</Company>
-		<Copyright>Copyright © $([System.DateTime]::UtcNow.Year) $(Company)</Copyright>
-		<Description>$(PluginName) description.</Description>
+		<Copyright>Copyright (c) $([System.DateTime]::UtcNow.Year) $(Company)</Copyright>
+		<Description>Automatically boosting achievements.</Description>
 		<PackageIcon />
 		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-		<PackageProjectUrl>https://github.com/$(Company)/$(PluginName)</PackageProjectUrl>
+		<PackageProjectUrl>https://github.com/omyto/$(PluginName)</PackageProjectUrl>
 		<PackageReleaseNotes>$(PackageProjectUrl)/releases</PackageReleaseNotes>
 		<RepositoryUrl>$(PackageProjectUrl).git</RepositoryUrl>
 	</PropertyGroup>
