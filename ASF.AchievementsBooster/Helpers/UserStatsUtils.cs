@@ -8,6 +8,7 @@ using SteamKit2.Internal;
 namespace AchievementsBooster.Helpers;
 
 /// Copyright (c) Rudokhvist
+/// Modified by omyto
 /// This source code was referenced from https://github.com/CatPoweredPlugins/ASFAchievementManager
 /// Special thanks to Rudokhvist
 
