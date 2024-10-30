@@ -52,7 +52,7 @@ internal sealed class AppHandler {
 
   internal void UpdateOwnedGames(HashSet<uint> newOwnedGames) {
     if (OwnedGames.Count == 0) {
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
+      Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
 
       foreach (uint appID in newOwnedGames) {
         if (IsBoostableApp(appID)) {
@@ -63,7 +63,7 @@ internal sealed class AppHandler {
     else {
       List<uint> gamesAdded = newOwnedGames.Except(OwnedGames).ToList();
       if (gamesAdded.Count > 0) {
-        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesAdded, string.Join(",", gamesAdded)));
+        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesAdded, string.Join(",", gamesAdded)));
         foreach (uint appID in gamesAdded) {
           if (IsBoostableApp(appID)) {
             BoostableAppQueue.Enqueue(appID);
@@ -73,7 +73,7 @@ internal sealed class AppHandler {
 
       HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
       if (gamesRemoved.Count > 0) {
-        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
+        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
         // Sleeping apps list
         for (int index = 0; index < SleepingApps.Count; index++) {
           BoostableApp app = SleepingApps[index];
@@ -121,7 +121,7 @@ internal sealed class AppHandler {
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
   internal bool IsBoostableApp(uint appID) {
     if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
+      Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
       return false;
     }
 
@@ -153,7 +153,7 @@ internal sealed class AppHandler {
       if (app.ContinuousBoostingHours < AchievementsBooster.GlobalConfig.MaxBoostingHours) {
         isValid = true;
       }
-      else if ((currentTime - app.LastPlayedTime).TotalHours > AchievementsBooster.GlobalConfig.MaxBoostingHours) {
+      else if ((currentTime - app.LastPlayedTime).TotalHours > AchievementsBooster.GlobalConfig.MaxBoostingHours * 3) {
         isValid = true;
         app.ContinuousBoostingHours = 0;
       }
@@ -164,7 +164,7 @@ internal sealed class AppHandler {
 
         app.LastPlayedTime = currentTime;
         apps.Add(app);
-        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.RemainingAchievementsCount));
+        Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.RemainingAchievementsCount));
       }
     }
 
@@ -217,7 +217,7 @@ internal sealed class AppHandler {
 
     if (!productInfo.IsBoostable) {
       //TODO: Consider adding to the NonBoostableApps set
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NonBoostableApp, productInfo.FullName));
+      Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.NonBoostableApp, productInfo.FullName));
       return (EGetAppStatus.NonBoostable, null);
     }
 
@@ -277,7 +277,7 @@ internal sealed class AppHandler {
       return (EGetAppStatus.AchievementPercentagesNotFound, null);
     }
 
-    Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, productInfo.FullName, remainingAchievementsCount));
+    Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, productInfo.FullName, remainingAchievementsCount));
     return (EGetAppStatus.OK, new BoostableApp(appID, productInfo, percentages, remainingAchievementsCount));
   }
 

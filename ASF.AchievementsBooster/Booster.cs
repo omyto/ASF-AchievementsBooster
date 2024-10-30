@@ -143,6 +143,9 @@ internal sealed class Booster : IDisposable {
         throw new BoostingImpossibleException(string.Format(CultureInfo.CurrentCulture, Messages.NoGamesBoosting));
       }
 
+      EBoostingState lastState = BoostingState;
+      HashSet<uint> lastPlaying = BoostingApps.Keys.ToHashSet();
+
       EBoostingState newBoostingState = Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
         ? EBoostingState.ArchiFarming
         : Bot.BotConfig?.GamesPlayedWhileIdle.Count > 0
@@ -182,10 +185,14 @@ internal sealed class Booster : IDisposable {
       }
       else {
         if (BoostingState is EBoostingState.ArchiFarming) {
-          Logger.Info(Messages.NoBoostingAppsInArchiFarming);
+          if (lastState != EBoostingState.ArchiFarming || lastPlaying.Count > 0) {
+            Logger.Info(Messages.NoBoostingAppsInArchiFarming);
+          }
         }
         else if (BoostingState is EBoostingState.ArchiPlayedWhileIdle) {
-          Logger.Info(Messages.NoBoostingAppsInArchiPlayedWhileIdle);
+          if (lastState != EBoostingState.ArchiPlayedWhileIdle || lastPlaying.Count > 0) {
+            Logger.Info(Messages.NoBoostingAppsInArchiPlayedWhileIdle);
+          }
         }
         else {
           // BoostingState is EBoostingState.BoosterPlayed
