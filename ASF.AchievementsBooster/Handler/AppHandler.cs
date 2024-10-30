@@ -125,6 +125,11 @@ internal sealed class AppHandler {
       return false;
     }
 
+    if (AchievementsBooster.GlobalConfig.Blacklist.Contains(appID)) {
+      Logger.Trace($"App {appID} is on the blacklist");
+      return false;
+    }
+
     if (AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID)) {
       return false;
     }

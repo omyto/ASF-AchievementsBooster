@@ -21,6 +21,9 @@ public sealed class BoosterGlobalConfig {
   public bool AutoStart { get; internal set; } = true;
 
   [JsonInclude]
+  public ImmutableHashSet<uint> Blacklist { get; private set; } = [];
+
+  [JsonInclude]
   [Range(5, byte.MaxValue)]
   public byte BoostTimeInterval { get; private set; } = DefaultBoostTimeInterval;
 
