@@ -165,8 +165,8 @@ internal sealed class Booster {
       }
 
       // Add new apps for boosting if need
-      if (BoostingApps.Count < GlobalConfig.MaxBoostingApps) {
-        List<AppBoostInfo> newApps = await FindNewAppsForBoosting(GlobalConfig.MaxBoostingApps - BoostingApps.Count).ConfigureAwait(false);
+      if (BoostingApps.Count < GlobalConfig.MaxAppBoostConcurrently) {
+        List<AppBoostInfo> newApps = await FindNewAppsForBoosting(GlobalConfig.MaxAppBoostConcurrently - BoostingApps.Count).ConfigureAwait(false);
         newApps.ForEach(app => BoostingApps.TryAdd(app.ID, app));
       }
 
@@ -219,7 +219,7 @@ internal sealed class Booster {
 
       if (BoosterHeartBeatTimer != null) {
         // Due time for the next boosting
-        TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval) + TimeSpanUtils.RandomInMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
+        TimeSpan dueTime = TimeSpanUtils.RandomInMinutesRange(GlobalConfig.MinBoostInterval, GlobalConfig.MaxBoostInterval);
         _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
         Logger.Trace($"The next heartbeat will occur in {dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}!");
       }
@@ -303,8 +303,8 @@ internal sealed class Booster {
         }
       }
 
-      if (GlobalConfig.MaxBoostingHours > 0 && GlobalConfig.BoostingMode is EBoostingMode.ContinuousBoosting) {
-        if (app.ContinuousBoostingHours >= GlobalConfig.MaxBoostingHours) {
+      if (GlobalConfig.MaxContinuousBoostHours > 0 && GlobalConfig.BoostingMode is EBoostingMode.ContinuousBoosting) {
+        if (app.ContinuousBoostingHours >= GlobalConfig.MaxContinuousBoostHours) {
           _ = BoostingApps.Remove(app.ID);
           AppHandler.SetAppToSleep(app);
         }
@@ -320,7 +320,7 @@ internal sealed class Booster {
         for (int index = 0; index < currentGamesFarming.Length && results.Count < count; index++) {
           uint appID = currentGamesFarming[index].AppID;
           if (!BoostingApps.ContainsKey(appID)) {
-            AppBoostInfo? app = await AppHandler.GetBoostableApp(appID).ConfigureAwait(false);
+            AppBoostInfo? app = await AppHandler.GetAppBoost(appID).ConfigureAwait(false);
             if (app != null) {
               results.Add(app);
             }
@@ -330,7 +330,7 @@ internal sealed class Booster {
       case EBoostingState.ArchiPlayedWhileIdle:
         while (ArchiBoostableAppsPlayedWhileIdle.Count > 0 && results.Count < count) {
           uint appID = ArchiBoostableAppsPlayedWhileIdle.Dequeue();
-          AppBoostInfo? app = await AppHandler.GetBoostableApp(appID).ConfigureAwait(false);
+          AppBoostInfo? app = await AppHandler.GetAppBoost(appID).ConfigureAwait(false);
           if (app != null) {
             results.Add(app);
           }

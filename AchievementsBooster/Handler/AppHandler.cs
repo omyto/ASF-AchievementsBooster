@@ -126,8 +126,12 @@ internal sealed class AppHandler {
       return false;
     }
 
-    if (AchievementsBooster.GlobalConfig.Blacklist.Contains(appID)) {
-      Logger.Trace($"App {appID} is on the blacklist");
+    if (AchievementsBooster.GlobalConfig.FocusApps.Contains(appID)) {
+      return true;
+    }
+
+    if (AchievementsBooster.GlobalConfig.IgnoreApps.Contains(appID)) {
+      Logger.Trace($"App {appID} is on your ignore list");
       return false;
     }
 
@@ -158,7 +162,7 @@ internal sealed class AppHandler {
       bool match = false;
       switch (AchievementsBooster.GlobalConfig.BoostingMode) {
         case EBoostingMode.ContinuousBoosting:
-          match = (now - app.LastPlayedTime).TotalHours > AchievementsBooster.GlobalConfig.MaxBoostingHours * 3;
+          match = (now - app.LastPlayedTime).TotalHours > AchievementsBooster.GlobalConfig.MaxContinuousBoostHours * 3;
           break;
         case EBoostingMode.UniqueGamesPerSession:
           match = app.BoostSessionNo != lastSessionNo;
@@ -204,7 +208,7 @@ internal sealed class AppHandler {
     return results;
   }
 
-  internal async Task<AppBoostInfo?> GetBoostableApp(uint appID) {
+  internal async Task<AppBoostInfo?> GetAppBoost(uint appID) {
     if (!OwnedGames.Contains(appID)) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID));
       return null;

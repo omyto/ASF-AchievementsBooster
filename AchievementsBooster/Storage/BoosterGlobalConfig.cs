@@ -9,42 +9,45 @@ using AchievementsBooster.Helpers;
 namespace AchievementsBooster.Storage;
 
 public sealed class BoosterGlobalConfig {
-  public const byte DefaultBoostTimeInterval = 15;
-  public const byte DefaultExpandBoostTimeInterval = 5;
+  public const byte DefaultMinBoostInterval = 30;
+  public const byte DefaultMaxBoostInterval = 60;
   public const byte DefaultSleepingHours = 0;
-  public const byte DefaultMaxBoostingApps = 1;
-  public const byte DefaultMaxBoostingHours = 10;
+  public const byte DefaultMaxAppBoostConcurrently = 1;
+  public const byte DefaultMaxContinuousBoostHours = 10;
   public const bool DefaultIgnoreAppWithVAC = true;
   public const bool DefaultIgnoreAppWithDLC = true;
 
   [JsonInclude]
-  public ImmutableHashSet<string> AutoStartBots { get; internal set; } = [];
+  public ImmutableHashSet<string> AutoStartBots { get; private set; } = [];
 
   [JsonInclude]
-  public ImmutableHashSet<uint> Blacklist { get; private set; } = [];
+  public ImmutableHashSet<uint> FocusApps { get; private set; } = [];
 
   [JsonInclude]
-  [Range(5, byte.MaxValue)]
-  public byte BoostTimeInterval { get; private set; } = DefaultBoostTimeInterval;
+  public ImmutableHashSet<uint> IgnoreApps { get; private set; } = [];
 
   [JsonInclude]
-  [Range(byte.MinValue, byte.MaxValue)]
-  public byte ExpandBoostTimeInterval { get; private set; } = DefaultExpandBoostTimeInterval;
+  [Range(5, 250)]
+  public short MinBoostInterval { get; private set; } = DefaultMinBoostInterval;
+
+  [JsonInclude]
+  [Range(6, 1600)]
+  public short MaxBoostInterval { get; private set; } = DefaultMaxBoostInterval;
 
   [JsonInclude]
   public EBoostingMode BoostingMode { get; private set; } = EBoostingMode.ContinuousBoosting;
 
   [JsonInclude]
-  [Range(byte.MinValue, 12)]
+  [Range(0, 12)]
   public byte SleepingHours { get; private set; } = DefaultSleepingHours;
 
   [JsonInclude]
   [Range(1, Constants.MaxGamesPlayedConcurrently)]
-  public byte MaxBoostingApps { get; private set; } = DefaultMaxBoostingApps;
+  public byte MaxAppBoostConcurrently { get; private set; } = DefaultMaxAppBoostConcurrently;
 
   [JsonInclude]
   [Range(byte.MinValue, byte.MaxValue)]
-  public byte MaxBoostingHours { get; private set; } = DefaultMaxBoostingHours;
+  public byte MaxContinuousBoostHours { get; private set; } = DefaultMaxContinuousBoostHours;
 
   [JsonInclude]
   public bool IgnoreAppWithVAC { get; private set; } = DefaultIgnoreAppWithVAC;
@@ -64,40 +67,27 @@ public sealed class BoosterGlobalConfig {
   internal void Validate() {
     PropertyInfo[] properties = GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);
     foreach (PropertyInfo property in properties) {
-      if (property.PropertyType == typeof(byte)) {
-        ValidateRange(property);
+      RangeAttribute? rangeAttribute = property.GetCustomAttribute<RangeAttribute>();
+      if (rangeAttribute != null) {
+        int value = (int) (property.GetValue(this) ?? 0);
+        int clampedValue = Math.Clamp(value, (int) rangeAttribute.Minimum, (int) rangeAttribute.Maximum);
+
+        if (value != clampedValue) {
+          property.SetValue(this, clampedValue);
+          AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, clampedValue));
+        }
       }
     }
 
-    // MaxBoostingHours must be greater than the maximum duration of the boosting cycle
-    if (MaxBoostingHours > 0) {
-      int maxTimeInterval = BoostTimeInterval + ExpandBoostTimeInterval;
-      if (maxTimeInterval > 60 * MaxBoostingHours) {
-        byte newMaxBoostingHours = (byte) Math.Ceiling(maxTimeInterval / 60.0);
-        AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostingHours), MaxBoostingHours, newMaxBoostingHours));
-        MaxBoostingHours = newMaxBoostingHours;
-      }
-    }
-  }
-
-  private void ValidateRange(PropertyInfo property) {
-    RangeAttribute? rangeAttribute = property.GetCustomAttribute<RangeAttribute>();
-    if (rangeAttribute == null) {
-      return;
+    if (!Enum.IsDefined(BoostingMode)) {
+      AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(BoostingMode), BoostingMode, EBoostingMode.ContinuousBoosting));
+      BoostingMode = EBoostingMode.ContinuousBoosting;
     }
 
-    byte value = (byte) (property.GetValue(this) ?? 0);
-    byte newValue = value;
-    if (value < (int) rangeAttribute.Minimum) {
-      newValue = Convert.ToByte((int) rangeAttribute.Minimum);
-    }
-    else if (value > (int) rangeAttribute.Maximum) {
-      newValue = Convert.ToByte((int) rangeAttribute.Maximum);
-    }
-
-    if (value != newValue) {
-      property.SetValue(this, newValue);
-      AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, newValue));
+    if (MinBoostInterval >= MaxBoostInterval) {
+      short newMaxBoostInterval = (short) (MinBoostInterval + 1);
+      AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostInterval), MaxBoostInterval, newMaxBoostInterval));
+      MaxBoostInterval = newMaxBoostInterval;
     }
   }
 
