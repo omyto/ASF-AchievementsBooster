@@ -18,7 +18,7 @@ using SteamKit2;
 
 namespace AchievementsBooster;
 
-internal sealed class Booster : IDisposable {
+internal sealed class Booster {
   private enum EBoostingState : byte {
     None,
     ArchiFarming,
@@ -36,14 +36,12 @@ internal sealed class Booster : IDisposable {
   private readonly BotCache Cache;
   private readonly Logger Logger;
 
-  internal volatile bool IsBoostingStarted;
-
   private EBoostingState BoostingState { get; set; } = EBoostingState.None;
 
   private Dictionary<uint, BoostableApp> BoostingApps { get; } = [];
   private Queue<uint> ArchiBoostableAppsPlayedWhileIdle { get; }
 
-  private Timer BoosterHeartBeatTimer { get; }
+  private Timer? BoosterHeartBeatTimer { get; set; }
   private DateTime LastBoosterHeartBeatTime { get; set; }
   private DateTime LastUpdateOwnedGamesTime { get; set; }
   private SemaphoreSlim BoosterHeartBeatSemaphore { get; } = new SemaphoreSlim(1);
@@ -53,13 +51,17 @@ internal sealed class Booster : IDisposable {
     Logger = new Logger(bot.ArchiLogger);
     Cache = LoadOrCreateCacheForBot(bot);
     AppHandler = new AppHandler(new BoosterHandler(bot, Logger), Cache, Logger);
-    BoosterHeartBeatTimer = new Timer(Boosting, null, Timeout.Infinite, Timeout.Infinite);
 
     // Since GamesPlayedWhileIdle may never change
     ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(bot.BotConfig?.GamesPlayedWhileIdle ?? []);
   }
 
-  public void Dispose() => BoosterHeartBeatTimer.Dispose();
+  ~Booster() => StopTimer();
+
+  private void StopTimer() {
+    BoosterHeartBeatTimer?.Dispose();
+    BoosterHeartBeatTimer = null;
+  }
 
   internal Task OnSteamCallbacksInit(CallbackManager callbackManager) {
     ArgumentNullException.ThrowIfNull(callbackManager);
@@ -75,11 +77,10 @@ internal sealed class Booster : IDisposable {
   }
 
   internal string Start(bool command = false) {
-    if (IsBoostingStarted) {
+    if (BoosterHeartBeatTimer != null) {
       Logger.Trace(Messages.BoostingStarted);
       return Messages.BoostingStarted;
     }
-    IsBoostingStarted = true;
 
     TimeSpan dueTime = TimeSpan.Zero;
     if (command) {
@@ -89,18 +90,18 @@ internal sealed class Booster : IDisposable {
       dueTime = TimeSpan.FromMinutes(Constants.AutoStartDelayTime);
       Logger.Info($"The boosting process will begin in {Constants.AutoStartDelayTime} minutes");
     }
-    _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
 
+    BoosterHeartBeatTimer = new Timer(Boosting, null, dueTime, Timeout.InfiniteTimeSpan);
     return Strings.Done;
   }
 
   internal string Stop() {
-    if (!IsBoostingStarted) {
+    if (BoosterHeartBeatTimer == null) {
       Logger.Trace(Messages.BoostingNotStart);
       return Messages.BoostingNotStart;
     }
 
-    IsBoostingStarted = false;
+    StopTimer();
 
     if (BoostingState == EBoostingState.BoosterPlayed) {
       // Update playtime and put app to sleep
@@ -114,7 +115,6 @@ internal sealed class Booster : IDisposable {
       _ = Bot.Actions.Resume();
     }
 
-    _ = BoosterHeartBeatTimer.Change(Timeout.Infinite, Timeout.Infinite);
     BoostingState = EBoostingState.None;
 
     Logger.Info("The boosting process has been stopped!");
@@ -215,7 +215,7 @@ internal sealed class Booster : IDisposable {
     finally {
       LastBoosterHeartBeatTime = currentTime;
 
-      if (IsBoostingStarted) {
+      if (BoosterHeartBeatTimer != null) {
         // Due time for the next boosting
         TimeSpan dueTime = TimeSpan.FromMinutes(GlobalConfig.BoostTimeInterval) + TimeSpanUtils.RandomInMinutesRange(0, GlobalConfig.ExpandBoostTimeInterval);
         _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);

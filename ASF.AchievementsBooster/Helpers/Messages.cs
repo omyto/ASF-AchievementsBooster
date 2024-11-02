@@ -1,7 +1,7 @@
 namespace AchievementsBooster.Helpers;
 
 internal static class Messages {
-  internal const string AutoStartDisabled = "The automatic execution of AchievementsBooster is currently disabled";
+  internal const string AutoStartBotsEmpty = "There are no bots configured for auto-start. To start the achievement boosting process, please use the command";
 
   internal const string ConfigPropertyInvalid = "The configured value {1} of property {0} is invalid! It will be automatically adjusted to {2}";
 

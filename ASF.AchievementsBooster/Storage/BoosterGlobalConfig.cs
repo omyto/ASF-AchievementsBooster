@@ -18,7 +18,7 @@ public sealed class BoosterGlobalConfig {
   public const bool DefaultIgnoreAppWithDLC = true;
 
   [JsonInclude]
-  public bool AutoStart { get; internal set; } = true;
+  public ImmutableHashSet<string> AutoStartBots { get; internal set; } = [];
 
   [JsonInclude]
   public ImmutableHashSet<uint> Blacklist { get; private set; } = [];

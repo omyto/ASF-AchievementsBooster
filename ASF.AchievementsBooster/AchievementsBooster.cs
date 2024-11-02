@@ -53,8 +53,8 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
         if (config != null) {
           GlobalConfig = config;
           GlobalConfig.Validate();
-          if (!GlobalConfig.AutoStart) {
-            Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AutoStartDisabled));
+          if (GlobalConfig.AutoStartBots.IsEmpty) {
+            Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AutoStartBotsEmpty));
           }
         }
       }
@@ -69,7 +69,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
   public Task OnBotDestroy(Bot bot) {
     if (Boosters.TryRemove(bot, out Booster? booster)) {
       Logger.Trace($"Destroy booster for bot: {bot.BotName}");
-      booster.Dispose();
+      _ = booster.Stop();
     }
     return Task.CompletedTask;
   }
@@ -78,9 +78,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   public Task OnBotDisconnected(Bot bot, EResult reason) {
     if (Boosters.TryGetValue(bot, out Booster? booster)) {
-      if (booster.IsBoostingStarted) {
-        _ = booster.Stop();
-      }
+      _ = booster.Stop();
     }
     else {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
@@ -90,7 +88,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   public Task OnBotLoggedOn(Bot bot) {
     if (Boosters.TryGetValue(bot, out Booster? booster)) {
-      if (GlobalConfig.AutoStart) {
+      if (GlobalConfig.AutoStartBots.Contains(bot.BotName)) {
         _ = booster.Start();
       }
     }
@@ -128,7 +126,6 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
       return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.BoosterHandler]);
     }
 
-    booster.Dispose();
     Logger.Error(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
     return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>(null);
   }
