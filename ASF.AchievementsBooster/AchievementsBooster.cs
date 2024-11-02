@@ -17,7 +17,7 @@ using SteamKit2;
 namespace AchievementsBooster;
 
 [Export(typeof(IPlugin))]
-internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnection, IBotSteamClient, IBotCommand2 {
+internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnection, IBotSteamClient, IBotCommand2, IGitHubPluginUpdates {
 
   internal static readonly Logger Logger = new(ASF.ArchiLogger);
 
@@ -27,9 +27,11 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   internal static GlobalCache GlobalCache { get; private set; } = new();
 
-  public string Name => nameof(AchievementsBooster);
+  public string Name => Constants.PluginName;
 
   public Version Version => typeof(AchievementsBooster).Assembly.GetName().Version ?? throw new InvalidOperationException(nameof(Version));
+
+  public string RepositoryName => Constants.RepositoryName;
 
   public Task OnLoaded() {
     ASF.ArchiLogger.LogGenericInfo("Achievements Booster | Automatically boosting achievements while farming cards.");

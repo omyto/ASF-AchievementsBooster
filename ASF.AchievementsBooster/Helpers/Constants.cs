@@ -1,11 +1,15 @@
 namespace AchievementsBooster.Helpers;
 
 public static class Constants {
-  public const string AchievementsBoosterConfigKey = "AchievementsBooster";
+  public const string PluginName = "AchievementsBooster";
 
-  public const string GlobalCacheKey = AchievementsBoosterConfigKey;
+  public const string RepositoryName = "omyto/ASF-AchievementsBooster";
 
-  public const string BotCacheKey = AchievementsBoosterConfigKey;
+  public const string AchievementsBoosterConfigKey = PluginName;
+
+  public const string GlobalCacheKey = PluginName;
+
+  public const string BotCacheKey = PluginName;
 
   public const byte MaxGamesPlayedConcurrently = 32; /** ArchiHandler.MaxGamesPlayedConcurrently */
 

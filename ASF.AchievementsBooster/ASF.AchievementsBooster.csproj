@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
+		<AssemblyName>AchievementsBooster</AssemblyName>
 		<RootNamespace>AchievementsBooster</RootNamespace>
+		<AssemblyTitle>Steam Achievements Booster</AssemblyTitle>
 	</PropertyGroup>
 
 	<ItemGroup>
