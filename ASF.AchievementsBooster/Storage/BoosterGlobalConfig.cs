@@ -32,6 +32,9 @@ public sealed class BoosterGlobalConfig {
   public byte ExpandBoostTimeInterval { get; private set; } = DefaultExpandBoostTimeInterval;
 
   [JsonInclude]
+  public EBoostingMode BoostingMode { get; private set; } = EBoostingMode.ContinuousBoosting;
+
+  [JsonInclude]
   [Range(byte.MinValue, 12)]
   public byte SleepingHours { get; private set; } = DefaultSleepingHours;
 
@@ -96,5 +99,11 @@ public sealed class BoosterGlobalConfig {
       property.SetValue(this, newValue);
       AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, newValue));
     }
+  }
+
+  public enum EBoostingMode : byte {
+    ContinuousBoosting,
+    UniqueGamesPerSession,
+    SingleDailyAchievementPerGame,
   }
 }

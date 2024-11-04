@@ -10,30 +10,32 @@ using AchievementsBooster.Helpers;
 
 namespace AchievementsBooster.Data;
 
-public sealed class BoostableApp {
+public sealed class AppBoostInfo {
   public uint ID { get; }
 
   public string Name => ProductInfo.Name;
 
   public string FullName => ProductInfo.FullName;
 
-  public bool IsReady => ProductInfo.IsBoostable;
+  internal DateTime LastPlayedTime { get; set; }
+
+  internal uint BoostSessionNo { get; set; }
 
   internal double ContinuousBoostingHours { get; set; }
 
-  internal DateTime LastPlayedTime { get; set; }
+  internal DateTime LastUnlockTime { get; private set; } = DateTime.MinValue;
 
   internal int RemainingAchievementsCount { get; private set; }
+
+  internal int FailedUnlockCount { get; private set; }
 
   private ProductInfo ProductInfo { get; }
 
   private AchievementPercentages AchievementPercentages { get; }
 
-  internal int FailedUnlockCount { get; private set; }
-
   private StatData? FailedUnlockStat { get; set; }
 
-  internal BoostableApp(uint id, ProductInfo product, AchievementPercentages percentages, int remainingAchievementsCount) {
+  internal AppBoostInfo(uint id, ProductInfo product, AchievementPercentages percentages, int remainingAchievementsCount) {
     ID = id;
     ProductInfo = product;
     AchievementPercentages = percentages;
@@ -66,6 +68,7 @@ public sealed class BoostableApp {
     // Achieve next achievement
     if (await boosterHandler.UnlockStat(ID, nextStat, response.CrcStats).ConfigureAwait(false)) {
       RemainingAchievementsCount--;
+      LastUnlockTime = DateTime.Now;
       return (true, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, FullName, nextStat.Name));
     }
     else {

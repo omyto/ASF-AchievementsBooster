@@ -7,7 +7,7 @@ public sealed class ProductInfo {
 
   public string Name { get; }
 
-  public string FullName => $"{ID} ({Name})";
+  public string FullName { get; }
 
   public string Type { get; internal set; }
 
@@ -31,5 +31,6 @@ public sealed class ProductInfo {
     ID = id;
     Name = name;
     Type = string.Empty;
+    FullName = $"{ID} ({Name})";
   }
 }
