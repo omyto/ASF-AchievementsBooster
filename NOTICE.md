@@ -1,4 +1,4 @@
-## ASF.AchievementsBooster Plugin
+## AchievementsBooster Plugin
 
 Copyright (c) 2024, Omyto  
 Licensed under the Apache License, Version 2.0

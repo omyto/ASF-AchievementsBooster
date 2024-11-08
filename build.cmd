@@ -1,2 +1,2 @@
 @echo off
-dotnet publish ASF.AchievementsBooster -c "Release" -o "out"
+dotnet publish AchievementsBooster -c "Release" -o "out"

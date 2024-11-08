@@ -22,7 +22,7 @@ internal static class FileSerializer {
       }
 
       //string json = JsonSerializer.Serialize(obj);
-      string json = JsonUtilities.ToJsonText(obj, true);
+      string json = obj.ToJsonText(true);
       if (string.IsNullOrEmpty(json)) {
         throw new InvalidOperationException(nameof(json));
       }
