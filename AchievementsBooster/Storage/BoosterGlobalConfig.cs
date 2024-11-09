@@ -28,26 +28,26 @@ public sealed class BoosterGlobalConfig {
 
   [JsonInclude]
   [Range(5, 250)]
-  public short MinBoostInterval { get; private set; } = DefaultMinBoostInterval;
+  public int MinBoostInterval { get; private set; } = DefaultMinBoostInterval;
 
   [JsonInclude]
   [Range(6, 1600)]
-  public short MaxBoostInterval { get; private set; } = DefaultMaxBoostInterval;
+  public int MaxBoostInterval { get; private set; } = DefaultMaxBoostInterval;
 
   [JsonInclude]
   public EBoostingMode BoostingMode { get; private set; } = EBoostingMode.ContinuousBoosting;
 
   [JsonInclude]
   [Range(0, 12)]
-  public byte SleepingHours { get; private set; } = DefaultSleepingHours;
+  public int SleepingHours { get; private set; } = DefaultSleepingHours;
 
   [JsonInclude]
   [Range(1, Constants.MaxGamesPlayedConcurrently)]
-  public byte MaxAppBoostConcurrently { get; private set; } = DefaultMaxAppBoostConcurrently;
+  public int MaxAppBoostConcurrently { get; private set; } = DefaultMaxAppBoostConcurrently;
 
   [JsonInclude]
-  [Range(byte.MinValue, byte.MaxValue)]
-  public byte MaxContinuousBoostHours { get; private set; } = DefaultMaxContinuousBoostHours;
+  [Range(0, byte.MaxValue)]
+  public int MaxContinuousBoostHours { get; private set; } = DefaultMaxContinuousBoostHours;
 
   [JsonInclude]
   public bool IgnoreAppWithVAC { get; private set; } = DefaultIgnoreAppWithVAC;
@@ -85,7 +85,7 @@ public sealed class BoosterGlobalConfig {
     }
 
     if (MinBoostInterval >= MaxBoostInterval) {
-      short newMaxBoostInterval = (short) (MinBoostInterval + 1);
+      int newMaxBoostInterval = MinBoostInterval + 1;
       AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostInterval), MaxBoostInterval, newMaxBoostInterval));
       MaxBoostInterval = newMaxBoostInterval;
     }
