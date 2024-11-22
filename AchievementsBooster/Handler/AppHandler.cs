@@ -162,13 +162,13 @@ internal sealed class AppHandler {
       bool match = false;
       switch (AchievementsBooster.GlobalConfig.BoostingMode) {
         case EBoostingMode.ContinuousBoosting:
-          match = (now - app.LastPlayedTime).TotalHours > AchievementsBooster.GlobalConfig.MaxContinuousBoostHours * 3;
+          match = now.Date > app.LastPlayedTime.Date && (now - app.LastPlayedTime).TotalHours > AchievementsBooster.GlobalConfig.MaxContinuousBoostHours;
           break;
         case EBoostingMode.UniqueGamesPerSession:
           match = app.BoostSessionNo != lastSessionNo;
           break;
         case EBoostingMode.SingleDailyAchievementPerGame:
-          match = (now - app.LastUnlockTime).TotalHours > 24;
+          match = now.Date > app.LastPlayedTime.Date;
           break;
         default:
           break;
@@ -178,7 +178,7 @@ internal sealed class AppHandler {
         SleepingApps.RemoveAt(index--);
         app.ContinuousBoostingHours = 0;
         results.Add(app);
-        Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.RemainingAchievementsCount));
+        Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.UnlockableAchievementsCount));
       }
     }
 
@@ -278,9 +278,15 @@ internal sealed class AppHandler {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    int remainingAchievementsCount = statDatas.Where(e => e.Unlockable()).Count();
-    if (remainingAchievementsCount == 0) {
+    List<StatData> remainingAchievements = statDatas.Where(e => !e.IsSet).ToList();
+    if (remainingAchievements.Count == 0) {
       _ = Cache.PerfectGames.Add(appID);
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.PerfectApp, productInfo.FullName));
+      return (EGetAppStatus.NonBoostable, null);
+    }
+
+    int unlockableAchievementsCount = remainingAchievements.Where(e => !e.Restricted).Count();
+    if (unlockableAchievementsCount == 0) {
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, productInfo.FullName));
       return (EGetAppStatus.NonBoostable, null);
     }
@@ -291,8 +297,8 @@ internal sealed class AppHandler {
       return (EGetAppStatus.AchievementPercentagesNotFound, null);
     }
 
-    Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, productInfo.FullName, remainingAchievementsCount));
-    return (EGetAppStatus.OK, new AppBoostInfo(appID, productInfo, percentages, remainingAchievementsCount));
+    Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, productInfo.FullName, unlockableAchievementsCount));
+    return (EGetAppStatus.OK, new AppBoostInfo(appID, productInfo, percentages, remainingAchievements.Count, unlockableAchievementsCount));
   }
 
   private async Task<ProductInfo?> GetProduct(uint appID) {

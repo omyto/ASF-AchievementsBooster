@@ -182,7 +182,7 @@ internal sealed class Booster {
         foreach (AppBoostInfo app in BoostingApps.Values) {
           app.BoostSessionNo = CurrentSessionNo;
           app.LastPlayedTime = currentTime;
-          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.RemainingAchievementsCount));
+          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
         }
       }
       else {
@@ -282,10 +282,10 @@ internal sealed class Booster {
       (bool success, string message) = await app.UnlockNextAchievement(BoosterHandler).ConfigureAwait(false);
       if (success) {
         Logger.Info(message);
-        if (app.RemainingAchievementsCount == 0) {
+        if (app.UnlockableAchievementsCount == 0) {
           _ = BoostingApps.Remove(app.ID);
           _ = Cache.PerfectGames.Add(app.ID);
-          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingAppComplete, app.FullName));
+          Logger.Info(string.Format(CultureInfo.CurrentCulture, app.RemainingAchievementsCount == 0 ? Messages.FinishedBoost : Messages.FinishedBoostable, app.FullName));
           continue;
         }
 
@@ -296,6 +296,14 @@ internal sealed class Booster {
       }
       else {
         Logger.Warning(message);
+        if (app.UnlockableAchievementsCount == 0) {
+          if (app.RemainingAchievementsCount == 0) {
+            _ = Cache.PerfectGames.Add(app.ID);
+          }
+          _ = BoostingApps.Remove(app.ID);
+          continue;
+        }
+
         if (app.FailedUnlockCount > Constants.MaxUnlockAchievementTries) {
           _ = BoostingApps.Remove(app.ID);
           AppHandler.PlaceAtLastStandQueue(app);

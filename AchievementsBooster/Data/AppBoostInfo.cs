@@ -27,6 +27,8 @@ public sealed class AppBoostInfo {
 
   internal int RemainingAchievementsCount { get; private set; }
 
+  internal int UnlockableAchievementsCount { get; private set; }
+
   internal int FailedUnlockCount { get; private set; }
 
   private ProductInfo ProductInfo { get; }
@@ -35,11 +37,12 @@ public sealed class AppBoostInfo {
 
   private StatData? FailedUnlockStat { get; set; }
 
-  internal AppBoostInfo(uint id, ProductInfo product, AchievementPercentages percentages, int remainingAchievementsCount) {
+  internal AppBoostInfo(uint id, ProductInfo product, AchievementPercentages percentages, int remainingAchievementsCount, int unlockableAchievementsCount) {
     ID = id;
     ProductInfo = product;
     AchievementPercentages = percentages;
     RemainingAchievementsCount = remainingAchievementsCount;
+    UnlockableAchievementsCount = unlockableAchievementsCount;
     ContinuousBoostingHours = 0;
   }
 
@@ -51,23 +54,27 @@ public sealed class AppBoostInfo {
     }
 
     // Find next un-achieved achievement
-    List<StatData> unlockableStats = response.StatDatas.Where(e => e.Unlockable()).ToList();
-    RemainingAchievementsCount = unlockableStats.Count;
+    List<StatData> remainingAchievements = response.StatDatas.Where(e => !e.IsSet).ToList();
+    RemainingAchievementsCount = remainingAchievements.Count;
 
-    if (RemainingAchievementsCount == 0) {
-      return (false, string.Format(CultureInfo.CurrentCulture, Messages.AlreadyUnlockedAll, FullName));
+    List<StatData> unlockableAchievements = remainingAchievements.Where(e => !e.Restricted).ToList();
+    UnlockableAchievementsCount = unlockableAchievements.Count;
+
+    if (UnlockableAchievementsCount == 0) {
+      return (true, string.Format(CultureInfo.CurrentCulture, RemainingAchievementsCount == 0 ? Messages.PerfectApp : Messages.NoUnlockableStats, FullName));
     }
 
-    foreach (StatData statData in unlockableStats) {
+    foreach (StatData statData in unlockableAchievements) {
       statData.Percentage = AchievementPercentages.GetPercentage(statData.APIName, 0);
     }
-    unlockableStats.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
+    unlockableAchievements.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
 
-    StatData nextStat = unlockableStats.First();
+    StatData nextStat = unlockableAchievements.First();
 
     // Achieve next achievement
     if (await boosterHandler.UnlockStat(ID, nextStat, response.CrcStats).ConfigureAwait(false)) {
       RemainingAchievementsCount--;
+      UnlockableAchievementsCount--;
       LastUnlockTime = DateTime.Now;
       return (true, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, FullName, nextStat.Name));
     }

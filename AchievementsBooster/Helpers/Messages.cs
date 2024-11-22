@@ -29,7 +29,9 @@ internal static class Messages {
 
   internal const string BoostingNotStart = "This booster is currently not running!";
 
-  internal const string BoostingAppComplete = "Finished boosting {0}";
+  internal const string FinishedBoost = "Finished boost app {0}.";
+
+  internal const string FinishedBoostable = "Finished boost app {0}, some achievements have been restricted.";
 
   internal const string NotOwnedGame = "{0} is not owned by the user";
 
@@ -59,9 +61,9 @@ internal static class Messages {
 
   internal const string GameAchievementNotExist = "No global achievement percentages exist for app {0}";
 
-  internal const string NoUnlockableStats = "There are no unlockable achievements for app {0}";
+  internal const string PerfectApp = "{0}: Had unlocked all achievements";
 
-  internal const string AlreadyUnlockedAll = "All achievements for app {0} have been unlocked";
+  internal const string NoUnlockableStats = "{0}: No unlockable achievements, some have been restricted.";
 
   internal const string UnlockAchievementSuccess = "Boosting status for {0}: unlocked the '{1}' achievement";
 
