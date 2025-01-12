@@ -246,8 +246,6 @@ internal sealed class Booster {
         LastUpdateOwnedGamesTime = currentTime;
       }
     }
-
-    AppManager.Update();
   }
 
   private async Task UnlockAchievements(DateTime currentTime) {

@@ -37,8 +37,6 @@ internal sealed class AppManager {
 
   internal HashSet<uint> OwnedGames { get; private set; } = [];
 
-  private Queue<uint> LastStandAppQueue { get; set; } = new();
-
   private Queue<uint> BoostableAppQueue { get; set; } = new();
 
   private HashSet<uint> NonBoostableApps { get; } = [];
@@ -84,16 +82,6 @@ internal sealed class AppManager {
           }
         }
 
-        // Last stand apps queue
-        Queue<uint> newLastStandAppQueue = new();
-        while (LastStandAppQueue.Count > 0) {
-          uint appID = LastStandAppQueue.Dequeue();
-          if (!gamesRemoved.Contains(appID)) {
-            newLastStandAppQueue.Enqueue(appID);
-          }
-        }
-        LastStandAppQueue = newLastStandAppQueue;
-
         // Boostable apps queue
         Queue<uint> newBoostableAppQueue = new();
         while (BoostableAppQueue.Count > 0) {
@@ -109,15 +97,8 @@ internal sealed class AppManager {
     OwnedGames = newOwnedGames;
   }
 
-  internal void Update() {
-    if (BoostableAppQueue.Count == 0 && LastStandAppQueue.Count > 0) {
-      BoostableAppQueue = LastStandAppQueue;
-      LastStandAppQueue = new();
-    }
-  }
-
   internal void SetAppToSleep(AppBoostInfo app) => SleepingApps.Add(app);
-  internal void PlaceAtLastStandQueue(AppBoostInfo app) => LastStandAppQueue.Enqueue(app.ID);
+  internal void PlaceAtLastStandQueue(AppBoostInfo app) => BoostableAppQueue.Enqueue(app.ID);
 
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
   internal bool IsBoostableApp(uint appID) {
