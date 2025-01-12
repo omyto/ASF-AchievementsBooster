@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler.Callback;
@@ -21,13 +19,6 @@ internal sealed class AppManager {
     ProductNotFound,
     AchievementPercentagesNotFound,
     NonBoostable
-  }
-
-  private static class Holder {
-    internal static ConcurrentDictionary<uint, SemaphoreSlim> ProductSemaphores { get; } = new();
-    internal static ConcurrentDictionary<uint, ProductInfo> ProductDictionary { get; } = new();
-    internal static ConcurrentDictionary<uint, SemaphoreSlim> AchievementPercentagesSemaphores { get; } = new();
-    internal static ConcurrentDictionary<uint, AchievementPercentages> AchievementPercentagesDictionary { get; } = new();
   }
 
   private readonly BotCache Cache;
@@ -204,7 +195,7 @@ internal sealed class AppManager {
   }
 
   private async Task<(EGetAppStatus status, AppBoostInfo?)> GetApp(uint appID) {
-    ProductInfo? productInfo = await GetProduct(appID).ConfigureAwait(false);
+    ProductInfo? productInfo = await AppUtils.GetProduct(appID, BoosterHandler, Logger).ConfigureAwait(false);
     if (productInfo == null) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ProductInfoNotFound, appID));
       return (EGetAppStatus.ProductNotFound, null);
@@ -272,7 +263,7 @@ internal sealed class AppManager {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    AchievementPercentages? percentages = await GetAchievementPercentages(appID).ConfigureAwait(false);
+    AchievementPercentages? percentages = await AppUtils.GetAchievementPercentages(appID, BoosterHandler, Logger).ConfigureAwait(false);
     if (percentages == null) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AchievementPercentagesNotFound, productInfo.FullName));
       return (EGetAppStatus.AchievementPercentagesNotFound, null);
@@ -281,57 +272,4 @@ internal sealed class AppManager {
     Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, productInfo.FullName, unlockableAchievementsCount));
     return (EGetAppStatus.OK, new AppBoostInfo(appID, productInfo, percentages, remainingAchievements.Count, unlockableAchievementsCount));
   }
-
-  private async Task<ProductInfo?> GetProduct(uint appID) {
-    SemaphoreSlim semaphore = Holder.ProductSemaphores.GetOrAdd(appID, _ => new SemaphoreSlim(1, 1));
-    await semaphore.WaitAsync().ConfigureAwait(false);
-
-    ProductInfo? product = null;
-    try {
-      if (!Holder.ProductDictionary.TryGetValue(appID, out product)) {
-        product = await BoosterHandler.GetProductInfo(appID).ConfigureAwait(false);
-        if (product != null) {
-          _ = Holder.ProductDictionary.TryAdd(appID, product);
-        }
-      }
-#if DEBUG
-      else {
-        Logger.Trace($"Get product infor for app {product.FullName} from cache");
-      }
-#endif
-    }
-    finally {
-      _ = semaphore.Release();
-      _ = Holder.ProductSemaphores.TryRemove(appID, out _);
-    }
-
-    return product;
-  }
-
-  private async Task<AchievementPercentages?> GetAchievementPercentages(uint appID) {
-    SemaphoreSlim semaphore = Holder.AchievementPercentagesSemaphores.GetOrAdd(appID, _ => new SemaphoreSlim(1, 1));
-    await semaphore.WaitAsync().ConfigureAwait(false);
-
-    AchievementPercentages? percentages = null;
-    try {
-      if (!Holder.AchievementPercentagesDictionary.TryGetValue(appID, out percentages)) {
-        percentages = await BoosterHandler.GetAchievementPercentages(appID).ConfigureAwait(false);
-        if (percentages != null) {
-          _ = Holder.AchievementPercentagesDictionary.TryAdd(appID, percentages);
-        }
-      }
-#if DEBUG
-      else {
-        Logger.Trace($"Get achievement percentages for app {appID} from cache");
-      }
-#endif
-    }
-    finally {
-      _ = semaphore.Release();
-      _ = Holder.AchievementPercentagesSemaphores.TryRemove(appID, out _);
-    }
-
-    return percentages;
-  }
-
 }
