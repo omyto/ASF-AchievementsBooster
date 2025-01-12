@@ -15,7 +15,7 @@ using EBoostingMode = AchievementsBooster.Storage.BoosterGlobalConfig.EBoostingM
 
 namespace AchievementsBooster.Handler;
 
-internal sealed class AppHandler {
+internal sealed class AppManager {
   private enum EGetAppStatus : byte {
     OK,
     ProductNotFound,
@@ -45,7 +45,7 @@ internal sealed class AppHandler {
 
   private List<AppBoostInfo> SleepingApps { get; } = [];
 
-  internal AppHandler(BoosterHandler boosterHandler, BotCache cache, Logger logger) {
+  internal AppManager(BoosterHandler boosterHandler, BotCache cache, Logger logger) {
     BoosterHandler = boosterHandler;
     Cache = cache;
     Logger = logger;

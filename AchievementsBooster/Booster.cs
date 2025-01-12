@@ -29,9 +29,9 @@ internal sealed class Booster {
 
   private static BoosterGlobalConfig GlobalConfig => AchievementsBooster.GlobalConfig;
 
-  internal BoosterHandler BoosterHandler => AppHandler.BoosterHandler;
+  internal BoosterHandler BoosterHandler => AppManager.BoosterHandler;
 
-  private AppHandler AppHandler { get; }
+  private AppManager AppManager { get; }
 
   private readonly Bot Bot;
   private readonly BotCache Cache;
@@ -53,7 +53,7 @@ internal sealed class Booster {
     Bot = bot;
     Logger = new Logger(bot.ArchiLogger);
     Cache = LoadOrCreateCacheForBot(bot);
-    AppHandler = new AppHandler(new BoosterHandler(bot, Logger), Cache, Logger);
+    AppManager = new AppManager(new BoosterHandler(bot, Logger), Cache, Logger);
 
     // Since GamesPlayedWhileIdle may never change
     ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(bot.BotConfig?.GamesPlayedWhileIdle ?? []);
@@ -142,7 +142,7 @@ internal sealed class Booster {
       }
 
       await UpdateAppHandler(currentTime).ConfigureAwait(false);
-      if (AppHandler.OwnedGames.Count == 0) {
+      if (AppManager.OwnedGames.Count == 0) {
         BoostingApps.Clear();
         throw new BoostingImpossibleException(string.Format(CultureInfo.CurrentCulture, Messages.NoGamesBoosting));
       }
@@ -231,7 +231,7 @@ internal sealed class Booster {
     if (BoostingApps.Count > 0 && BoostingState is EBoostingState.BoosterPlayed) {
       foreach (AppBoostInfo app in BoostingApps.Values) {
         action?.Invoke(app);
-        AppHandler.SetAppToSleep(app);
+        AppManager.SetAppToSleep(app);
       }
     }
 
@@ -239,15 +239,15 @@ internal sealed class Booster {
   }
 
   private async Task UpdateAppHandler(DateTime currentTime) {
-    if (AppHandler.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 16.0) {
+    if (AppManager.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 16.0) {
       Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
       if (ownedGames != null) {
-        AppHandler.UpdateOwnedGames(ownedGames.Keys.ToHashSet());
+        AppManager.UpdateOwnedGames(ownedGames.Keys.ToHashSet());
         LastUpdateOwnedGamesTime = currentTime;
       }
     }
 
-    AppHandler.Update();
+    AppManager.Update();
   }
 
   private async Task UnlockAchievements(DateTime currentTime) {
@@ -291,7 +291,7 @@ internal sealed class Booster {
 
         if (GlobalConfig.BoostingMode is EBoostingMode.SingleDailyAchievementPerGame or EBoostingMode.UniqueGamesPerSession) {
           _ = BoostingApps.Remove(app.ID);
-          AppHandler.SetAppToSleep(app);
+          AppManager.SetAppToSleep(app);
         }
       }
       else {
@@ -306,7 +306,7 @@ internal sealed class Booster {
 
         if (app.FailedUnlockCount > Constants.MaxUnlockAchievementTries) {
           _ = BoostingApps.Remove(app.ID);
-          AppHandler.PlaceAtLastStandQueue(app);
+          AppManager.PlaceAtLastStandQueue(app);
           continue;
         }
       }
@@ -314,7 +314,7 @@ internal sealed class Booster {
       if (GlobalConfig.MaxContinuousBoostHours > 0 && GlobalConfig.BoostingMode is EBoostingMode.ContinuousBoosting) {
         if (app.ContinuousBoostingHours >= GlobalConfig.MaxContinuousBoostHours) {
           _ = BoostingApps.Remove(app.ID);
-          AppHandler.SetAppToSleep(app);
+          AppManager.SetAppToSleep(app);
         }
       }
     }
@@ -328,7 +328,7 @@ internal sealed class Booster {
         for (int index = 0; index < currentGamesFarming.Length && results.Count < count; index++) {
           uint appID = currentGamesFarming[index].AppID;
           if (!BoostingApps.ContainsKey(appID)) {
-            AppBoostInfo? app = await AppHandler.GetAppBoost(appID).ConfigureAwait(false);
+            AppBoostInfo? app = await AppManager.GetAppBoost(appID).ConfigureAwait(false);
             if (app != null) {
               results.Add(app);
             }
@@ -338,7 +338,7 @@ internal sealed class Booster {
       case EBoostingState.ArchiPlayedWhileIdle:
         while (ArchiBoostableAppsPlayedWhileIdle.Count > 0 && results.Count < count) {
           uint appID = ArchiBoostableAppsPlayedWhileIdle.Dequeue();
-          AppBoostInfo? app = await AppHandler.GetAppBoost(appID).ConfigureAwait(false);
+          AppBoostInfo? app = await AppManager.GetAppBoost(appID).ConfigureAwait(false);
           if (app != null) {
             results.Add(app);
           }
@@ -346,7 +346,7 @@ internal sealed class Booster {
         break;
       case EBoostingState.BoosterPlayed:
         BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
-        results = await AppHandler.NextAppsForBoost(count, LastSessionNo).ConfigureAwait(false);
+        results = await AppManager.NextAppsForBoost(count, LastSessionNo).ConfigureAwait(false);
         break;
       case EBoostingState.None:
       // Not reachable
