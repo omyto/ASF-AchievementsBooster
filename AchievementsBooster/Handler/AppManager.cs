@@ -54,7 +54,7 @@ internal sealed class AppManager {
       }
     }
 
-    List<uint> games = await AppUtils.FilterAchievementsApps(newOwnedGames).ConfigureAwait(false) ?? newOwnedGames.ToList();
+    List<uint> games = await AppUtils.FilterAchievementsApps(newOwnedGames, BoosterHandler).ConfigureAwait(false) ?? newOwnedGames.ToList();
     BoostableAppQueue.Clear();
     HashSet<uint> sleepingSet = SleepingApps.Select(app => app.ID).ToHashSet();
 

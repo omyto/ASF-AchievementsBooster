@@ -29,7 +29,7 @@ internal sealed class AchievementsBooster : IASF, IBot, IBotModules, IBotConnect
 
   public string Name => Constants.PluginName;
 
-  public Version Version => typeof(AchievementsBooster).Assembly.GetName().Version ?? throw new InvalidOperationException(nameof(Version));
+  public Version Version => Constants.PluginVersion;
 
   public string RepositoryName => Constants.RepositoryName;
 

@@ -1,6 +1,12 @@
+using System;
+
 namespace AchievementsBooster.Helpers;
 
 public static class Constants {
+  public static readonly Version PluginVersion = typeof(AchievementsBooster).Assembly.GetName().Version ?? throw new InvalidOperationException(nameof(PluginVersion));
+
+  public static readonly string PluginVersionString = PluginVersion.ToString();
+
   public const string PluginName = "AchievementsBooster";
 
   public const string RepositoryName = "omyto/ASF-AchievementsBooster";
@@ -24,4 +30,8 @@ public static class Constants {
   public const string AchievementsCategory = "category_22";
 
   public const byte MaxUnlockAchievementTries = 3;
+
+  public static readonly Uri AchievementsFilterAPI = new("https://ab.omyto.com/api/achievements");
+
+  public static readonly Uri AchievementsFilterHost = new(AchievementsFilterAPI.GetLeftPart(UriPartial.Authority));
 }
