@@ -17,7 +17,9 @@ internal static class Messages {
 
   internal const string GamesOwned = "Games owned: {0}";
 
-  internal const string GamesAdded = "New games added: {0}";
+  internal const string BoostableQueue = "Boostable queue: {0}";
+
+  internal const string SleepingApps = "Sleeping apps: {0}";
 
   internal const string GamesRemoved = "Games was removed: {0}";
 

@@ -40,51 +40,33 @@ internal sealed class AppManager {
     Logger = logger;
   }
 
-  internal void UpdateOwnedGames(HashSet<uint> newOwnedGames) {
-    if (OwnedGames.Count == 0) {
-      Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
-
-      foreach (uint appID in newOwnedGames) {
-        if (IsBoostableApp(appID)) {
-          BoostableAppQueue.Enqueue(appID);
+  internal async Task UpdateOwnedGames(HashSet<uint> newOwnedGames) {
+    HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
+    if (gamesRemoved.Count > 0) {
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
+      // Remove from sleeping list
+      for (int index = 0; index < SleepingApps.Count; index++) {
+        AppBoostInfo app = SleepingApps[index];
+        if (gamesRemoved.Contains(app.ID)) {
+          SleepingApps.RemoveAt(index);
+          index--;
         }
       }
     }
-    else {
-      List<uint> gamesAdded = newOwnedGames.Except(OwnedGames).ToList();
-      if (gamesAdded.Count > 0) {
-        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesAdded, string.Join(",", gamesAdded)));
-        foreach (uint appID in gamesAdded) {
-          if (IsBoostableApp(appID)) {
-            BoostableAppQueue.Enqueue(appID);
-          }
-        }
-      }
 
-      HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
-      if (gamesRemoved.Count > 0) {
-        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
-        // Sleeping apps list
-        for (int index = 0; index < SleepingApps.Count; index++) {
-          AppBoostInfo app = SleepingApps[index];
-          if (gamesRemoved.Contains(app.ID)) {
-            SleepingApps.RemoveAt(index);
-            index--;
-          }
-        }
+    List<uint> games = await AppUtils.FilterAchievementsApps(newOwnedGames).ConfigureAwait(false) ?? newOwnedGames.ToList();
+    BoostableAppQueue.Clear();
+    HashSet<uint> sleepingSet = SleepingApps.Select(app => app.ID).ToHashSet();
 
-        // Boostable apps queue
-        Queue<uint> newBoostableAppQueue = new();
-        while (BoostableAppQueue.Count > 0) {
-          uint appID = BoostableAppQueue.Dequeue();
-          if (!gamesRemoved.Remove(appID)) {
-            newBoostableAppQueue.Enqueue(appID);
-          }
-        }
-        BoostableAppQueue = newBoostableAppQueue;
+    foreach (uint appID in games) {
+      if (!sleepingSet.Contains(appID) && IsBoostableApp(appID)) {
+        BoostableAppQueue.Enqueue(appID);
       }
     }
 
+    Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
+    Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.SleepingApps, string.Join(",", sleepingSet)));
+    Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.BoostableQueue, string.Join(",", BoostableAppQueue)));
     OwnedGames = newOwnedGames;
   }
 

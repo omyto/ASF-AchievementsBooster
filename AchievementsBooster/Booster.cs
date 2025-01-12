@@ -242,7 +242,7 @@ internal sealed class Booster {
     if (AppManager.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 16.0) {
       Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
       if (ownedGames != null) {
-        AppManager.UpdateOwnedGames(ownedGames.Keys.ToHashSet());
+        await AppManager.UpdateOwnedGames(ownedGames.Keys.ToHashSet()).ConfigureAwait(false);
         LastUpdateOwnedGamesTime = currentTime;
       }
     }
