@@ -13,13 +13,13 @@ internal static class Messages {
 
   internal const string BoostingImpossible = "Not ready to boost; playing is blocked";
 
-  internal const string SleepingTime = "Sleeping time";
+  internal const string RestTime = "Resting time";
 
   internal const string GamesOwned = "Games owned: {0}";
 
   internal const string BoostableQueue = "Boostable queue: {0}";
 
-  internal const string SleepingApps = "Sleeping apps: {0}";
+  internal const string RestingApps = "Resting apps: {0}";
 
   internal const string GamesRemoved = "Games was removed: {0}";
 
@@ -34,6 +34,8 @@ internal static class Messages {
   internal const string FinishedBoost = "Finished boost app {0}.";
 
   internal const string FinishedBoostable = "Finished boost app {0}, some achievements have been restricted.";
+
+  internal const string RestingApp = "{0}: taking a rest after boosting for {1} minutes";
 
   internal const string NotOwnedGame = "{0} is not owned by the user";
 
@@ -67,9 +69,9 @@ internal static class Messages {
 
   internal const string NoUnlockableStats = "{0}: No unlockable achievements, some have been restricted.";
 
-  internal const string UnlockAchievementSuccess = "Boosting status for {0}: unlocked the '{1}' achievement";
+  internal const string UnlockAchievementSuccess = "{0}: unlocked the '{1}' achievement";
 
-  internal const string UnlockAchievementFailed = "Boosting status for {0}: failed to achieve achievement '{1}'";
+  internal const string UnlockAchievementFailed = "{0}: failed to achieve achievement '{1}'";
 
   internal const string NoBoostingApps = "No apps available to boost achievements";
 

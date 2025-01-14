@@ -9,7 +9,6 @@ using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
-using EBoostingMode = AchievementsBooster.Storage.BoosterGlobalConfig.EBoostingMode;
 
 namespace AchievementsBooster.Handler;
 
@@ -32,7 +31,7 @@ internal sealed class AppManager {
 
   private HashSet<uint> NonBoostableApps { get; } = [];
 
-  private List<AppBoostInfo> SleepingApps { get; } = [];
+  private List<AppBoostInfo> RestingApps { get; } = [];
 
   internal AppManager(BoosterHandler boosterHandler, BotCache cache, Logger logger) {
     BoosterHandler = boosterHandler;
@@ -44,11 +43,11 @@ internal sealed class AppManager {
     HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
     if (gamesRemoved.Count > 0) {
       Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
-      // Remove from sleeping list
-      for (int index = 0; index < SleepingApps.Count; index++) {
-        AppBoostInfo app = SleepingApps[index];
+      // Remove from resting list
+      for (int index = 0; index < RestingApps.Count; index++) {
+        AppBoostInfo app = RestingApps[index];
         if (gamesRemoved.Contains(app.ID)) {
-          SleepingApps.RemoveAt(index);
+          RestingApps.RemoveAt(index);
           index--;
         }
       }
@@ -56,22 +55,27 @@ internal sealed class AppManager {
 
     List<uint> games = await AppUtils.FilterAchievementsApps(newOwnedGames, BoosterHandler).ConfigureAwait(false) ?? newOwnedGames.ToList();
     BoostableAppQueue.Clear();
-    HashSet<uint> sleepingSet = SleepingApps.Select(app => app.ID).ToHashSet();
+    HashSet<uint> restingSet = RestingApps.Select(app => app.ID).ToHashSet();
 
     foreach (uint appID in games) {
-      if (!sleepingSet.Contains(appID) && IsBoostableApp(appID)) {
+      if (!restingSet.Contains(appID) && IsBoostableApp(appID)) {
         BoostableAppQueue.Enqueue(appID);
       }
     }
 
     Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
-    Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.SleepingApps, string.Join(",", sleepingSet)));
+    if (restingSet.Count > 0) {
+      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", restingSet)));
+    }
     Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.BoostableQueue, string.Join(",", BoostableAppQueue)));
     OwnedGames = newOwnedGames;
   }
 
-  internal void SetAppToSleep(AppBoostInfo app) => SleepingApps.Add(app);
-  internal void PlaceAtLastStandQueue(AppBoostInfo app) => BoostableAppQueue.Enqueue(app.ID);
+  internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
+    app.BoostingDuration = 0;
+    app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(AchievementsBooster.GlobalConfig.BoostRestTimePerApp);
+    RestingApps.Add(app);
+  }
 
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
   internal bool IsBoostableApp(uint appID) {
@@ -80,20 +84,20 @@ internal sealed class AppManager {
       return false;
     }
 
-    if (AchievementsBooster.GlobalConfig.FocusApps.Contains(appID)) {
-      return true;
+    if (AchievementsBooster.GlobalConfig.Blacklist.Contains(appID)) {
+      Logger.Trace($"App {appID} is on your AchievementsBooster blacklist list");
+      return false;
     }
 
-    if (AchievementsBooster.GlobalConfig.IgnoreApps.Contains(appID)) {
-      Logger.Trace($"App {appID} is on your ignore list");
-      return false;
+    if (AchievementsBooster.GlobalConfig.UnrestrictedApps.Contains(appID)) {
+      return true;
     }
 
     if (AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID)) {
       return false;
     }
 
-    if (AchievementsBooster.GlobalConfig.IgnoreAppWithVAC && AchievementsBooster.GlobalCache.VACApps.Contains(appID)) {
+    if (AchievementsBooster.GlobalConfig.RestrictAppWithVAC && AchievementsBooster.GlobalCache.VACApps.Contains(appID)) {
       return false;
     }
 
@@ -104,33 +108,16 @@ internal sealed class AppManager {
     return !NonBoostableApps.Contains(appID);
   }
 
-  internal async Task<List<AppBoostInfo>> NextAppsForBoost(int size, uint lastSessionNo) {
+  internal async Task<List<AppBoostInfo>> NextAppsForBoost(int size) {
     List<AppBoostInfo> results = [];
     List<uint> pendingAppIDs = [];
 
-    // Get from sleeping list first
+    // Get from resting list first
     DateTime now = DateTime.Now;
-    for (int index = 0; index < SleepingApps.Count && results.Count < size; index++) {
-      AppBoostInfo app = SleepingApps[index];
-
-      bool match = false;
-      switch (AchievementsBooster.GlobalConfig.BoostingMode) {
-        case EBoostingMode.ContinuousBoosting:
-          match = now.Date > app.LastPlayedTime.Date && (now - app.LastPlayedTime).TotalHours > AchievementsBooster.GlobalConfig.MaxContinuousBoostHours;
-          break;
-        case EBoostingMode.UniqueGamesPerSession:
-          match = app.BoostSessionNo != lastSessionNo;
-          break;
-        case EBoostingMode.SingleDailyAchievementPerGame:
-          match = now.Date > app.LastPlayedTime.Date;
-          break;
-        default:
-          break;
-      }
-
-      if (match) {
-        SleepingApps.RemoveAt(index--);
-        app.ContinuousBoostingHours = 0;
+    for (int index = 0; index < RestingApps.Count && results.Count < size; index++) {
+      AppBoostInfo app = RestingApps[index];
+      if (now > app.RestingEndTime) {
+        RestingApps.RemoveAt(index--);
         results.Add(app);
         Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.UnlockableAchievementsCount));
       }
@@ -172,6 +159,14 @@ internal sealed class AppManager {
       return null;
     }
 
+    for (int i = 0; i < RestingApps.Count; i++) {
+      AppBoostInfo restingApp = RestingApps[i];
+      if (restingApp.ID == appID) {
+        RestingApps.RemoveAt(i);
+        return restingApp;
+      }
+    }
+
     (EGetAppStatus _, AppBoostInfo? app) = await GetApp(appID).ConfigureAwait(false);
     return app;
   }
@@ -191,20 +186,20 @@ internal sealed class AppManager {
 
     if (productInfo.IsVACEnabled) {
       _ = AchievementsBooster.GlobalCache.VACApps.Add(appID);
-      if (AchievementsBooster.GlobalConfig.IgnoreAppWithVAC) {
+      if (AchievementsBooster.GlobalConfig.RestrictAppWithVAC) {
         Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, productInfo.FullName));
         return (EGetAppStatus.NonBoostable, null);
       }
     }
 
-    if (AchievementsBooster.GlobalConfig.IgnoreAppWithDLC && productInfo.DLCs.Count > 0) {
+    if (AchievementsBooster.GlobalConfig.RestrictAppWithDLC && productInfo.DLCs.Count > 0) {
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, productInfo.FullName));
       _ = NonBoostableApps.Add(appID);
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    if (AchievementsBooster.GlobalConfig.IgnoreDevelopers.Count > 0) {
-      foreach (string developer in AchievementsBooster.GlobalConfig.IgnoreDevelopers) {
+    if (AchievementsBooster.GlobalConfig.RestrictDevelopers.Count > 0) {
+      foreach (string developer in AchievementsBooster.GlobalConfig.RestrictDevelopers) {
         if (productInfo.Developers.Contains(developer)) {
           Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, productInfo.FullName, developer));
           _ = NonBoostableApps.Add(appID);
@@ -213,8 +208,8 @@ internal sealed class AppManager {
       }
     }
 
-    if (AchievementsBooster.GlobalConfig.IgnorePublishers.Count > 0) {
-      foreach (string publisher in AchievementsBooster.GlobalConfig.IgnorePublishers) {
+    if (AchievementsBooster.GlobalConfig.RestrictPublishers.Count > 0) {
+      foreach (string publisher in AchievementsBooster.GlobalConfig.RestrictPublishers) {
         if (productInfo.Publishers.Contains(publisher)) {
           Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, productInfo.FullName, publisher));
           _ = NonBoostableApps.Add(appID);

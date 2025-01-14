@@ -15,7 +15,6 @@ using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Steam.Cards;
 using SteamKit2;
-using EBoostingMode = AchievementsBooster.Storage.BoosterGlobalConfig.EBoostingMode;
 
 namespace AchievementsBooster;
 
@@ -43,8 +42,6 @@ internal sealed class Booster {
   private Queue<uint> ArchiBoostableAppsPlayedWhileIdle { get; }
 
   private Timer? BoosterHeartBeatTimer { get; set; }
-  private uint LastSessionNo { get; set; }
-  private uint CurrentSessionNo { get; set; }
   private DateTime LastBoosterHeartBeatTime { get; set; }
   private DateTime LastUpdateOwnedGamesTime { get; set; }
   private SemaphoreSlim BoosterHeartBeatSemaphore { get; } = new SemaphoreSlim(1);
@@ -105,19 +102,11 @@ internal sealed class Booster {
     }
 
     StopTimer();
-
     if (BoostingState == EBoostingState.BoosterPlayed) {
-      // Update playtime and put app to sleep
-      DateTime currentTime = DateTime.Now;
-      double deltaTime = (currentTime - LastBoosterHeartBeatTime).TotalHours;
-      SendBoostingAppsToSleep((app) => {
-        app.LastPlayedTime = currentTime;
-        app.ContinuousBoostingHours += deltaTime;
-      });
-
       _ = Bot.Actions.Resume();
     }
 
+    MarkBoostingAppsAsResting(); //TODO: Check, maybe just set BoostingState = None is DONE
     BoostingState = EBoostingState.None;
 
     Logger.Info("The boosting process has been stopped!");
@@ -131,17 +120,16 @@ internal sealed class Booster {
     }
 
     Logger.Trace("Boosting heartbeating ...");
-    LastSessionNo = CurrentSessionNo++;
     DateTime currentTime = DateTime.Now;
 
     try {
       BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
 
-      if (IsSleepingTime(currentTime)) {
-        throw new BoostingImpossibleException(Messages.SleepingTime);
+      if (IsRestingTime(currentTime)) {
+        throw new BoostingImpossibleException(Messages.RestTime);
       }
 
-      await UpdateAppHandler(currentTime).ConfigureAwait(false);
+      await UpdateOwnedGames(currentTime).ConfigureAwait(false);
       if (AppManager.OwnedGames.Count == 0) {
         BoostingApps.Clear();
         throw new BoostingImpossibleException(string.Format(CultureInfo.CurrentCulture, Messages.NoGamesBoosting));
@@ -161,7 +149,7 @@ internal sealed class Booster {
       }
       else {
         BoostingState = newBoostingState;
-        SendBoostingAppsToSleep();
+        MarkBoostingAppsAsResting();
       }
 
       // Add new apps for boosting if need
@@ -180,8 +168,6 @@ internal sealed class Booster {
         }
 
         foreach (AppBoostInfo app in BoostingApps.Values) {
-          app.BoostSessionNo = CurrentSessionNo;
-          app.LastPlayedTime = currentTime;
           Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
         }
       }
@@ -210,7 +196,7 @@ internal sealed class Booster {
         Logger.Exception(exception);
       }
 
-      SendBoostingAppsToSleep();
+      MarkBoostingAppsAsResting();
       BoostingState = EBoostingState.None;
       _ = Bot.Actions.Resume();
     }
@@ -227,19 +213,17 @@ internal sealed class Booster {
     }
   }
 
-  private void SendBoostingAppsToSleep(Action<AppBoostInfo>? action = null) {
-    if (BoostingApps.Count > 0 && BoostingState is EBoostingState.BoosterPlayed) {
-      foreach (AppBoostInfo app in BoostingApps.Values) {
-        action?.Invoke(app);
-        AppManager.SetAppToSleep(app);
-      }
+  private void MarkBoostingAppsAsResting() {
+    DateTime now = DateTime.Now;
+    foreach (AppBoostInfo app in BoostingApps.Values) {
+      AppManager.MarkAppAsResting(app, now);
     }
 
     BoostingApps.Clear();
   }
 
-  private async Task UpdateAppHandler(DateTime currentTime) {
-    if (AppManager.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 16.0) {
+  private async Task UpdateOwnedGames(DateTime currentTime) {
+    if (AppManager.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
       Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
       if (ownedGames != null) {
         await AppManager.UpdateOwnedGames(ownedGames.Keys.ToHashSet()).ConfigureAwait(false);
@@ -271,11 +255,10 @@ internal sealed class Booster {
       }
     }
 
-    double deltaTime = (currentTime - LastBoosterHeartBeatTime).TotalHours;
+    int deltaTime = (int) (currentTime - LastBoosterHeartBeatTime).TotalMinutes;
     foreach (AppBoostInfo app in BoostingApps.Values.ToArray()) {
       BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
-      app.LastPlayedTime = currentTime;
-      app.ContinuousBoostingHours += deltaTime;
+      app.BoostingDuration += deltaTime;
 
       (bool success, string message) = await app.UnlockNextAchievement(BoosterHandler).ConfigureAwait(false);
       if (success) {
@@ -285,11 +268,6 @@ internal sealed class Booster {
           _ = Cache.PerfectGames.Add(app.ID);
           Logger.Info(string.Format(CultureInfo.CurrentCulture, app.RemainingAchievementsCount == 0 ? Messages.FinishedBoost : Messages.FinishedBoostable, app.FullName));
           continue;
-        }
-
-        if (GlobalConfig.BoostingMode is EBoostingMode.SingleDailyAchievementPerGame or EBoostingMode.UniqueGamesPerSession) {
-          _ = BoostingApps.Remove(app.ID);
-          AppManager.SetAppToSleep(app);
         }
       }
       else {
@@ -304,15 +282,16 @@ internal sealed class Booster {
 
         if (app.FailedUnlockCount > Constants.MaxUnlockAchievementTries) {
           _ = BoostingApps.Remove(app.ID);
-          AppManager.PlaceAtLastStandQueue(app);
+          AppManager.MarkAppAsResting(app, DateTime.Now.AddHours(12));
           continue;
         }
       }
 
-      if (GlobalConfig.MaxContinuousBoostHours > 0 && GlobalConfig.BoostingMode is EBoostingMode.ContinuousBoosting) {
-        if (app.ContinuousBoostingHours >= GlobalConfig.MaxContinuousBoostHours) {
+      if (GlobalConfig.BoostDurationPerApp > 0) {
+        if (app.BoostingDuration >= GlobalConfig.BoostDurationPerApp) {
           _ = BoostingApps.Remove(app.ID);
-          AppManager.SetAppToSleep(app);
+          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
+          AppManager.MarkAppAsResting(app);
         }
       }
     }
@@ -344,7 +323,7 @@ internal sealed class Booster {
         break;
       case EBoostingState.BoosterPlayed:
         BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
-        results = await AppManager.NextAppsForBoost(count, LastSessionNo).ConfigureAwait(false);
+        results = await AppManager.NextAppsForBoost(count).ConfigureAwait(false);
         break;
       case EBoostingState.None:
       // Not reachable
@@ -377,15 +356,15 @@ internal sealed class Booster {
     return cache;
   }
 
-  private static bool IsSleepingTime(DateTime currentTime) {
-    if (GlobalConfig.SleepingHours == 0) {
+  private static bool IsRestingTime(DateTime currentTime) {
+    if (GlobalConfig.RestTimePerDay == 0) {
       return false;
     }
 
     DateTime weakUpTime = new(currentTime.Year, currentTime.Month, currentTime.Day, 6, 0, 0, 0);
     if (currentTime < weakUpTime) {
-      DateTime sleepStartTime = weakUpTime.AddHours(-GlobalConfig.SleepingHours);
-      if (currentTime > sleepStartTime) {
+      DateTime restingStartTime = weakUpTime.AddMinutes(-GlobalConfig.RestTimePerDay);
+      if (currentTime > restingStartTime) {
         return true;
       }
     }

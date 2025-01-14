@@ -17,13 +17,9 @@ public sealed class AppBoostInfo {
 
   public string FullName => ProductInfo.FullName;
 
-  internal DateTime LastPlayedTime { get; set; }
+  internal DateTime RestingEndTime { get; set; }
 
-  internal uint BoostSessionNo { get; set; }
-
-  internal double ContinuousBoostingHours { get; set; }
-
-  internal DateTime LastUnlockTime { get; private set; } = DateTime.MinValue;
+  internal int BoostingDuration { get; set; }
 
   internal int RemainingAchievementsCount { get; private set; }
 
@@ -43,7 +39,6 @@ public sealed class AppBoostInfo {
     AchievementPercentages = percentages;
     RemainingAchievementsCount = remainingAchievementsCount;
     UnlockableAchievementsCount = unlockableAchievementsCount;
-    ContinuousBoostingHours = 0;
   }
 
   internal async Task<(bool, string)> UnlockNextAchievement(BoosterHandler boosterHandler) {
@@ -75,7 +70,6 @@ public sealed class AppBoostInfo {
     if (await boosterHandler.UnlockStat(ID, nextStat, response.CrcStats).ConfigureAwait(false)) {
       RemainingAchievementsCount--;
       UnlockableAchievementsCount--;
-      LastUnlockTime = DateTime.Now;
       return (true, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, FullName, nextStat.Name));
     }
     else {

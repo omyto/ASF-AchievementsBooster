@@ -11,55 +11,57 @@ namespace AchievementsBooster.Storage;
 public sealed class BoosterGlobalConfig {
   public const byte DefaultMinBoostInterval = 30;
   public const byte DefaultMaxBoostInterval = 60;
-  public const byte DefaultSleepingHours = 0;
+  public const byte DefaultBoostDurationPerApp = 10;
+  public const byte DefaultBoostRestTimePerApp = 24;
+  public const byte DefaultRestTimePerDay = 0;
   public const byte DefaultMaxAppBoostConcurrently = 1;
-  public const byte DefaultMaxContinuousBoostHours = 10;
-  public const bool DefaultIgnoreAppWithVAC = true;
-  public const bool DefaultIgnoreAppWithDLC = true;
+  public const bool DefaultRestrictAppWithVAC = true;
+  public const bool DefaultRestrictAppWithDLC = true;
 
   [JsonInclude]
   public ImmutableHashSet<string> AutoStartBots { get; private set; } = [];
-
-  [JsonInclude]
-  public ImmutableHashSet<uint> FocusApps { get; private set; } = [];
-
-  [JsonInclude]
-  public ImmutableHashSet<uint> IgnoreApps { get; private set; } = [];
-
-  [JsonInclude]
-  [Range(5, 250)]
-  public int MinBoostInterval { get; private set; } = DefaultMinBoostInterval;
-
-  [JsonInclude]
-  [Range(6, 1600)]
-  public int MaxBoostInterval { get; private set; } = DefaultMaxBoostInterval;
-
-  [JsonInclude]
-  public EBoostingMode BoostingMode { get; private set; } = EBoostingMode.ContinuousBoosting;
-
-  [JsonInclude]
-  [Range(0, 12)]
-  public int SleepingHours { get; private set; } = DefaultSleepingHours;
 
   [JsonInclude]
   [Range(1, Constants.MaxGamesPlayedConcurrently)]
   public int MaxAppBoostConcurrently { get; private set; } = DefaultMaxAppBoostConcurrently;
 
   [JsonInclude]
-  [Range(0, byte.MaxValue)]
-  public int MaxContinuousBoostHours { get; private set; } = DefaultMaxContinuousBoostHours;
+  [Range(1, byte.MaxValue)]
+  public int MinBoostInterval { get; private set; } = DefaultMinBoostInterval;
 
   [JsonInclude]
-  public bool IgnoreAppWithVAC { get; private set; } = DefaultIgnoreAppWithVAC;
+  [Range(1, byte.MaxValue)]
+  public int MaxBoostInterval { get; private set; } = DefaultMaxBoostInterval;
 
   [JsonInclude]
-  public bool IgnoreAppWithDLC { get; private set; } = DefaultIgnoreAppWithDLC;
+  [Range(0, short.MaxValue)]
+  public int BoostDurationPerApp { get; private set; } = DefaultBoostDurationPerApp;
 
   [JsonInclude]
-  public ImmutableHashSet<string> IgnoreDevelopers { get; private set; } = [];
+  [Range(0, short.MaxValue)]
+  public int BoostRestTimePerApp { get; private set; } = DefaultBoostRestTimePerApp;
 
   [JsonInclude]
-  public ImmutableHashSet<string> IgnorePublishers { get; private set; } = [];
+  [Range(0, 600)]
+  public int RestTimePerDay { get; private set; } = DefaultRestTimePerDay;
+
+  [JsonInclude]
+  public bool RestrictAppWithVAC { get; private set; } = DefaultRestrictAppWithVAC;
+
+  [JsonInclude]
+  public bool RestrictAppWithDLC { get; private set; } = DefaultRestrictAppWithDLC;
+
+  [JsonInclude]
+  public ImmutableHashSet<string> RestrictDevelopers { get; private set; } = [];
+
+  [JsonInclude]
+  public ImmutableHashSet<string> RestrictPublishers { get; private set; } = [];
+
+  [JsonInclude]
+  public ImmutableHashSet<uint> UnrestrictedApps { get; private set; } = [];
+
+  [JsonInclude]
+  public ImmutableHashSet<uint> Blacklist { get; private set; } = [];
 
   [JsonConstructor]
   internal BoosterGlobalConfig() { }
@@ -79,21 +81,9 @@ public sealed class BoosterGlobalConfig {
       }
     }
 
-    if (!Enum.IsDefined(BoostingMode)) {
-      AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(BoostingMode), BoostingMode, EBoostingMode.ContinuousBoosting));
-      BoostingMode = EBoostingMode.ContinuousBoosting;
+    if (MinBoostInterval > MaxBoostInterval) {
+      AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostInterval), MaxBoostInterval, MinBoostInterval));
+      MaxBoostInterval = MinBoostInterval;
     }
-
-    if (MinBoostInterval >= MaxBoostInterval) {
-      int newMaxBoostInterval = MinBoostInterval + 1;
-      AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostInterval), MaxBoostInterval, newMaxBoostInterval));
-      MaxBoostInterval = newMaxBoostInterval;
-    }
-  }
-
-  public enum EBoostingMode : byte {
-    ContinuousBoosting,
-    UniqueGamesPerSession,
-    SingleDailyAchievementPerGame,
   }
 }
