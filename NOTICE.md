@@ -1,6 +1,6 @@
 ## AchievementsBooster Plugin
 
-Copyright (c) 2024, Omyto  
+Copyright (c) 2025, Omyto  
 Licensed under the Apache License, Version 2.0
 
 ## Disclaimer

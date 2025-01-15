@@ -153,8 +153,8 @@ internal sealed class Booster {
       }
 
       // Add new apps for boosting if need
-      if (BoostingApps.Count < GlobalConfig.MaxAppBoostConcurrently) {
-        List<AppBoostInfo> newApps = await FindNewAppsForBoosting(GlobalConfig.MaxAppBoostConcurrently - BoostingApps.Count).ConfigureAwait(false);
+      if (BoostingApps.Count < GlobalConfig.MaxConcurrentlyBoostingApps) {
+        List<AppBoostInfo> newApps = await FindNewAppsForBoosting(GlobalConfig.MaxConcurrentlyBoostingApps - BoostingApps.Count).ConfigureAwait(false);
         newApps.ForEach(app => BoostingApps.TryAdd(app.ID, app));
       }
 

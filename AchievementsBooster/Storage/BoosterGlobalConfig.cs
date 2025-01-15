@@ -9,12 +9,12 @@ using AchievementsBooster.Helpers;
 namespace AchievementsBooster.Storage;
 
 public sealed class BoosterGlobalConfig {
-  public const byte DefaultMinBoostInterval = 30;
-  public const byte DefaultMaxBoostInterval = 60;
-  public const byte DefaultBoostDurationPerApp = 10;
-  public const byte DefaultBoostRestTimePerApp = 24;
-  public const byte DefaultRestTimePerDay = 0;
-  public const byte DefaultMaxAppBoostConcurrently = 1;
+  public const int DefaultMinBoostInterval = 30;
+  public const int DefaultMaxBoostInterval = 60;
+  public const int DefaultBoostDurationPerApp = 600;
+  public const int DefaultBoostRestTimePerApp = 600;
+  public const int DefaultRestTimePerDay = 0;
+  public const int DefaultMaxConcurrentlyBoostingApps = 1;
   public const bool DefaultRestrictAppWithVAC = true;
   public const bool DefaultRestrictAppWithDLC = true;
 
@@ -23,7 +23,7 @@ public sealed class BoosterGlobalConfig {
 
   [JsonInclude]
   [Range(1, Constants.MaxGamesPlayedConcurrently)]
-  public int MaxAppBoostConcurrently { get; private set; } = DefaultMaxAppBoostConcurrently;
+  public int MaxConcurrentlyBoostingApps { get; private set; } = DefaultMaxConcurrentlyBoostingApps;
 
   [JsonInclude]
   [Range(1, byte.MaxValue)]
@@ -34,11 +34,11 @@ public sealed class BoosterGlobalConfig {
   public int MaxBoostInterval { get; private set; } = DefaultMaxBoostInterval;
 
   [JsonInclude]
-  [Range(0, short.MaxValue)]
+  [Range(0, 30000)]
   public int BoostDurationPerApp { get; private set; } = DefaultBoostDurationPerApp;
 
   [JsonInclude]
-  [Range(0, short.MaxValue)]
+  [Range(0, 30000)]
   public int BoostRestTimePerApp { get; private set; } = DefaultBoostRestTimePerApp;
 
   [JsonInclude]
