@@ -73,7 +73,7 @@ internal sealed class AppManager {
 
   internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
     app.BoostingDuration = 0;
-    app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(AchievementsBooster.GlobalConfig.BoostRestTimePerApp);
+    app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(AchievementsBoosterPlugin.GlobalConfig.BoostRestTimePerApp);
     RestingApps.Add(app);
   }
 
@@ -84,20 +84,20 @@ internal sealed class AppManager {
       return false;
     }
 
-    if (AchievementsBooster.GlobalConfig.Blacklist.Contains(appID)) {
+    if (AchievementsBoosterPlugin.GlobalConfig.Blacklist.Contains(appID)) {
       Logger.Trace($"App {appID} is on your AchievementsBooster blacklist list");
       return false;
     }
 
-    if (AchievementsBooster.GlobalConfig.UnrestrictedApps.Contains(appID)) {
+    if (AchievementsBoosterPlugin.GlobalConfig.UnrestrictedApps.Contains(appID)) {
       return true;
     }
 
-    if (AchievementsBooster.GlobalCache.NonAchievementApps.Contains(appID)) {
+    if (AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Contains(appID)) {
       return false;
     }
 
-    if (AchievementsBooster.GlobalConfig.RestrictAppWithVAC && AchievementsBooster.GlobalCache.VACApps.Contains(appID)) {
+    if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithVAC && AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)) {
       return false;
     }
 
@@ -185,21 +185,21 @@ internal sealed class AppManager {
     }
 
     if (productInfo.IsVACEnabled) {
-      _ = AchievementsBooster.GlobalCache.VACApps.Add(appID);
-      if (AchievementsBooster.GlobalConfig.RestrictAppWithVAC) {
+      _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
+      if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithVAC) {
         Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, productInfo.FullName));
         return (EGetAppStatus.NonBoostable, null);
       }
     }
 
-    if (AchievementsBooster.GlobalConfig.RestrictAppWithDLC && productInfo.DLCs.Count > 0) {
+    if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithDLC && productInfo.DLCs.Count > 0) {
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, productInfo.FullName));
       _ = NonBoostableApps.Add(appID);
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    if (AchievementsBooster.GlobalConfig.RestrictDevelopers.Count > 0) {
-      foreach (string developer in AchievementsBooster.GlobalConfig.RestrictDevelopers) {
+    if (AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers.Count > 0) {
+      foreach (string developer in AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers) {
         if (productInfo.Developers.Contains(developer)) {
           Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, productInfo.FullName, developer));
           _ = NonBoostableApps.Add(appID);
@@ -208,8 +208,8 @@ internal sealed class AppManager {
       }
     }
 
-    if (AchievementsBooster.GlobalConfig.RestrictPublishers.Count > 0) {
-      foreach (string publisher in AchievementsBooster.GlobalConfig.RestrictPublishers) {
+    if (AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers.Count > 0) {
+      foreach (string publisher in AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers) {
         if (productInfo.Publishers.Contains(publisher)) {
           Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, productInfo.FullName, publisher));
           _ = NonBoostableApps.Add(appID);
@@ -221,7 +221,7 @@ internal sealed class AppManager {
     UserStatsResponse? response = await BoosterHandler.GetStats(appID).ConfigureAwait(false);
     List<StatData>? statDatas = response?.StatDatas;
     if (statDatas == null || statDatas.Count == 0) {
-      _ = AchievementsBooster.GlobalCache.NonAchievementApps.Add(appID);
+      _ = AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Add(appID);
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, productInfo.FullName));
       productInfo.IsBoostable = false;
       return (EGetAppStatus.NonBoostable, null);

@@ -76,13 +76,13 @@ public sealed class BoosterGlobalConfig {
 
         if (value != clampedValue) {
           property.SetValue(this, clampedValue);
-          AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, clampedValue));
+          Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, clampedValue));
         }
       }
     }
 
     if (MinBoostInterval > MaxBoostInterval) {
-      AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostInterval), MaxBoostInterval, MinBoostInterval));
+      Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostInterval), MaxBoostInterval, MinBoostInterval));
       MaxBoostInterval = MinBoostInterval;
     }
   }

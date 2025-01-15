@@ -55,7 +55,7 @@ internal static class CommandsHandler {
       return null;
     }
 
-    if (!AchievementsBooster.Boosters.TryGetValue(bot, out Booster? booster)) {
+    if (!AchievementsBoosterPlugin.Boosters.TryGetValue(bot, out Booster? booster)) {
       return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
 
@@ -68,7 +68,7 @@ internal static class CommandsHandler {
       return null;
     }
 
-    if (!AchievementsBooster.Boosters.TryGetValue(bot, out Booster? booster)) {
+    if (!AchievementsBoosterPlugin.Boosters.TryGetValue(bot, out Booster? booster)) {
       return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
 

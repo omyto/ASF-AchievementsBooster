@@ -50,7 +50,7 @@ internal static class ProductUtils {
         dlcs = listOfDlc.Split(SharedInfo.ListElementSeparators, StringSplitOptions.RemoveEmptyEntries)
         .Select(dlc => {
           if (!uint.TryParse(dlc, out uint id) || id == 0) {
-            AchievementsBooster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.InvalidAppDLC, $"{productInfoApp.ID} ({name})", dlc));
+            Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.InvalidAppDLC, $"{productInfoApp.ID} ({name})", dlc));
             return (uint) 0;
           }
           return id;
@@ -84,7 +84,7 @@ internal static class ProductUtils {
       case "PRELOADONLY" or "PRERELEASE":
         return false;
       default:
-        AchievementsBooster.Logger.Error(string.Format(CultureInfo.CurrentCulture, Strings.WarningUnknownValuePleaseReport, nameof(product.ReleaseState), product.ReleaseState));
+        Logger.Shared.Error(string.Format(CultureInfo.CurrentCulture, Strings.WarningUnknownValuePleaseReport, nameof(product.ReleaseState), product.ReleaseState));
         break;
     }
 

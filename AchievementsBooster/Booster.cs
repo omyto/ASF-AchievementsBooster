@@ -26,7 +26,7 @@ internal sealed class Booster {
     BoosterPlayed
   }
 
-  private static BoosterGlobalConfig GlobalConfig => AchievementsBooster.GlobalConfig;
+  private static BoosterGlobalConfig GlobalConfig => AchievementsBoosterPlugin.GlobalConfig;
 
   internal BoosterHandler BoosterHandler => AppManager.BoosterHandler;
 

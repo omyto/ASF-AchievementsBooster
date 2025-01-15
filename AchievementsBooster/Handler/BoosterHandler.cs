@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helpers;
-using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Web;
@@ -145,7 +144,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       response = await UnifiedPlayerService.SendMessage(e => e.GetGameAchievements(request)).ToLongRunningTask().ConfigureAwait(false);
     }
     catch (Exception exception) {
-      AchievementsBooster.Logger.Warning(exception);
+      Logger.Shared.Warning(exception);
       return null;
     }
 
@@ -195,7 +194,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
 
       ProductInfo info = ProductUtils.GenerateProduct(productInfoApp);
 
-#if DEBUG
+#if DEBUG_PRODUCT
       string fileName = $"{appID} ({info.Name}) - {Bot.BotName}";
       await FileSerializer.WriteToFile(productInfoApp, fileName).ConfigureAwait(false);
 #endif

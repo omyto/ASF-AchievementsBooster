@@ -3,10 +3,13 @@ using System.Text.Json.Serialization;
 
 namespace AchievementsBooster.Data;
 
-internal class AchievementsFilterResponse {
+public sealed class AchievementsFilterResponse {
   [JsonPropertyName("success")]
-  public bool? Success { get; set; }
+  public bool? Success { get; internal set; }
 
   [JsonPropertyName("data")]
-  public List<uint>? AppIDs { get; set; }
+  public IList<uint>? AppIDs { get; internal set; }
+
+  [JsonConstructor]
+  internal AchievementsFilterResponse() { }
 }

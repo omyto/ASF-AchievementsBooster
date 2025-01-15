@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using AchievementsBooster.Helpers;
 using ArchiSteamFarm.Helpers.Json;
 
 namespace AchievementsBooster.Storage;
@@ -36,7 +37,7 @@ internal static class FileSerializer {
       await File.WriteAllTextAsync(filePath, json).ConfigureAwait(false);
     }
     catch (Exception exception) {
-      AchievementsBooster.Logger.Exception(exception);
+      Logger.Shared.Exception(exception);
     }
     finally {
       _ = Semaphore.Release();

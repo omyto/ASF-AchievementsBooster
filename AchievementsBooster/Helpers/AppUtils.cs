@@ -98,14 +98,14 @@ internal static class AppUtils {
 
     ObjectResponse<AchievementsFilterResponse>? response = await ArchiWebHandler.WebLimitRequest(
       Constants.AchievementsFilterHost,
-      async () => await ASF.WebBrowser.UrlPostToJsonObject<AchievementsFilterResponse, IDictionary<string, uint[]>>(Constants.AchievementsFilterAPI, headers, data, maxTries: 3).ConfigureAwait(false)
+      async () => await ASF.WebBrowser.UrlPostToJsonObject<AchievementsFilterResponse, IDictionary<string, uint[]>>(Constants.AchievementsFilterAPI, headers, data, maxTries: 3, rateLimitingDelay: 1000).ConfigureAwait(false)
     ).ConfigureAwait(false);
 
     if (response == null || response.StatusCode != HttpStatusCode.OK || response.Content == null || response.Content.Success != true) {
       return null;
     }
 
-    return response.Content.AppIDs ?? [];
+    return response.Content.AppIDs?.ToList() ?? [];
   }
 
   private static string GenerateSignature() {

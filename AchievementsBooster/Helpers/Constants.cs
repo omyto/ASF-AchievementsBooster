@@ -3,7 +3,7 @@ using System;
 namespace AchievementsBooster.Helpers;
 
 public static class Constants {
-  public static readonly Version PluginVersion = typeof(AchievementsBooster).Assembly.GetName().Version ?? throw new InvalidOperationException(nameof(PluginVersion));
+  public static readonly Version PluginVersion = typeof(AchievementsBoosterPlugin).Assembly.GetName().Version ?? throw new InvalidOperationException(nameof(PluginVersion));
 
   public static readonly string PluginVersionString = PluginVersion.ToString();
 

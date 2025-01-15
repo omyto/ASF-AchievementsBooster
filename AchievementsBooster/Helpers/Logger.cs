@@ -1,10 +1,13 @@
 using System;
 using System.Runtime.CompilerServices;
+using ArchiSteamFarm.Core;
 using ArchiSteamFarm.NLog;
 
 namespace AchievementsBooster.Helpers;
 
 public sealed class Logger(ArchiLogger archiLogger, string pluginName = Constants.PluginName) {
+  internal static readonly Logger Shared = new(ASF.ArchiLogger);
+
   private readonly ArchiLogger ArchiLogger = archiLogger;
   private readonly string PluginName = pluginName;
 
