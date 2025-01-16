@@ -1,5 +1,9 @@
 @echo off
 
+pushd ArchiSteamFarm
+git stash >nul
+popd
+
 set TARGET_DIR=out
 set ZIP_FILE=AchievementsBooster.zip
 
@@ -17,3 +21,7 @@ tar -a -c -f "../%ZIP_FILE%" *
 
 popd
 move "%ZIP_FILE%" "%TARGET_DIR%"
+
+pushd ArchiSteamFarm
+git stash pop >nul
+popd
