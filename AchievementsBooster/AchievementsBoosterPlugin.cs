@@ -32,7 +32,7 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotModules, IBotCon
   public string RepositoryName => Constants.RepositoryName;
 
   public Task OnLoaded() {
-    ASF.ArchiLogger.LogGenericInfo("-- Achievements Booster | Automatically boosting achievements while farming cards --");
+    ASF.ArchiLogger.LogGenericInfo("** Achievements Booster | Automatically boosting achievements while farming cards **");
     GlobalCache? globalCache = GlobalCache.LoadFromDatabase();
     if (globalCache != null) {
       GlobalCache.Destroy();

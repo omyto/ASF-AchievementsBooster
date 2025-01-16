@@ -13,7 +13,7 @@ ASF-AchievementsBooster is a plugin for ArchiSteamFarm that automatically unlock
 1. Download the `AchievementsBooster.zip` archive file from the [latest release](https://github.com/omyto/ASF-AchievementsBooster/releases/latest).
 2. Extract the archive into the `plugins` folder inside your `ArchiSteamFarm` directory.
 3. Configure the plugin properties in the `ASF.json` file _(optional)_.
-4. Restart `ArchiSteamFarm` (or start it if it's not running).
+4. Restart `ArchiSteamFarm` _(or start it if it's not running)_.
 5. Start the boosting process for bots via commands _(if you haven't set up the auto-start configuration)_.
 
 ### Configuration

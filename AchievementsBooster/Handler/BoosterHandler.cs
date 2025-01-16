@@ -32,7 +32,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
   internal readonly Logger Logger;
   private const int RequestDelay = 500;
 
-  private SteamUnifiedMessages.UnifiedService<IPlayer>? UnifiedPlayerService;
+  private Player? UnifiedPlayerService;
 
   internal BoosterHandler(Bot bot, Logger logger) {
     Bot = bot;
@@ -41,7 +41,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
 
   internal void Init() {
     ArgumentNullException.ThrowIfNull(Client);
-    UnifiedPlayerService = Client.GetHandler<SteamUnifiedMessages>()?.CreateService<IPlayer>();
+    UnifiedPlayerService = Client.GetHandler<SteamUnifiedMessages>()?.CreateService<Player>();
   }
 
   /** ClientMsgHandler */
@@ -136,23 +136,18 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       language = "english"
     };
 
-    SteamUnifiedMessages.ServiceMethodResponse response;
+    SteamUnifiedMessages.ServiceMethodResponse<CPlayer_GetGameAchievements_Response> response;
 
     try {
       await Task.Delay(RequestDelay).ConfigureAwait(false);
-      response = await UnifiedPlayerService.SendMessage(e => e.GetGameAchievements(request)).ToLongRunningTask().ConfigureAwait(false);
+      response = await UnifiedPlayerService.GetGameAchievements(request).ToLongRunningTask().ConfigureAwait(false);
     }
     catch (Exception exception) {
       Logger.Shared.Warning(exception);
       return null;
     }
 
-    if (response.Result != EResult.OK) {
-      return null;
-    }
-
-    CPlayer_GetGameAchievements_Response body = response.GetDeserializedResponse<CPlayer_GetGameAchievements_Response>();
-    return body.achievements;
+    return response.Result == EResult.OK ? response.Body.achievements : null;
   }
 
   internal async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries = WebBrowser.MaxTries) {
