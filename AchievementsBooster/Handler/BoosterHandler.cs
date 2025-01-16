@@ -27,10 +27,9 @@ internal sealed class BoosterHandler : ClientMsgHandler {
       return BoosterIdentifier ?? string.Empty;
     }
   }
-
   private string? BoosterIdentifier;
   private readonly Bot Bot;
-  private readonly Logger Logger;
+  internal readonly Logger Logger;
   private const int RequestDelay = 500;
 
   private SteamUnifiedMessages.UnifiedService<IPlayer>? UnifiedPlayerService;

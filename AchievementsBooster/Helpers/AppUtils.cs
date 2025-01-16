@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Threading;
@@ -10,13 +8,13 @@ using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using ArchiSteamFarm.Core;
-using ArchiSteamFarm.Steam.Integration;
 using ArchiSteamFarm.Web.Responses;
 
 namespace AchievementsBooster.Helpers;
 
 internal static class AppUtils {
   private static readonly Lazy<string> ASFVersion = new(() => typeof(ASF).Assembly.GetName().Version?.ToString() ?? "");
+  private static readonly SemaphoreSlim AchievementsFilterSemaphore = new(1, 1);
 
   private static class Holder {
     internal static ConcurrentDictionary<uint, SemaphoreSlim> ProductSemaphores { get; } = new();
@@ -77,39 +75,45 @@ internal static class AppUtils {
     return percentages;
   }
 
-  [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
   internal static async Task<List<uint>?> FilterAchievementsApps(HashSet<uint> ownedGames, BoosterHandler boosterHandler) {
     if (ASF.WebBrowser == null) {
       throw new InvalidOperationException(nameof(ASF.WebBrowser));
     }
 
-    string machineName = Environment.MachineName;
+    List<uint>? result = null;
+    await AchievementsFilterSemaphore.WaitAsync().ConfigureAwait(false);
 
-    Dictionary<string, string> headers = new() {
-      { "asf-version",  ASFVersion.Value },
-      { "ab-booster", boosterHandler.Identifier },
-      { "ab-version", Constants.PluginVersionString },
-      { "ab-signature", GenerateSignature() },
-    };
+    try {
+      Dictionary<string, string> headers = new() {
+        { "ab-booster", boosterHandler.Identifier },
+        { "ab-version", Constants.PluginVersionString },
+        { "asf-version",  ASFVersion.Value }
+      };
 
-    Dictionary<string, uint[]> data = new() {
-      { "appids", ownedGames.ToArray() }
-    };
+      Dictionary<string, uint[]> data = new() {
+        { "appids", ownedGames.ToArray() }
+      };
 
-    ObjectResponse<AchievementsFilterResponse>? response = await ArchiWebHandler.WebLimitRequest(
-      Constants.AchievementsFilterHost,
-      async () => await ASF.WebBrowser.UrlPostToJsonObject<AchievementsFilterResponse, IDictionary<string, uint[]>>(Constants.AchievementsFilterAPI, headers, data, maxTries: 3, rateLimitingDelay: 1000).ConfigureAwait(false)
-    ).ConfigureAwait(false);
+      ObjectResponse<AchievementsFilterResponse>? response = await ASF.WebBrowser.UrlPostToJsonObject<AchievementsFilterResponse, IDictionary<string, uint[]>>(Constants.AchievementsFilterAPI, headers, data, maxTries: 3, rateLimitingDelay: 1000).ConfigureAwait(false);
+      result = response?.Content?.AppIDs;
 
-    if (response == null || response.StatusCode != HttpStatusCode.OK || response.Content == null || response.Content.Success != true) {
-      return null;
+      if (response == null) {
+        boosterHandler.Logger.Warning($"Can't get achievements filter response");
+      }
+      else if (response.StatusCode != HttpStatusCode.OK) {
+        boosterHandler.Logger.Warning($"Achievements filter response status {response.StatusCode}");
+      }
+      else if (response.Content == null) {
+        boosterHandler.Logger.Warning($"Achievements filter response content is null");
+      }
+      else if (response.Content.Success != true) {
+        boosterHandler.Logger.Warning($"Achievements filter response unsuccess");
+      }
+    }
+    finally {
+      _ = AchievementsFilterSemaphore.Release();
     }
 
-    return response.Content.AppIDs?.ToList() ?? [];
-  }
-
-  private static string GenerateSignature() {
-    ulong unixTime = Utilities.GetUnixTime();
-    return unixTime.ToString(CultureInfo.InvariantCulture);
+    return result;
   }
 }
