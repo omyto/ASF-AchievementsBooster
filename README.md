@@ -1,6 +1,6 @@
 # Steam Achievements Booster
 
-ASF-AchievementsBooster is a plugin for ArchiSteamFarm that automatically unlocks steam game achievements.
+ASF-AchievementsBooster is a plugin for [ArchiSteamFarm](https://github.com/JustArchiNET/ArchiSteamFarm) that automatically unlocks steam game achievements.
 
 ## Features
 
