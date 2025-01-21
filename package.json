@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "html": "npx markdown-to-html --title \"Steam Achievements Booster\" --description \"Automatically unlocks Steam game achievements\" --github-corners http://github.com/omyto/ASF-AchievementsBooster"
+  },
+  "dependencies": {
+    "markdown-to-html-cli": "^5.0.3"
+  }
+}
