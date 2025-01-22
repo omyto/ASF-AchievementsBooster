@@ -41,7 +41,38 @@ The `AchievementsBooster` plugin configuration has the following structure, whic
   }
 }
 ```
+<details>
+<summary><i>Example: ASF.json</i></summary>
 
+```json
+{
+  "Blacklist": [ 300, 440, 550, 570, 730 ],
+  "FarmingDelay": 20,
+  "GiftsLimiterDelay": 2,
+  "IdleFarmingPeriod": 12,
+  "InventoryLimiterDelay": 5,
+  "UpdateChannel": 0,
+  "WebLimiterDelay": 500,
+  "AchievementsBooster": {
+    "AutoStartBots": [ "me", "bot" ],
+    "MaxConcurrentlyBoostingApps": 1,
+    "MinBoostInterval": 22,
+    "MaxBoostInterval": 66,
+    "BoostDurationPerApp": 300,
+    "BoostRestTimePerApp": 300,
+    "RestTimePerDay": 0,
+    "RestrictAppWithVAC": true,
+    "RestrictAppWithDLC": true,
+    "RestrictDevelopers": [ "Valve" ],
+    "RestrictPublishers": [ "Valve" ],
+    "UnrestrictedApps": [],
+    "Blacklist": [ 221380, 813780, 933110, 1017900, 1466860 ]
+  }
+}
+```
+</details>
+
+#### Explanation
 
 | Configuration               | Type        | Default | Range   | Description                                                                                                                                                                                                                                                                                                                     |
 |-----------------------------|-------------|---------|---------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
