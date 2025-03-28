@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using ArchiSteamFarm.Core;
+using ArchiSteamFarm.Web;
 using ArchiSteamFarm.Web.Responses;
 
 namespace AchievementsBooster.Helpers;
@@ -23,14 +24,14 @@ internal static class AppUtils {
     internal static ConcurrentDictionary<uint, AchievementPercentages> AchievementPercentagesDictionary { get; } = new();
   }
 
-  internal static async Task<ProductInfo?> GetProduct(uint appID, BoosterHandler boosterHandler, Logger logger) {
+  internal static async Task<ProductInfo?> GetProduct(uint appID, BoosterHandler boosterHandler, Logger logger, CancellationToken cancellationToken) {
     SemaphoreSlim semaphore = Holder.ProductSemaphores.GetOrAdd(appID, _ => new SemaphoreSlim(1, 1));
-    await semaphore.WaitAsync().ConfigureAwait(false);
+    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
     ProductInfo? product = null;
     try {
       if (!Holder.ProductDictionary.TryGetValue(appID, out product)) {
-        product = await boosterHandler.GetProductInfo(appID).ConfigureAwait(false);
+        product = await boosterHandler.GetProductInfo(appID, WebBrowser.MaxTries, cancellationToken).ConfigureAwait(false);
         if (product != null) {
           _ = Holder.ProductDictionary.TryAdd(appID, product);
         }
@@ -49,14 +50,14 @@ internal static class AppUtils {
     return product;
   }
 
-  internal static async Task<AchievementPercentages?> GetAchievementPercentages(uint appID, BoosterHandler boosterHandler, Logger logger) {
+  internal static async Task<AchievementPercentages?> GetAchievementPercentages(uint appID, BoosterHandler boosterHandler, Logger logger, CancellationToken cancellationToken) {
     SemaphoreSlim semaphore = Holder.AchievementPercentagesSemaphores.GetOrAdd(appID, _ => new SemaphoreSlim(1, 1));
-    await semaphore.WaitAsync().ConfigureAwait(false);
+    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
     AchievementPercentages? percentages = null;
     try {
       if (!Holder.AchievementPercentagesDictionary.TryGetValue(appID, out percentages)) {
-        percentages = await boosterHandler.GetAchievementPercentages(appID).ConfigureAwait(false);
+        percentages = await boosterHandler.GetAchievementPercentages(appID, cancellationToken).ConfigureAwait(false);
         if (percentages != null) {
           _ = Holder.AchievementPercentagesDictionary.TryAdd(appID, percentages);
         }
@@ -75,13 +76,14 @@ internal static class AppUtils {
     return percentages;
   }
 
-  internal static async Task<List<uint>?> FilterAchievementsApps(HashSet<uint> ownedGames, BoosterHandler boosterHandler) {
+  //TODO: Maybe no need cancel token for this method
+  internal static async Task<List<uint>?> FilterAchievementsApps(HashSet<uint> ownedGames, BoosterHandler boosterHandler, CancellationToken cancellationToken) {
     if (ASF.WebBrowser == null) {
       throw new InvalidOperationException(nameof(ASF.WebBrowser));
     }
 
     List<uint>? result = null;
-    await AchievementsFilterSemaphore.WaitAsync().ConfigureAwait(false);
+    await AchievementsFilterSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
     try {
       Dictionary<string, string> headers = new() {
@@ -94,7 +96,8 @@ internal static class AppUtils {
         { "appids", ownedGames.ToArray() }
       };
 
-      ObjectResponse<AchievementsFilterResponse>? response = await ASF.WebBrowser.UrlPostToJsonObject<AchievementsFilterResponse, IDictionary<string, uint[]>>(Constants.AchievementsFilterAPI, headers, data, maxTries: 3, rateLimitingDelay: 1000).ConfigureAwait(false);
+      ObjectResponse<AchievementsFilterResponse>? response = await ASF.WebBrowser.UrlPostToJsonObject<AchievementsFilterResponse, IDictionary<string, uint[]>>(
+        Constants.AchievementsFilterAPI, headers, data, maxTries: 3, rateLimitingDelay: 1000, cancellationToken: cancellationToken).ConfigureAwait(false);
       result = response?.Content?.AppIDs;
 
       if (response == null) {

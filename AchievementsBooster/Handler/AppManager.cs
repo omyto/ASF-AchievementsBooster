@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler.Callback;
@@ -39,7 +40,7 @@ internal sealed class AppManager {
     Logger = logger;
   }
 
-  internal async Task UpdateOwnedGames(HashSet<uint> newOwnedGames) {
+  internal async Task UpdateOwnedGames(HashSet<uint> newOwnedGames, CancellationToken cancellationToken) {
     HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
     if (gamesRemoved.Count > 0) {
       Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
@@ -53,7 +54,7 @@ internal sealed class AppManager {
       }
     }
 
-    List<uint> games = await AppUtils.FilterAchievementsApps(newOwnedGames, BoosterHandler).ConfigureAwait(false) ?? newOwnedGames.ToList();
+    List<uint> games = await AppUtils.FilterAchievementsApps(newOwnedGames, BoosterHandler, cancellationToken).ConfigureAwait(false) ?? newOwnedGames.ToList();
     BoostableAppQueue.Clear();
     HashSet<uint> restingSet = RestingApps.Select(app => app.ID).ToHashSet();
 
@@ -108,48 +109,60 @@ internal sealed class AppManager {
     return !NonBoostableApps.Contains(appID);
   }
 
-  internal async Task<List<AppBoostInfo>> NextAppsForBoost(int size) {
+  internal async Task<List<AppBoostInfo>> NextAppsForBoost(int size, CancellationToken cancellationToken) {
     List<AppBoostInfo> results = [];
     List<uint> pendingAppIDs = [];
 
-    // Get from resting list first
-    DateTime now = DateTime.Now;
-    for (int index = 0; index < RestingApps.Count && results.Count < size; index++) {
-      AppBoostInfo app = RestingApps[index];
-      if (now > app.RestingEndTime) {
-        RestingApps.RemoveAt(index--);
-        results.Add(app);
-        Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.UnlockableAchievementsCount));
-      }
-    }
-
-    // Get from boostable queue
-    while (BoostableAppQueue.Count > 0 && results.Count < size) {
-      uint appID = BoostableAppQueue.Dequeue();
-      (EGetAppStatus status, AppBoostInfo? app) = await GetApp(appID).ConfigureAwait(false);
-      switch (status) {
-        case EGetAppStatus.OK:
-          ArgumentNullException.ThrowIfNull(app);
+    try {
+      // Get from resting list first
+      DateTime now = DateTime.Now;
+      for (int index = 0; index < RestingApps.Count && results.Count < size; index++) {
+        cancellationToken.ThrowIfCancellationRequested();
+        AppBoostInfo app = RestingApps[index];
+        if (now > app.RestingEndTime) {
+          RestingApps.RemoveAt(index--);
           results.Add(app);
-          break;
-        case EGetAppStatus.ProductNotFound:
-        case EGetAppStatus.AchievementPercentagesNotFound:
-          pendingAppIDs.Add(appID);
-          break;
-        case EGetAppStatus.NonBoostable:
-        default:
-          break;
+          Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.UnlockableAchievementsCount));
+        }
+      }
+
+      // Get from boostable queue
+      while (BoostableAppQueue.Count > 0 && results.Count < size) {
+        cancellationToken.ThrowIfCancellationRequested();
+        uint appID = BoostableAppQueue.Dequeue();
+        (EGetAppStatus status, AppBoostInfo? app) = await GetApp(appID, cancellationToken).ConfigureAwait(false);
+        switch (status) {
+          case EGetAppStatus.OK:
+            ArgumentNullException.ThrowIfNull(app);
+            results.Add(app);
+            break;
+          case EGetAppStatus.ProductNotFound:
+          case EGetAppStatus.AchievementPercentagesNotFound:
+            pendingAppIDs.Add(appID);
+            break;
+          case EGetAppStatus.NonBoostable:
+          default:
+            break;
+        }
       }
     }
-
-    if (pendingAppIDs.Count > 0) {
-      pendingAppIDs.ForEach(BoostableAppQueue.Enqueue);
+    catch (Exception) {
+      if (results.Count > 0) {
+        DateTime now = DateTime.Now;
+        results.ForEach(app => MarkAppAsResting(app, now));
+      }
+      throw;
+    }
+    finally {
+      if (pendingAppIDs.Count > 0) {
+        pendingAppIDs.ForEach(BoostableAppQueue.Enqueue);
+      }
     }
 
     return results;
   }
 
-  internal async Task<AppBoostInfo?> GetAppBoost(uint appID) {
+  internal async Task<AppBoostInfo?> GetAppBoost(uint appID, CancellationToken cancellationToken) {
     if (!OwnedGames.Contains(appID)) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID));
       return null;
@@ -160,6 +173,7 @@ internal sealed class AppManager {
     }
 
     for (int i = 0; i < RestingApps.Count; i++) {
+      cancellationToken.ThrowIfCancellationRequested();
       AppBoostInfo restingApp = RestingApps[i];
       if (restingApp.ID == appID) {
         RestingApps.RemoveAt(i);
@@ -167,12 +181,12 @@ internal sealed class AppManager {
       }
     }
 
-    (EGetAppStatus _, AppBoostInfo? app) = await GetApp(appID).ConfigureAwait(false);
+    (EGetAppStatus _, AppBoostInfo? app) = await GetApp(appID, cancellationToken).ConfigureAwait(false);
     return app;
   }
 
-  private async Task<(EGetAppStatus status, AppBoostInfo?)> GetApp(uint appID) {
-    ProductInfo? productInfo = await AppUtils.GetProduct(appID, BoosterHandler, Logger).ConfigureAwait(false);
+  private async Task<(EGetAppStatus status, AppBoostInfo?)> GetApp(uint appID, CancellationToken cancellationToken) {
+    ProductInfo? productInfo = await AppUtils.GetProduct(appID, BoosterHandler, Logger, cancellationToken).ConfigureAwait(false);
     if (productInfo == null) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ProductInfoNotFound, appID));
       return (EGetAppStatus.ProductNotFound, null);
@@ -218,7 +232,7 @@ internal sealed class AppManager {
       }
     }
 
-    UserStatsResponse? response = await BoosterHandler.GetStats(appID).ConfigureAwait(false);
+    UserStatsResponse? response = await BoosterHandler.GetStats(appID, cancellationToken).ConfigureAwait(false);
     List<StatData>? statDatas = response?.StatDatas;
     if (statDatas == null || statDatas.Count == 0) {
       _ = AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Add(appID);
@@ -240,7 +254,7 @@ internal sealed class AppManager {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    AchievementPercentages? percentages = await AppUtils.GetAchievementPercentages(appID, BoosterHandler, Logger).ConfigureAwait(false);
+    AchievementPercentages? percentages = await AppUtils.GetAchievementPercentages(appID, BoosterHandler, Logger, cancellationToken).ConfigureAwait(false);
     if (percentages == null) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AchievementPercentagesNotFound, productInfo.FullName));
       return (EGetAppStatus.AchievementPercentagesNotFound, null);

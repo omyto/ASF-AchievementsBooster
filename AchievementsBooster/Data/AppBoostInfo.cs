@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Handler.Callback;
@@ -41,8 +42,8 @@ public sealed class AppBoostInfo {
     UnlockableAchievementsCount = unlockableAchievementsCount;
   }
 
-  internal async Task<(bool, string)> UnlockNextAchievement(BoosterHandler boosterHandler) {
-    UserStatsResponse? response = await boosterHandler.GetStats(ID).ConfigureAwait(false);
+  internal async Task<(bool, string)> UnlockNextAchievement(BoosterHandler boosterHandler, CancellationToken cancellationToken) {
+    UserStatsResponse? response = await boosterHandler.GetStats(ID, cancellationToken).ConfigureAwait(false);
     if (response == null) {
       // Not reachable
       return (false, string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, FullName));
