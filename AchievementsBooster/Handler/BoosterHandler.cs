@@ -6,13 +6,13 @@ using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helpers;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam;
-using ArchiSteamFarm.Web;
 using SteamKit2;
 using SteamKit2.Internal;
 using GameAchievement = SteamKit2.Internal.CPlayer_GetGameAchievements_Response.Achievement;
@@ -63,8 +63,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     }
   }
 
-  internal async Task<UserStatsResponse?> GetStats(uint appID) {
-    GetUserStatsResponseCallback? response = await RequestUserStats(appID).ConfigureAwait(false);
+  internal async Task<UserStatsResponse?> GetStats(uint appID, CancellationToken cancellationToken) {
+    GetUserStatsResponseCallback? response = await RequestUserStats(appID, cancellationToken).ConfigureAwait(false);
     if (response == null || !response.Success) {
       Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.StatsNotFound, appID));
       return null;
@@ -92,7 +92,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     return response.Success;
   }
 
-  private async Task<GetUserStatsResponseCallback?> RequestUserStats(ulong appID) {
+  private async Task<GetUserStatsResponseCallback?> RequestUserStats(ulong appID, CancellationToken cancellationToken) {
     ClientMsgProtobuf<CMsgClientGetUserStats> request = new(EMsg.ClientGetUserStats) {
       SourceJobID = Client.GetNextJobID(),
       Body = {
@@ -102,9 +102,13 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     };
 
     try {
-      await Task.Delay(RequestDelay).ConfigureAwait(false);
+      await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
       Client.Send(request);
-      return await new AsyncJob<GetUserStatsResponseCallback>(Client, request.SourceJobID).ToLongRunningTask().ConfigureAwait(false);
+      GetUserStatsResponseCallback responseCallback = await new AsyncJob<GetUserStatsResponseCallback>(Client, request.SourceJobID).ToLongRunningTask().ConfigureAwait(false);
+      return responseCallback;
+    }
+    catch (OperationCanceledException) {
+      throw;
     }
     catch (Exception e) {
       Logger.Exception(e);
@@ -112,8 +116,8 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     }
   }
 
-  internal async Task<AchievementPercentages?> GetAchievementPercentages(uint appID) {
-    List<GameAchievement>? gameAchievements = await GetGameAchievements(appID).ConfigureAwait(false);
+  internal async Task<AchievementPercentages?> GetAchievementPercentages(uint appID, CancellationToken cancellationToken) {
+    List<GameAchievement>? gameAchievements = await GetGameAchievements(appID, cancellationToken).ConfigureAwait(false);
     if (gameAchievements == null || gameAchievements.Count == 0) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.GameAchievementNotExist, appID));
       return null;
@@ -123,7 +127,7 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     return new AchievementPercentages(appID, percentages);
   }
 
-  private async Task<List<GameAchievement>?> GetGameAchievements(uint appid) {
+  private async Task<List<GameAchievement>?> GetGameAchievements(uint appid, CancellationToken cancellationToken) {
     ArgumentNullException.ThrowIfNull(Client);
     ArgumentNullException.ThrowIfNull(UnifiedPlayerService);
 
@@ -139,8 +143,11 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     SteamUnifiedMessages.ServiceMethodResponse<CPlayer_GetGameAchievements_Response> response;
 
     try {
-      await Task.Delay(RequestDelay).ConfigureAwait(false);
+      await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
       response = await UnifiedPlayerService.GetGameAchievements(request).ToLongRunningTask().ConfigureAwait(false);
+    }
+    catch (OperationCanceledException) {
+      throw;
     }
     catch (Exception exception) {
       Logger.Shared.Warning(exception);
@@ -150,16 +157,19 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     return response.Result == EResult.OK ? response.Body.achievements : null;
   }
 
-  internal async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries = WebBrowser.MaxTries) {
-    ulong? accessToken = await GetPICSAccessTokens(appID, maxTries).ConfigureAwait(false);
+  internal async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries, CancellationToken cancellationToken) {
+    ulong? accessToken = await GetPICSAccessTokens(appID, maxTries, cancellationToken).ConfigureAwait(false);
     SteamApps.PICSRequest request = new(appID, accessToken ?? 0);
 
     AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet? productInfoResultSet = null;
 
     for (byte i = 0; i < maxTries && productInfoResultSet == null && Bot.IsConnectedAndLoggedOn; i++) {
       try {
-        await Task.Delay(RequestDelay).ConfigureAwait(false);
+        await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
         productInfoResultSet = await Bot.SteamApps.PICSGetProductInfo(request.ToEnumerable(), []).ToLongRunningTask().ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) {
+        throw;
       }
       catch (Exception exception) {
         Logger.Warning(exception);
@@ -199,13 +209,16 @@ internal sealed class BoosterHandler : ClientMsgHandler {
     return null;
   }
 
-  private async Task<ulong?> GetPICSAccessTokens(uint appID, byte maxTries = WebBrowser.MaxTries) {
+  private async Task<ulong?> GetPICSAccessTokens(uint appID, byte maxTries, CancellationToken cancellationToken) {
     SteamApps.PICSTokensCallback? tokenCallback = null;
 
     for (byte i = 0; i < maxTries && tokenCallback == null && Bot.IsConnectedAndLoggedOn; i++) {
       try {
-        await Task.Delay(RequestDelay).ConfigureAwait(false);
+        await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
         tokenCallback = await Bot.SteamApps.PICSGetAccessTokens(appID, null).ToLongRunningTask().ConfigureAwait(false);
+      }
+      catch (OperationCanceledException) {
+        throw;
       }
       catch (Exception exception) {
         Logger.Warning(exception);
