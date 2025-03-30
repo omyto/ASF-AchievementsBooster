@@ -7,8 +7,6 @@ using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
-using AchievementsBooster.Storage;
-using ArchiSteamFarm.Steam;
 
 namespace AchievementsBooster.Booster;
 
@@ -18,18 +16,14 @@ internal enum EBoostMode {
   AutoBoost
 }
 
-internal abstract class BaseBooster(EBoostMode mode, Bot bot, BotCache cache, AppManager appManager) {
+internal abstract class BaseBooster(EBoostMode mode, BoosterBot bot) {
   internal EBoostMode Mode { get; } = mode;
+  protected BoosterBot Bot { get; } = bot;
 
-  protected Bot Bot { get; } = bot;
-  protected BotCache Cache { get; } = cache;
-  protected AppManager AppManager { get; } = appManager;
-  protected Logger Logger => AppManager.BoosterHandler.Logger; //TOOD
+  protected Logger Logger => Bot.Logger;
+  protected AppManager AppManager => Bot.AppManager;
 
-  protected BoosterHandler BoosterHandler => AppManager.BoosterHandler;
   protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
-
-  protected static BoosterGlobalConfig GlobalConfig => AchievementsBoosterPlugin.GlobalConfig;
 
   protected abstract AppBoostInfo[] GetReadyToUnlockApps();
   protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
@@ -47,8 +41,8 @@ internal abstract class BaseBooster(EBoostMode mode, Bot bot, BotCache cache, Ap
     await UnlockAchievements(DateTime.Now, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
 
     // Add new apps for boosting if need
-    if (CurrentBoostingApps.Count < GlobalConfig.MaxConcurrentlyBoostingApps) {
-      List<AppBoostInfo> newApps = await FindNewAppsForBoosting(GlobalConfig.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
+    if (CurrentBoostingApps.Count < AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps) {
+      List<AppBoostInfo> newApps = await FindNewAppsForBoosting(AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
       newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
     }
 
@@ -77,12 +71,12 @@ internal abstract class BaseBooster(EBoostMode mode, Bot bot, BotCache cache, Ap
       //BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
       app.BoostingDuration += deltaTime;
 
-      (bool success, string message) = await app.UnlockNextAchievement(BoosterHandler, cancellationToken).ConfigureAwait(false);
+      (bool success, string message) = await app.UnlockNextAchievement(Bot.SteamClientHandler, cancellationToken).ConfigureAwait(false);
       if (success) {
         Logger.Info(message);
         if (app.UnlockableAchievementsCount == 0) {
           _ = CurrentBoostingApps.Remove(app.ID);
-          _ = Cache.PerfectGames.Add(app.ID);
+          _ = Bot.Cache.PerfectGames.Add(app.ID);
           Logger.Info(string.Format(CultureInfo.CurrentCulture, app.RemainingAchievementsCount == 0 ? Messages.FinishedBoost : Messages.FinishedBoostable, app.FullName));
           continue;
         }
@@ -91,7 +85,7 @@ internal abstract class BaseBooster(EBoostMode mode, Bot bot, BotCache cache, Ap
         Logger.Warning(message);
         if (app.UnlockableAchievementsCount == 0) {
           if (app.RemainingAchievementsCount == 0) {
-            _ = Cache.PerfectGames.Add(app.ID);
+            _ = Bot.Cache.PerfectGames.Add(app.ID);
           }
           _ = CurrentBoostingApps.Remove(app.ID);
           continue;
@@ -104,8 +98,8 @@ internal abstract class BaseBooster(EBoostMode mode, Bot bot, BotCache cache, Ap
         }
       }
 
-      if (GlobalConfig.BoostDurationPerApp > 0) {
-        if (app.BoostingDuration >= GlobalConfig.BoostDurationPerApp) {
+      if (AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp > 0) {
+        if (app.BoostingDuration >= AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp) {
           _ = CurrentBoostingApps.Remove(app.ID);
           Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
           AppManager.MarkAppAsResting(app);

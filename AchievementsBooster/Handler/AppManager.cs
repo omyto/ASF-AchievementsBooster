@@ -21,10 +21,10 @@ internal sealed class AppManager {
     NonBoostable
   }
 
-  private readonly BotCache Cache;
-  private readonly Logger Logger;
+  private BotCache Cache { get; }
+  private SteamClientHandler SteamClientHandler { get; }
 
-  internal BoosterHandler BoosterHandler { get; }
+  private Logger Logger { get; }
 
   internal HashSet<uint> OwnedGames { get; private set; } = [];
 
@@ -34,8 +34,8 @@ internal sealed class AppManager {
 
   private List<AppBoostInfo> RestingApps { get; } = [];
 
-  internal AppManager(BoosterHandler boosterHandler, BotCache cache, Logger logger) {
-    BoosterHandler = boosterHandler;
+  internal AppManager(SteamClientHandler clientHandler, BotCache cache, Logger logger) {
+    SteamClientHandler = clientHandler;
     Cache = cache;
     Logger = logger;
   }
@@ -54,7 +54,7 @@ internal sealed class AppManager {
       }
     }
 
-    List<uint> games = await AppUtils.FilterAchievementsApps(newOwnedGames, BoosterHandler, cancellationToken).ConfigureAwait(false) ?? newOwnedGames.ToList();
+    List<uint> games = await AppUtils.FilterAchievementsApps(newOwnedGames, SteamClientHandler, Logger, cancellationToken).ConfigureAwait(false) ?? newOwnedGames.ToList();
     BoostableAppQueue.Clear();
     HashSet<uint> restingSet = RestingApps.Select(app => app.ID).ToHashSet();
 
@@ -192,7 +192,7 @@ internal sealed class AppManager {
   }
 
   private async Task<(EGetAppStatus status, AppBoostInfo?)> GetApp(uint appID, CancellationToken cancellationToken) {
-    ProductInfo? productInfo = await AppUtils.GetProduct(appID, BoosterHandler, Logger, cancellationToken).ConfigureAwait(false);
+    ProductInfo? productInfo = await AppUtils.GetProduct(appID, SteamClientHandler, Logger, cancellationToken).ConfigureAwait(false);
     if (productInfo == null) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ProductInfoNotFound, appID));
       return (EGetAppStatus.ProductNotFound, null);
@@ -238,7 +238,7 @@ internal sealed class AppManager {
       }
     }
 
-    UserStatsResponse? response = await BoosterHandler.GetStats(appID, cancellationToken).ConfigureAwait(false);
+    UserStatsResponse? response = await SteamClientHandler.GetStats(appID, cancellationToken).ConfigureAwait(false);
     List<StatData>? statDatas = response?.StatDatas;
     if (statDatas == null || statDatas.Count == 0) {
       _ = AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Add(appID);
@@ -260,7 +260,7 @@ internal sealed class AppManager {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    AchievementPercentages? percentages = await AppUtils.GetAchievementPercentages(appID, BoosterHandler, Logger, cancellationToken).ConfigureAwait(false);
+    AchievementPercentages? percentages = await AppUtils.GetAchievementPercentages(appID, SteamClientHandler, Logger, cancellationToken).ConfigureAwait(false);
     if (percentages == null) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AchievementPercentagesNotFound, productInfo.FullName));
       return (EGetAppStatus.AchievementPercentagesNotFound, null);

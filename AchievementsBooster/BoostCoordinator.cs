@@ -1,16 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
-using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Booster;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
-using AchievementsBooster.Storage;
-using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using SteamKit2;
@@ -19,31 +15,20 @@ namespace AchievementsBooster;
 
 internal sealed class BoostCoordinator {
 
-  private static BoosterGlobalConfig GlobalConfig => AchievementsBoosterPlugin.GlobalConfig;
+  internal SteamClientHandler SteamClientHandler => Bot.SteamClientHandler;
 
-  internal BoosterHandler BoosterHandler => AppManager.BoosterHandler;
-
-  private AppManager AppManager { get; }
-
-  private readonly Bot Bot;
-  private readonly BotCache Cache;
-  private readonly Logger Logger;
+  private readonly BoosterBot Bot;
+  private Logger Logger => Bot.Logger;
 
   private BaseBooster? Booster { get; set; }
 
   private Timer? BoosterHeartBeatTimer { get; set; }
   private DateTime LastBoosterHeartBeatTime { get; set; }
-  private DateTime LastUpdateOwnedGamesTime { get; set; }
   private SemaphoreSlim BoosterHeartBeatSemaphore { get; } = new SemaphoreSlim(1);
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
 
-  internal BoostCoordinator(Bot bot) {
-    Bot = bot;
-    Logger = new Logger(bot.ArchiLogger);
-    Cache = LoadOrCreateCacheForBot(bot);
-    AppManager = new AppManager(new BoosterHandler(bot, Logger), Cache, Logger);
-  }
+  internal BoostCoordinator(Bot bot) => Bot = new BoosterBot(bot);
 
   ~BoostCoordinator() => StopTimer();
 
@@ -55,7 +40,7 @@ internal sealed class BoostCoordinator {
 
   internal Task OnSteamCallbacksInit(CallbackManager callbackManager) {
     ArgumentNullException.ThrowIfNull(callbackManager);
-    BoosterHandler.Init();
+    SteamClientHandler.Init();
     _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionState);
     return Task.CompletedTask;
   }
@@ -117,25 +102,16 @@ internal sealed class BoostCoordinator {
         throw new BoostingImpossibleException(Messages.RestTime);
       }
 
-      await UpdateOwnedGames(currentTime, CancellationTokenSource.Token).ConfigureAwait(false);
-      if (AppManager.OwnedGames.Count == 0) {
-        Booster?.Stop();
-        throw new BoostingImpossibleException(string.Format(CultureInfo.CurrentCulture, Messages.NoGamesBoosting));
-      }
+      await Bot.UpdateOwnedGames(currentTime, CancellationTokenSource.Token).ConfigureAwait(false);
 
-      EBoostMode newMode = Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
-        ? EBoostMode.CardFarming
-        : Bot.BotConfig?.GamesPlayedWhileIdle.Count > 0
-          ? EBoostMode.IdleGaming
-          : EBoostMode.AutoBoost;
-
+      EBoostMode newMode = Bot.DetermineBoostMode();
       if (newMode != Booster?.Mode) {
         Booster?.Stop();
 
         Booster = newMode switch {
-          EBoostMode.CardFarming => new CardFarmingBooster(Bot, Cache, AppManager),
-          EBoostMode.IdleGaming => new IdleGamingBooster(Bot, Cache, AppManager, Bot.BotConfig?.GamesPlayedWhileIdle),
-          EBoostMode.AutoBoost => new AutoBooster(Bot, Cache, AppManager),
+          EBoostMode.CardFarming => new CardFarmingBooster(Bot),
+          EBoostMode.IdleGaming => new IdleGamingBooster(Bot),
+          EBoostMode.AutoBoost => new AutoBooster(Bot),
           _ => throw new NotImplementedException()
         };
       }
@@ -162,7 +138,7 @@ internal sealed class BoostCoordinator {
 
       if (BoosterHeartBeatTimer != null) {
         // Due time for the next boosting
-        TimeSpan dueTime = TimeSpanUtils.RandomInMinutesRange(GlobalConfig.MinBoostInterval, GlobalConfig.MaxBoostInterval);
+        TimeSpan dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
         _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
         Logger.Trace($"The next heartbeat will occur in {dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}!");
       }
@@ -170,46 +146,14 @@ internal sealed class BoostCoordinator {
     }
   }
 
-  private async Task UpdateOwnedGames(DateTime currentTime, CancellationToken cancellationToken) {
-    if (AppManager.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
-      Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
-      if (ownedGames != null) {
-        await AppManager.UpdateOwnedGames(ownedGames.Keys.ToHashSet(), cancellationToken).ConfigureAwait(false);
-        LastUpdateOwnedGamesTime = currentTime;
-      }
-    }
-  }
-
-  private BotCache LoadOrCreateCacheForBot(Bot bot) {
-    if (bot.BotDatabase == null) {
-      throw new InvalidOperationException(nameof(bot.BotDatabase));
-    }
-
-    BotCache? cache = null;
-    JsonElement jsonElement = bot.BotDatabase.LoadFromJsonStorage(Constants.BotCacheKey);
-    if (jsonElement.ValueKind == JsonValueKind.Object) {
-      try {
-        cache = jsonElement.ToJsonObject<BotCache>();
-      }
-      catch (Exception ex) {
-        Logger.Exception(ex);
-      }
-    }
-
-    cache ??= new BotCache();
-    cache.Init(bot.BotDatabase);
-
-    return cache;
-  }
-
   private static bool IsRestingTime(DateTime currentTime) {
-    if (GlobalConfig.RestTimePerDay == 0) {
+    if (AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay == 0) {
       return false;
     }
 
     DateTime weakUpTime = new(currentTime.Year, currentTime.Month, currentTime.Day, 6, 0, 0, 0);
     if (currentTime < weakUpTime) {
-      DateTime restingStartTime = weakUpTime.AddMinutes(-GlobalConfig.RestTimePerDay);
+      DateTime restingStartTime = weakUpTime.AddMinutes(-AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
       if (currentTime > restingStartTime) {
         return true;
       }

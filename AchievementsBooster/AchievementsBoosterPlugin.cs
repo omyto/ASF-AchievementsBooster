@@ -127,7 +127,7 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotModules, IBotCon
     ArgumentNullException.ThrowIfNull(bot);
     BoostCoordinator coordinator = new(bot);
     if (Coordinators.TryAdd(bot, coordinator)) {
-      return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([coordinator.BoosterHandler]);
+      return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([coordinator.SteamClientHandler]);
     }
 
     Logger.Shared.Error(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));

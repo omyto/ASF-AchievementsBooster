@@ -42,8 +42,8 @@ public sealed class AppBoostInfo {
     UnlockableAchievementsCount = unlockableAchievementsCount;
   }
 
-  internal async Task<(bool, string)> UnlockNextAchievement(BoosterHandler boosterHandler, CancellationToken cancellationToken) {
-    UserStatsResponse? response = await boosterHandler.GetStats(ID, cancellationToken).ConfigureAwait(false);
+  internal async Task<(bool, string)> UnlockNextAchievement(SteamClientHandler clientHandler, CancellationToken cancellationToken) {
+    UserStatsResponse? response = await clientHandler.GetStats(ID, cancellationToken).ConfigureAwait(false);
     if (response == null) {
       // Not reachable
       return (false, string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, FullName));
@@ -68,7 +68,7 @@ public sealed class AppBoostInfo {
     StatData nextStat = unlockableAchievements.First();
 
     // Achieve next achievement
-    if (await boosterHandler.UnlockStat(ID, nextStat, response.CrcStats).ConfigureAwait(false)) {
+    if (await clientHandler.UnlockStat(ID, nextStat, response.CrcStats).ConfigureAwait(false)) {
       RemainingAchievementsCount--;
       UnlockableAchievementsCount--;
       return (true, string.Format(CultureInfo.CurrentCulture, Messages.UnlockAchievementSuccess, FullName, nextStat.Name));

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
@@ -8,8 +7,6 @@ using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
-using AchievementsBooster.Storage;
-using ArchiSteamFarm.Steam;
 
 namespace AchievementsBooster.Booster;
 
@@ -18,9 +15,9 @@ internal sealed class IdleGamingBooster : BaseBooster {
 
   [SuppressMessage("Style", "IDE0306:Simplify collection initialization", Justification = "<Pending>")]
   [SuppressMessage("Style", "IDE0021:Use expression body for constructor", Justification = "<Pending>")]
-  internal IdleGamingBooster(Bot bot, BotCache cache, AppManager appManager, ImmutableList<uint>? gamesPlayedWhileIdle) : base(EBoostMode.IdleGaming, bot, cache, appManager) {
+  internal IdleGamingBooster(BoosterBot bot) : base(EBoostMode.IdleGaming, bot) {
     // Since GamesPlayedWhileIdle may never change
-    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(gamesPlayedWhileIdle ?? []);
+    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Bot.GamesPlayedWhileIdle ?? []);
   }
 
   internal override void ResumePlay() { }

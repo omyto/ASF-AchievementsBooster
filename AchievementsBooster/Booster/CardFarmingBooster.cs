@@ -6,14 +6,12 @@ using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
-using AchievementsBooster.Storage;
-using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Steam.Cards;
 
 namespace AchievementsBooster.Booster;
 
 internal sealed class CardFarmingBooster : BaseBooster {
-  internal CardFarmingBooster(Bot bot, BotCache cache, AppManager appManager) : base(EBoostMode.CardFarming, bot, cache, appManager) {
+  internal CardFarmingBooster(BoosterBot bot) : base(EBoostMode.CardFarming, bot) {
   }
 
   internal override void ResumePlay() { }
@@ -21,7 +19,7 @@ internal sealed class CardFarmingBooster : BaseBooster {
   protected override AppBoostInfo[] GetReadyToUnlockApps() {
     // Intersect between BoostingApps and CurrentGamesFarming
     List<uint> boostingAppIDs = [];
-    foreach (Game game in Bot.CardsFarmer.CurrentGamesFarmingReadOnly) {
+    foreach (Game game in Bot.CurrentGamesFarming) {
       if (CurrentBoostingApps.ContainsKey(game.AppID)) {
         boostingAppIDs.Add(game.AppID);
       }
@@ -42,7 +40,7 @@ internal sealed class CardFarmingBooster : BaseBooster {
     List<AppBoostInfo> results = [];
 
     try {
-      Game[] currentGamesFarming = Bot.CardsFarmer.CurrentGamesFarmingReadOnly.ToArray();
+      Game[] currentGamesFarming = Bot.CurrentGamesFarming.ToArray();
       for (int index = 0; index < currentGamesFarming.Length && results.Count < count; index++) {
         cancellationToken.ThrowIfCancellationRequested();
         uint appID = currentGamesFarming[index].AppID;

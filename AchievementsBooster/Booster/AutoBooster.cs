@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -7,8 +6,6 @@ using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
-using AchievementsBooster.Storage;
-using ArchiSteamFarm.Steam;
 
 namespace AchievementsBooster.Booster;
 
@@ -16,13 +13,12 @@ internal sealed class AutoBooster : BaseBooster {
 
   private bool HasTriggeredPlay { get; set; }
 
-  [SuppressMessage("Style", "IDE0290:Use primary constructor", Justification = "<Pending>")]
-  public AutoBooster(Bot bot, BotCache cache, AppManager appManager) : base(EBoostMode.AutoBoost, bot, cache, appManager) {
+  internal AutoBooster(BoosterBot bot) : base(EBoostMode.AutoBoost, bot) {
   }
 
   internal override void ResumePlay() {
     if (HasTriggeredPlay) {
-      _ = Bot.Actions.Resume();
+      _ = Bot.ResumePlay();
     }
   }
 
@@ -35,7 +31,7 @@ internal sealed class AutoBooster : BaseBooster {
 
   protected override async Task PlayCurrentBoostingApps() {
     BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
-    (bool success, string message) = await Bot.Actions.Play(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
+    (bool success, string message) = await Bot.PlayGames(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
     if (!success) {
       throw new BoostingImpossibleException(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
     }

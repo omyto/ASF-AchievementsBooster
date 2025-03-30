@@ -20,7 +20,7 @@ using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductI
 
 namespace AchievementsBooster.Handler;
 
-internal sealed class BoosterHandler : ClientMsgHandler {
+internal sealed class SteamClientHandler : ClientMsgHandler {
   internal string Identifier {
     get {
       BoosterIdentifier ??= Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(Bot.SSteamID)));
@@ -29,12 +29,12 @@ internal sealed class BoosterHandler : ClientMsgHandler {
   }
   private string? BoosterIdentifier;
   private readonly Bot Bot;
-  internal readonly Logger Logger;
+  private readonly Logger Logger;
   private const int RequestDelay = 500;
 
   private Player? UnifiedPlayerService;
 
-  internal BoosterHandler(Bot bot, Logger logger) {
+  internal SteamClientHandler(Bot bot, Logger logger) {
     Bot = bot;
     Logger = logger;
   }
