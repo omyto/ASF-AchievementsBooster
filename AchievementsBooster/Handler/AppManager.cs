@@ -78,6 +78,12 @@ internal sealed class AppManager {
     RestingApps.Add(app);
   }
 
+  internal void MarkAppsAsResting(IList<AppBoostInfo> apps, DateTime restingEndTime) {
+    foreach (AppBoostInfo app in apps) {
+      MarkAppAsResting(app, restingEndTime);
+    }
+  }
+
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
   internal bool IsBoostableApp(uint appID) {
     if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
