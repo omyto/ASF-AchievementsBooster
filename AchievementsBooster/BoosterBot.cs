@@ -52,12 +52,13 @@ internal sealed class BoosterBot {
 
   internal (bool Success, string Message) ResumePlay() => ASFBot.Actions.Resume();
 
-  internal async Task UpdateOwnedGames(DateTime currentTime, CancellationToken cancellationToken) {
-    if (AppManager.OwnedGames.Count == 0 || (currentTime - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
+  internal async Task UpdateOwnedGames(CancellationToken cancellationToken) {
+    DateTime now = DateTime.Now;
+    if (AppManager.OwnedGames.Count == 0 || (now - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
       Dictionary<uint, string>? ownedGames = await ASFBot.ArchiHandler.GetOwnedGames(SteamID).ConfigureAwait(false);
       if (ownedGames != null) {
         await AppManager.UpdateOwnedGames(ownedGames.Keys.ToHashSet(), cancellationToken).ConfigureAwait(false);
-        LastUpdateOwnedGamesTime = currentTime;
+        LastUpdateOwnedGamesTime = now;
       }
     }
 

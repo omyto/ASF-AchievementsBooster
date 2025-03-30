@@ -37,8 +37,11 @@ internal abstract class BaseBooster(EBoostMode mode, BoosterBot bot) {
     CurrentBoostingApps.Clear();
   }
 
-  internal async Task Boosting(DateTime lastBoosterHeartBeatTime, CancellationToken cancellationToken) {
+  internal async Task Boosting(DateTime lastBoosterHeartBeatTime, bool isRestingTime, CancellationToken cancellationToken) {
     await UnlockAchievements(DateTime.Now, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
+    if (isRestingTime) {
+      return;
+    }
 
     // Add new apps for boosting if need
     if (CurrentBoostingApps.Count < AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps) {

@@ -27,6 +27,7 @@ internal sealed class BoostCoordinator {
   private SemaphoreSlim BoosterHeartBeatSemaphore { get; } = new SemaphoreSlim(1);
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
+  private CancellationToken CancellationToken => CancellationTokenSource.Token;
 
   internal BoostCoordinator(Bot bot) => Bot = new BoosterBot(bot);
 
@@ -92,17 +93,14 @@ internal sealed class BoostCoordinator {
     }
 
     Logger.Trace("Boosting heartbeating ...");
+
     DateTime currentTime = DateTime.Now;
+    bool isRestingTime = IsRestingTime(currentTime);
     CancellationTokenSource = new CancellationTokenSource();
 
     try {
       BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
-
-      if (IsRestingTime(currentTime)) {
-        throw new BoostingImpossibleException(Messages.RestTime);
-      }
-
-      await Bot.UpdateOwnedGames(currentTime, CancellationTokenSource.Token).ConfigureAwait(false);
+      await Bot.UpdateOwnedGames(CancellationToken).ConfigureAwait(false);
 
       EBoostMode newMode = Bot.DetermineBoostMode();
       if (newMode != Booster?.Mode) {
@@ -116,10 +114,10 @@ internal sealed class BoostCoordinator {
         };
       }
 
-      await Booster.Boosting(LastBoosterHeartBeatTime, CancellationTokenSource.Token).ConfigureAwait(false);
+      await Booster.Boosting(LastBoosterHeartBeatTime, isRestingTime, CancellationToken).ConfigureAwait(false);
     }
     catch (OperationCanceledException) {
-      Logger.Warning($"The boosting process has been canceled: {CancellationTokenSource.Token.IsCancellationRequested}");
+      Logger.Warning($"The boosting process has been canceled: {CancellationToken.IsCancellationRequested}");
       Booster?.Stop();
     }
     catch (Exception exception) {
@@ -138,7 +136,16 @@ internal sealed class BoostCoordinator {
 
       if (BoosterHeartBeatTimer != null) {
         // Due time for the next boosting
-        TimeSpan dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
+        TimeSpan dueTime;
+        if (isRestingTime) {
+          Booster?.Stop();
+          dueTime = TimeSpan.FromMinutes(AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
+          Logger.Info(Messages.RestTime);
+        }
+        else {
+          dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
+        }
+
         _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
         Logger.Trace($"The next heartbeat will occur in {dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}!");
       }
