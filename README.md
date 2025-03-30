@@ -51,7 +51,6 @@ The `AchievementsBooster` plugin configuration has the following structure, whic
   "GiftsLimiterDelay": 2,
   "IdleFarmingPeriod": 12,
   "InventoryLimiterDelay": 5,
-  "UpdateChannel": 0,
   "WebLimiterDelay": 500,
   "AchievementsBooster": {
     "AutoStartBots": [ "me", "bot" ],

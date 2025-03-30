@@ -55,11 +55,11 @@ internal static class CommandsHandler {
       return null;
     }
 
-    if (!AchievementsBoosterPlugin.Boosters.TryGetValue(bot, out Booster? booster)) {
+    if (!AchievementsBoosterPlugin.Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
       return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
 
-    string response = booster.Start(true);
+    string response = coordinator.Start(true);
     return bot.Commands.FormatBotResponse(response);
   }
 
@@ -68,11 +68,11 @@ internal static class CommandsHandler {
       return null;
     }
 
-    if (!AchievementsBoosterPlugin.Boosters.TryGetValue(bot, out Booster? booster)) {
+    if (!AchievementsBoosterPlugin.Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
       return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
 
-    string response = booster.Stop();
+    string response = coordinator.Stop();
     return bot.Commands.FormatBotResponse(response);
   }
 

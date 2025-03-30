@@ -18,7 +18,7 @@ using SteamKit2;
 
 namespace AchievementsBooster;
 
-internal sealed class Booster {
+internal sealed class BoostCoordinator {
   private enum EBoostingState : byte {
     None,
     ArchiFarming,
@@ -48,7 +48,7 @@ internal sealed class Booster {
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
 
-  internal Booster(Bot bot) {
+  internal BoostCoordinator(Bot bot) {
     Bot = bot;
     Logger = new Logger(bot.ArchiLogger);
     Cache = LoadOrCreateCacheForBot(bot);
@@ -58,7 +58,7 @@ internal sealed class Booster {
     ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(bot.BotConfig?.GamesPlayedWhileIdle ?? []);
   }
 
-  ~Booster() => StopTimer();
+  ~BoostCoordinator() => StopTimer();
 
   private void StopTimer() {
     CancellationTokenSource.Cancel();
