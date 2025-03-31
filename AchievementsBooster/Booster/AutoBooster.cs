@@ -9,14 +9,14 @@ using AchievementsBooster.Helpers;
 
 namespace AchievementsBooster.Booster;
 
-internal sealed class AutoBooster : BaseBooster {
+internal sealed class AutoBooster : Booster {
 
   private bool HasTriggeredPlay { get; set; }
 
   internal AutoBooster(BoosterBot bot) : base(EBoostMode.AutoBoost, bot) {
   }
 
-  internal override void ResumePlay() {
+  protected override void ResumePlay() {
     if (HasTriggeredPlay) {
       _ = Bot.ResumePlay();
       HasTriggeredPlay = false;

@@ -20,7 +20,7 @@ internal sealed class BoostCoordinator {
   private readonly BoosterBot Bot;
   private Logger Logger => Bot.Logger;
 
-  private BaseBooster? Booster { get; set; }
+  private Booster.Booster? Booster { get; set; }
 
   private Timer? BoosterHeartBeatTimer { get; set; }
   private DateTime LastBoosterHeartBeatTime { get; set; }
@@ -78,8 +78,7 @@ internal sealed class BoostCoordinator {
     }
 
     StopTimer();
-    Booster?.Stop();
-    Booster?.ResumePlay();
+    Booster?.Stop(true);
 
     Logger.Info("The boosting process has been stopped!");
     return Strings.Done;
@@ -93,8 +92,8 @@ internal sealed class BoostCoordinator {
 
     Logger.Trace("Boosting heartbeating ...");
 
+    bool isRestingTime = false;
     DateTime currentTime = DateTime.Now;
-    bool isRestingTime = IsRestingTime(currentTime);
 
     CancellationTokenSource = new CancellationTokenSource();
     CancellationToken cancellationToken = CancellationTokenSource.Token;
@@ -114,6 +113,7 @@ internal sealed class BoostCoordinator {
             };
           }
 
+          isRestingTime = IsRestingTime(currentTime);
           await Booster.Boosting(LastBoosterHeartBeatTime, isRestingTime, cancellationToken).ConfigureAwait(false);
         }
         else {
@@ -130,8 +130,7 @@ internal sealed class BoostCoordinator {
         Logger.Exception(exception);
       }
 
-      Booster?.Stop();
-      Booster?.ResumePlay();
+      Booster?.Stop(true);
     }
     finally {
       LastBoosterHeartBeatTime = currentTime;
@@ -148,7 +147,7 @@ internal sealed class BoostCoordinator {
         else if (isRestingTime) {
           dueTime = TimeSpan.FromMinutes(AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
           Logger.Info(Messages.RestTime);
-          Booster?.Stop();
+          Booster?.Stop(true);
         }
         else {
           dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);

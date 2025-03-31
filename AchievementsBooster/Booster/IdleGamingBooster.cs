@@ -10,7 +10,7 @@ using AchievementsBooster.Helpers;
 
 namespace AchievementsBooster.Booster;
 
-internal sealed class IdleGamingBooster : BaseBooster {
+internal sealed class IdleGamingBooster : Booster {
   private Queue<uint> ArchiBoostableAppsPlayedWhileIdle { get; }
 
   [SuppressMessage("Style", "IDE0306:Simplify collection initialization", Justification = "<Pending>")]
@@ -20,7 +20,7 @@ internal sealed class IdleGamingBooster : BaseBooster {
     ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Bot.GamesPlayedWhileIdle ?? []);
   }
 
-  internal override void ResumePlay() { }
+  protected override void ResumePlay() { }
 
   protected override AppBoostInfo[] GetReadyToUnlockApps() => CurrentBoostingApps.Values.ToArray();
 

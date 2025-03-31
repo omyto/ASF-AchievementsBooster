@@ -10,11 +10,11 @@ using ArchiSteamFarm.Steam.Cards;
 
 namespace AchievementsBooster.Booster;
 
-internal sealed class CardFarmingBooster : BaseBooster {
+internal sealed class CardFarmingBooster : Booster {
   internal CardFarmingBooster(BoosterBot bot) : base(EBoostMode.CardFarming, bot) {
   }
 
-  internal override void ResumePlay() { }
+  protected override void ResumePlay() { }
 
   protected override AppBoostInfo[] GetReadyToUnlockApps() {
     // Intersect between BoostingApps and CurrentGamesFarming
