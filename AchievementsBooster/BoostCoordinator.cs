@@ -27,7 +27,6 @@ internal sealed class BoostCoordinator {
   private SemaphoreSlim BoosterHeartBeatSemaphore { get; } = new SemaphoreSlim(1);
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
-  private CancellationToken CancellationToken => CancellationTokenSource.Token;
 
   internal BoostCoordinator(Bot bot) => Bot = new BoosterBot(bot);
 
@@ -96,33 +95,36 @@ internal sealed class BoostCoordinator {
 
     DateTime currentTime = DateTime.Now;
     bool isRestingTime = IsRestingTime(currentTime);
+
     CancellationTokenSource = new CancellationTokenSource();
+    CancellationToken cancellationToken = CancellationTokenSource.Token;
 
     try {
-      BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
-      await Bot.UpdateOwnedGames(CancellationToken).ConfigureAwait(false);
+      if (Bot.IsPlayingPossible) {
+        if (await Bot.UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
+          EBoostMode newMode = Bot.DetermineBoostMode();
+          if (newMode != Booster?.Mode) {
+            Booster?.Stop();
 
-      EBoostMode newMode = Bot.DetermineBoostMode();
-      if (newMode != Booster?.Mode) {
-        Booster?.Stop();
+            Booster = newMode switch {
+              EBoostMode.CardFarming => new CardFarmingBooster(Bot),
+              EBoostMode.IdleGaming => new IdleGamingBooster(Bot),
+              EBoostMode.AutoBoost => new AutoBooster(Bot),
+              _ => throw new NotImplementedException()
+            };
+          }
 
-        Booster = newMode switch {
-          EBoostMode.CardFarming => new CardFarmingBooster(Bot),
-          EBoostMode.IdleGaming => new IdleGamingBooster(Bot),
-          EBoostMode.AutoBoost => new AutoBooster(Bot),
-          _ => throw new NotImplementedException()
-        };
+          await Booster.Boosting(LastBoosterHeartBeatTime, isRestingTime, cancellationToken).ConfigureAwait(false);
+        }
+        else {
+          Logger.Info(Messages.NoGamesBoosting);
+        }
       }
-
-      await Booster.Boosting(LastBoosterHeartBeatTime, isRestingTime, CancellationToken).ConfigureAwait(false);
-    }
-    catch (OperationCanceledException) {
-      Logger.Warning($"The boosting process has been canceled: {CancellationToken.IsCancellationRequested}");
-      Booster?.Stop();
     }
     catch (Exception exception) {
-      if (exception is BoostingImpossibleException) {
-        Logger.Info(exception.Message);
+      if (exception is OperationCanceledException ex) {
+        Logger.Warning($"The boosting process has been canceled: {ex.Message}");
+        Logger.Info($"Is cancellation has been requested: {cancellationToken.IsCancellationRequested}");
       }
       else {
         Logger.Exception(exception);
@@ -137,10 +139,16 @@ internal sealed class BoostCoordinator {
       if (BoosterHeartBeatTimer != null) {
         // Due time for the next boosting
         TimeSpan dueTime;
-        if (isRestingTime) {
+
+        if (!Bot.IsPlayingPossible) {
+          dueTime = TimeSpan.FromMinutes(15);
+          Logger.Info(Messages.BoostingImpossible);
           Booster?.Stop();
+        }
+        else if (isRestingTime) {
           dueTime = TimeSpan.FromMinutes(AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
           Logger.Info(Messages.RestTime);
+          Booster?.Stop();
         }
         else {
           dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
@@ -149,6 +157,7 @@ internal sealed class BoostCoordinator {
         _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
         Logger.Trace($"The next heartbeat will occur in {dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}!");
       }
+
       _ = BoosterHeartBeatSemaphore.Release();
     }
   }

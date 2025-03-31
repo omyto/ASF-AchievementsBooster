@@ -19,6 +19,7 @@ internal sealed class AutoBooster : BaseBooster {
   internal override void ResumePlay() {
     if (HasTriggeredPlay) {
       _ = Bot.ResumePlay();
+      HasTriggeredPlay = false;
     }
   }
 
@@ -29,17 +30,15 @@ internal sealed class AutoBooster : BaseBooster {
     return await AppManager.NextAppsForBoost(count, cancellationToken).ConfigureAwait(false);
   }
 
-  protected override async Task PlayCurrentBoostingApps() {
-    BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
+  protected override async Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) {
+    cancellationToken.ThrowIfCancellationRequested();
     (bool success, string message) = await Bot.PlayGames(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
     if (!success) {
-      throw new BoostingImpossibleException(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
     }
-    HasTriggeredPlay = true;
+
+    return HasTriggeredPlay = success;
   }
 
-  protected override void LogNoneAppsForBoosting() =>
-    // BoostingState is EBoostingState.BoosterPlayed
-    throw new BoostingImpossibleException(Messages.NoBoostingApps);
-
+  protected override void LogNoneAppsForBoosting() => Logger.Info(Messages.NoBoostingApps);
 }

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Threading;
@@ -52,7 +51,7 @@ internal sealed class BoosterBot {
 
   internal (bool Success, string Message) ResumePlay() => ASFBot.Actions.Resume();
 
-  internal async Task UpdateOwnedGames(CancellationToken cancellationToken) {
+  internal async Task<bool> UpdateOwnedGames(CancellationToken cancellationToken) {
     DateTime now = DateTime.Now;
     if (AppManager.OwnedGames.Count == 0 || (now - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
       Dictionary<uint, string>? ownedGames = await ASFBot.ArchiHandler.GetOwnedGames(SteamID).ConfigureAwait(false);
@@ -62,10 +61,7 @@ internal sealed class BoosterBot {
       }
     }
 
-    if (AppManager.OwnedGames.Count == 0) {
-      //Booster?.Stop();
-      throw new BoostingImpossibleException(string.Format(CultureInfo.CurrentCulture, Messages.NoGamesBoosting));
-    }
+    return AppManager.OwnedGames.Count > 0;
   }
 
   private BotCache LoadOrCreateCacheForBot(Bot bot) {

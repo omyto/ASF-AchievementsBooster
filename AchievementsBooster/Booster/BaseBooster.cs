@@ -27,14 +27,16 @@ internal abstract class BaseBooster(EBoostMode mode, BoosterBot bot) {
 
   protected abstract AppBoostInfo[] GetReadyToUnlockApps();
   protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
-  protected abstract Task PlayCurrentBoostingApps();
+  protected abstract Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken);
   protected abstract void LogNoneAppsForBoosting();
 
   internal abstract void ResumePlay();
 
   internal void Stop() {
-    AppManager.MarkAppsAsResting(CurrentBoostingApps.Values.ToList(), DateTime.Now);
-    CurrentBoostingApps.Clear();
+    if (CurrentBoostingApps.Count > 0) {
+      AppManager.MarkAppsAsResting(CurrentBoostingApps.Values.ToList(), DateTime.Now);
+      CurrentBoostingApps.Clear();
+    }
   }
 
   internal async Task Boosting(DateTime lastBoosterHeartBeatTime, bool isRestingTime, CancellationToken cancellationToken) {
@@ -50,10 +52,10 @@ internal abstract class BaseBooster(EBoostMode mode, BoosterBot bot) {
     }
 
     if (CurrentBoostingApps.Count > 0) {
-      await PlayCurrentBoostingApps().ConfigureAwait(false);
-
-      foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
-        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
+      if (await PlayCurrentBoostingApps(cancellationToken).ConfigureAwait(false)) {
+        foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
+          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
+        }
       }
     }
     else {
@@ -71,7 +73,6 @@ internal abstract class BaseBooster(EBoostMode mode, BoosterBot bot) {
 
     foreach (AppBoostInfo app in readyToUnlockApps) {
       cancellationToken.ThrowIfCancellationRequested();
-      //BoostingImpossibleException.ThrowIfPlayingImpossible(!Bot.IsPlayingPossible);
       app.BoostingDuration += deltaTime;
 
       (bool success, string message) = await app.UnlockNextAchievement(Bot.SteamClientHandler, cancellationToken).ConfigureAwait(false);

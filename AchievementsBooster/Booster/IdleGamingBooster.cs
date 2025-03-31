@@ -54,10 +54,8 @@ internal sealed class IdleGamingBooster : BaseBooster {
     return results;
   }
 
-  protected override Task PlayCurrentBoostingApps() => Task.CompletedTask;
+  protected override Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
 
-  protected override void LogNoneAppsForBoosting() =>
-    //if (lastState != EBoostingState.ArchiPlayedWhileIdle || lastPlaying.Count > 0) {
-    Logger.Info(Messages.NoBoostingAppsInArchiPlayedWhileIdle);
+  protected override void LogNoneAppsForBoosting() => Logger.Info(Messages.NoBoostingAppsInArchiPlayedWhileIdle);
 
 }
