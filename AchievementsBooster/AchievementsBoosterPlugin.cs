@@ -17,7 +17,7 @@ using SteamKit2;
 namespace AchievementsBooster;
 
 [Export(typeof(IPlugin))]
-public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotModules, IBotConnection, IBotSteamClient, IBotCommand2, IGitHubPluginUpdates {
+public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBotSteamClient, IBotCommand2, IGitHubPluginUpdates {
 
   internal static readonly ConcurrentDictionary<Bot, BoostCoordinator> Coordinators = new();
 
@@ -96,19 +96,6 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotModules, IBotCon
     else {
       Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
-    return Task.CompletedTask;
-  }
-
-  /** IBotModules */
-  public Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null) {
-    ArgumentNullException.ThrowIfNull(bot);
-    if (additionalConfigProperties == null || additionalConfigProperties.Count == 0) {
-      return Task.CompletedTask;
-    }
-    if (Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
-      return coordinator.OnInitModules(additionalConfigProperties);
-    }
-    Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     return Task.CompletedTask;
   }
 

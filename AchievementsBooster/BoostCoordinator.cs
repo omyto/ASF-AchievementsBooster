@@ -1,7 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Booster;
@@ -42,13 +39,6 @@ internal sealed class BoostCoordinator {
     ArgumentNullException.ThrowIfNull(callbackManager);
     SteamClientHandler.Init();
     _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionState);
-    return Task.CompletedTask;
-  }
-
-  [SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "<Pending>")]
-  internal Task OnInitModules(IReadOnlyDictionary<string, JsonElement> additionalConfigProperties) {
-    if (additionalConfigProperties != null) {
-    }
     return Task.CompletedTask;
   }
 
