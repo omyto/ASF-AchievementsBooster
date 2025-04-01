@@ -123,8 +123,7 @@ internal sealed class BoostCoordinator {
     }
     catch (Exception exception) {
       if (exception is OperationCanceledException ex) {
-        Logger.Warning($"The boosting process has been canceled: {ex.Message}");
-        Logger.Info($"Is cancellation has been requested: {cancellationToken.IsCancellationRequested}");
+        Logger.Warning($"The boosting process has been canceled: {ex.Message} ({cancellationToken.IsCancellationRequested})");
       }
       else {
         Logger.Exception(exception);
@@ -140,7 +139,7 @@ internal sealed class BoostCoordinator {
         TimeSpan dueTime;
 
         if (!Bot.IsPlayingPossible) {
-          dueTime = TimeSpan.FromMinutes(15);
+          dueTime = TimeSpan.FromMinutes(5);
           Logger.Info(Messages.BoostingImpossible);
           Booster?.Stop();
         }

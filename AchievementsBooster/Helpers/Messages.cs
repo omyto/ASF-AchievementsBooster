@@ -11,7 +11,7 @@ internal static class Messages {
 
   internal const string NoGamesBoosting = "The bot doesn't have any games for boosting";
 
-  internal const string BoostingImpossible = "Not ready to boost; playing is blocked";
+  internal const string BoostingImpossible = "Not ready to boost; playing is blocked. Checking again in 5 minutes";
 
   internal const string RestTime = "Resting time";
 
