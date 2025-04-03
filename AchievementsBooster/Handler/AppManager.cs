@@ -135,7 +135,7 @@ internal sealed class AppManager {
       // Get from boostable queue
       while (BoostableAppQueue.Count > 0 && results.Count < size) {
         cancellationToken.ThrowIfCancellationRequested();
-        uint appID = BoostableAppQueue.Dequeue();
+        uint appID = BoostableAppQueue.Peek();
         (EGetAppStatus status, AppBoostInfo? app) = await GetApp(appID, cancellationToken).ConfigureAwait(false);
         switch (status) {
           case EGetAppStatus.OK:
@@ -150,6 +150,7 @@ internal sealed class AppManager {
           default:
             break;
         }
+        _ = BoostableAppQueue.Dequeue();
       }
     }
     catch (Exception) {

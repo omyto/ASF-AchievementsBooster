@@ -29,18 +29,13 @@ internal sealed class IdleGamingBooster : Booster {
 
     try {
       while (ArchiBoostableAppsPlayedWhileIdle.Count > 0 && results.Count < count) {
-        uint appID = ArchiBoostableAppsPlayedWhileIdle.Dequeue();
-        try {
-          cancellationToken.ThrowIfCancellationRequested();
-          AppBoostInfo? app = await AppManager.GetAppBoost(appID, cancellationToken).ConfigureAwait(false);
-          if (app != null) {
-            results.Add(app);
-          }
+        cancellationToken.ThrowIfCancellationRequested();
+        uint appID = ArchiBoostableAppsPlayedWhileIdle.Peek();
+        AppBoostInfo? app = await AppManager.GetAppBoost(appID, cancellationToken).ConfigureAwait(false);
+        if (app != null) {
+          results.Add(app);
         }
-        catch (OperationCanceledException) {
-          ArchiBoostableAppsPlayedWhileIdle.Enqueue(appID);
-          throw;
-        }
+        _ = ArchiBoostableAppsPlayedWhileIdle.Dequeue();
       }
     }
     catch (Exception) {
