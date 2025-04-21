@@ -54,7 +54,17 @@ internal sealed class AppManager {
       }
     }
 
-    List<uint> games = await AppUtils.FilterAchievementsApps(newOwnedGames, SteamClientHandler, Logger, cancellationToken).ConfigureAwait(false) ?? newOwnedGames.ToList();
+    OwnedGames = newOwnedGames;
+
+    List<uint>? games = await AppUtils.FilterAchievementsApps(newOwnedGames, SteamClientHandler, Logger, cancellationToken).ConfigureAwait(false);
+    if (games == null) {
+      if (BoostableAppQueue.Count > 0) {
+        return;
+      }
+
+      games = PossibleApps.FilterAchievementsApps(newOwnedGames);
+    }
+
     BoostableAppQueue.Clear();
     HashSet<uint> restingSet = RestingApps.Select(app => app.ID).ToHashSet();
 
@@ -69,7 +79,6 @@ internal sealed class AppManager {
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", restingSet)));
     }
     Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.BoostableQueue, string.Join(",", BoostableAppQueue)));
-    OwnedGames = newOwnedGames;
   }
 
   internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
