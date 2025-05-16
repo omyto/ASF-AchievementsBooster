@@ -68,7 +68,7 @@ internal sealed class BoostCoordinator {
     }
 
     StopTimer();
-    Booster?.Stop(true);
+    Booster?.StopPlay(true);
 
     Logger.Info("The boosting process has been stopped!");
     return Strings.Done;
@@ -93,7 +93,7 @@ internal sealed class BoostCoordinator {
         if (await Bot.UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
           EBoostMode newMode = Bot.DetermineBoostMode();
           if (newMode != Booster?.Mode) {
-            Booster?.Stop();
+            Booster?.StopPlay();
 
             Booster = newMode switch {
               EBoostMode.CardFarming => new CardFarmingBooster(Bot),
@@ -119,7 +119,7 @@ internal sealed class BoostCoordinator {
         Logger.Exception(exception);
       }
 
-      Booster?.Stop(true);
+      Booster?.StopPlay(true);
     }
     finally {
       LastBoosterHeartBeatTime = currentTime;
@@ -131,12 +131,12 @@ internal sealed class BoostCoordinator {
         if (!Bot.IsPlayingPossible) {
           dueTime = TimeSpan.FromMinutes(5);
           Logger.Info(Messages.BoostingImpossible);
-          Booster?.Stop();
+          Booster?.StopPlay();
         }
         else if (isRestingTime) {
           dueTime = TimeSpan.FromMinutes(AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
           Logger.Info(Messages.RestTime);
-          Booster?.Stop(true);
+          Booster?.StopPlay(true);
         }
         else {
           dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);

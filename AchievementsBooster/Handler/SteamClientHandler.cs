@@ -12,6 +12,7 @@ using AchievementsBooster.Data;
 using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helpers;
 using ArchiSteamFarm.Core;
+using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using SteamKit2;
 using SteamKit2.Internal;
@@ -163,7 +164,11 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
 
     AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet? productInfoResultSet = null;
 
-    for (byte i = 0; i < maxTries && productInfoResultSet == null && Bot.IsConnectedAndLoggedOn; i++) {
+    for (byte i = 0; i < maxTries && productInfoResultSet == null; i++) {
+      if (!Bot.IsConnectedAndLoggedOn) {
+        throw new OperationCanceledException(Strings.BotNotConnected);
+      }
+
       try {
         await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
         productInfoResultSet = await Bot.SteamApps.PICSGetProductInfo(request.ToEnumerable(), []).ToLongRunningTask().ConfigureAwait(false);
@@ -212,7 +217,11 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
   private async Task<ulong?> GetPICSAccessTokens(uint appID, byte maxTries, CancellationToken cancellationToken) {
     SteamApps.PICSTokensCallback? tokenCallback = null;
 
-    for (byte i = 0; i < maxTries && tokenCallback == null && Bot.IsConnectedAndLoggedOn; i++) {
+    for (byte i = 0; i < maxTries && tokenCallback == null; i++) {
+      if (!Bot.IsConnectedAndLoggedOn) {
+        throw new OperationCanceledException(Strings.BotNotConnected);
+      }
+
       try {
         await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
         tokenCallback = await Bot.SteamApps.PICSGetAccessTokens(appID, null).ToLongRunningTask().ConfigureAwait(false);
