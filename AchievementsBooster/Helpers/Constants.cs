@@ -31,5 +31,5 @@ public static class Constants {
 
   public const byte MaxUnlockAchievementTries = 3;
 
-  public static readonly Uri AchievementsFilterAPI = new("https://ab.omyto.com/api/achievements");
+  public static readonly Uri AchievementsFilterAPI = new("https://ab.omyto.com/api/filters");
 }

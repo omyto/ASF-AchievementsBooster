@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
+using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Web;
 using ArchiSteamFarm.Web.Responses;
@@ -86,17 +87,26 @@ internal static class AppUtils {
     await AchievementsFilterSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
     try {
+      BoosterGlobalConfig config = AchievementsBoosterPlugin.GlobalConfig;
+
       Dictionary<string, string> headers = new() {
         { "ab-booster", clientHandler.Identifier },
         { "ab-version", Constants.PluginVersionString },
         { "asf-version",  ASFVersion.Value }
       };
 
-      Dictionary<string, uint[]> data = new() {
-        { "appids", ownedGames.ToArray() }
+      Dictionary<string, object> data = new() {
+        { "appIds", ownedGames.ToArray() },
+        { "restriction",  new Dictionary<string, object>() {
+          { "vac", config.RestrictAppWithVAC },
+          { "dlc", config.RestrictAppWithDLC },
+          { "developers", config.RestrictDevelopers.ToArray() },
+          { "publishers", config.RestrictPublishers.ToArray() },
+          { "excludedAppIds", config.UnrestrictedApps.ToArray() }
+        }}
       };
 
-      ObjectResponse<AchievementsFilterResponse>? response = await ASF.WebBrowser.UrlPostToJsonObject<AchievementsFilterResponse, IDictionary<string, uint[]>>(
+      ObjectResponse<AchievementsFilterResponse>? response = await ASF.WebBrowser.UrlPostToJsonObject<AchievementsFilterResponse, IDictionary<string, object>>(
         Constants.AchievementsFilterAPI, headers, data, maxTries: 3, rateLimitingDelay: 1000, cancellationToken: cancellationToken).ConfigureAwait(false);
       result = response?.Content?.AppIDs;
 
