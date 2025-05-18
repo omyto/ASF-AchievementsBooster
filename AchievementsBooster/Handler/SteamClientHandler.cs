@@ -76,7 +76,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
 
   internal async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {
     if (!Client.IsConnected) {
-      throw new TaskCanceledException(Strings.BotNotConnected);
+      throw new OperationCanceledException(Strings.BotNotConnected);
     }
 
     ClientMsgProtobuf<CMsgClientStoreUserStats2> request = new(EMsg.ClientStoreUserStats2) {
@@ -99,7 +99,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
 
   private async Task<GetUserStatsResponseCallback?> RequestUserStats(ulong appID, CancellationToken cancellationToken) {
     if (!Client.IsConnected) {
-      throw new TaskCanceledException(Strings.BotNotConnected);
+      throw new OperationCanceledException(Strings.BotNotConnected);
     }
 
     ClientMsgProtobuf<CMsgClientGetUserStats> request = new(EMsg.ClientGetUserStats) {
