@@ -10,9 +10,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Data;
 using AchievementsBooster.Handler.Callback;
+using AchievementsBooster.Handler.Exceptions;
 using AchievementsBooster.Helpers;
 using ArchiSteamFarm.Core;
-using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using SteamKit2;
 using SteamKit2.Internal;
@@ -31,7 +31,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
   private string? BoosterIdentifier;
   private readonly Bot Bot;
   private readonly Logger Logger;
-  private const int RequestDelay = 500;
+  private const int RequestDelay = 600;
 
   private Player? UnifiedPlayerService;
 
@@ -76,7 +76,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
 
   internal async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {
     if (!Client.IsConnected) {
-      throw new OperationCanceledException(Strings.BotNotConnected);
+      throw new BotDisconnectedException();
     }
 
     ClientMsgProtobuf<CMsgClientStoreUserStats2> request = new(EMsg.ClientStoreUserStats2) {
@@ -99,7 +99,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
 
   private async Task<GetUserStatsResponseCallback?> RequestUserStats(ulong appID, CancellationToken cancellationToken) {
     if (!Client.IsConnected) {
-      throw new OperationCanceledException(Strings.BotNotConnected);
+      throw new BotDisconnectedException();
     }
 
     ClientMsgProtobuf<CMsgClientGetUserStats> request = new(EMsg.ClientGetUserStats) {
@@ -174,7 +174,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
 
     for (byte i = 0; i < maxTries && productInfoResultSet == null; i++) {
       if (!Bot.IsConnectedAndLoggedOn) {
-        throw new OperationCanceledException(Strings.BotNotConnected);
+        throw new BotDisconnectedException();
       }
 
       try {
@@ -227,7 +227,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
 
     for (byte i = 0; i < maxTries && tokenCallback == null; i++) {
       if (!Bot.IsConnectedAndLoggedOn) {
-        throw new OperationCanceledException(Strings.BotNotConnected);
+        throw new BotDisconnectedException();
       }
 
       try {

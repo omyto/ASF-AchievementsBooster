@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Booster;
 using AchievementsBooster.Handler;
+using AchievementsBooster.Handler.Exceptions;
 using AchievementsBooster.Helpers;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
@@ -74,6 +75,11 @@ internal sealed class BoostCoordinator {
     return Strings.Done;
   }
 
+  internal void OnDisconnected() {
+    Logger.Warning(Strings.BotDisconnected);
+    _ = Stop();
+  }
+
   private async void Heartbeating(object? state) {
     if (!BoosterHeartBeatSemaphore.Wait(0)) {
       Logger.Warning("The boosting process is currently running !!!");
@@ -112,8 +118,17 @@ internal sealed class BoostCoordinator {
       }
     }
     catch (Exception exception) {
-      if (exception is OperationCanceledException ex) {
-        Logger.Warning($"The boosting process has been canceled: {ex.Message} ({cancellationToken.IsCancellationRequested})");
+      if (exception is BotDisconnectedException) {
+        Logger.Warning("Boosting canceled: bot disconnected from Steam");
+      }
+      else if (exception is OperationCanceledException ex) {
+        if (cancellationToken.IsCancellationRequested) {
+          Logger.Warning("Boosting canceled: bot is disconnected or in use");
+        }
+        else {
+          Logger.Warning("Boosting canceled");
+          Logger.Warning(ex);
+        }
       }
       else {
         Logger.Exception(exception);
@@ -170,6 +185,7 @@ internal sealed class BoostCoordinator {
     ArgumentNullException.ThrowIfNull(callback);
 
     if (callback.PlayingBlocked) {
+      Logger.Warning(Strings.BotStatusPlayingNotAvailable);
       CancellationTokenSource.Cancel();
     }
   }

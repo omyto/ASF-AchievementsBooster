@@ -78,7 +78,7 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
   public Task OnBotDisconnected(Bot bot, EResult reason) {
     ArgumentNullException.ThrowIfNull(bot);
     if (Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
-      _ = coordinator.Stop();
+      coordinator.OnDisconnected();
     }
     else {
       Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
