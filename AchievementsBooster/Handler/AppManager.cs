@@ -78,7 +78,7 @@ internal sealed class AppManager {
     if (restingSet.Count > 0) {
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", restingSet)));
     }
-    Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.BoostableQueue, string.Join(",", BoostableAppQueue)));
+    Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.BoostableQueue, $"{string.Join(",", BoostableAppQueue.Take(50))}{(BoostableAppQueue.Count > 50 ? ", ..." : ".")}"));
   }
 
   internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
