@@ -34,6 +34,8 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
 
   protected abstract void ResumePlay();
 
+  internal int CurrentBoostingAppsCount => CurrentBoostingApps.Count;
+
   public void StopPlay(bool resumePlay = false) {
     if (CurrentBoostingApps.Count > 0) {
       BoosterSemaphore.Wait();

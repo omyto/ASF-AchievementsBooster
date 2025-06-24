@@ -158,7 +158,14 @@ internal sealed class BoostCoordinator {
         }
 
         _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
-        Logger.Trace($"The next heartbeat will occur in {dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}!");
+        string dueTimeMessage = $"{dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}";
+
+        if (Booster?.CurrentBoostingAppsCount > 0) {
+          Logger.Info($"Playing {Booster.CurrentBoostingAppsCount} games, unlock achievements after {dueTimeMessage}.");
+        }
+        else {
+          Logger.Info($"Next check after {dueTimeMessage}.");
+        }
       }
 
       _ = BoosterHeartBeatSemaphore.Release();
