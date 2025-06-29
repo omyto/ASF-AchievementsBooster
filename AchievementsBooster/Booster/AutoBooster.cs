@@ -40,5 +40,6 @@ internal sealed class AutoBooster : Booster {
     return HasTriggeredPlay = success;
   }
 
-  protected override void LogNoneAppsForBoosting() => Logger.Info(Messages.NoBoostingApps);
+  protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingApps;
+
 }

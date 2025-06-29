@@ -30,7 +30,7 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
   protected abstract AppBoostInfo[] GetReadyToUnlockApps();
   protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
   protected abstract Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken);
-  protected abstract void LogNoneAppsForBoosting();
+  protected abstract string GetNoBoostingAppsMessage();
 
   protected abstract void ResumePlay();
 
@@ -76,7 +76,7 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
         }
       }
       else {
-        LogNoneAppsForBoosting();
+        Logger.Info(GetNoBoostingAppsMessage());
       }
     }
     finally {

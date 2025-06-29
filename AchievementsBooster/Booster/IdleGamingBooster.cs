@@ -51,6 +51,6 @@ internal sealed class IdleGamingBooster : Booster {
 
   protected override Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
 
-  protected override void LogNoneAppsForBoosting() => Logger.Info(Messages.NoBoostingAppsInArchiPlayedWhileIdle);
+  protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingAppsInArchiPlayedWhileIdle;
 
 }
