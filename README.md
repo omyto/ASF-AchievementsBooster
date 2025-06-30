@@ -1,6 +1,6 @@
 # Steam Achievements Booster
 
-ASF-AchievementsBooster is a plugin for [ArchiSteamFarm](https://github.com/JustArchiNET/ArchiSteamFarm) that automatically unlocks steam game achievements.
+[ASF-AchievementsBooster](https://github.com/omyto/ASF-AchievementsBooster) is a plugin for [ArchiSteamFarm](https://github.com/JustArchiNET/ArchiSteamFarm) that automatically unlocks steam game achievements.
 
 ## Features
 
@@ -91,7 +91,8 @@ The `AchievementsBooster` plugin configuration has the following structure, whic
 
 ### Commands
 
-| Command          | Access  | Description                                 |
-| ---------------- | ------- | ------------------------------------------- |
-| `abstart [bots]` | Master+ | Starts boosting the specified bot instances |
-| `abstop [bots]`  | Master+ | Stops boosting the specified bot instances  |
+| Command           | Access  | Description                                            |
+| ----------------- | ------- | ------------------------------------------------------ |
+| `abstart [bots]`  | Master+ | Starts boosting the specified bot instances.           |
+| `abstop [bots]`   | Master+ | Stops boosting the specified bot instances.            |
+| `abstatus [bots]` | Master+ | Prints boosting status of the specified bot instances. |

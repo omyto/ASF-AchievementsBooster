@@ -29,6 +29,8 @@ internal static class CommandsHandler {
         return args.Length == 1 ? ResponseStart(access, bot) : await ResponseStart(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
       case "ABSTOP":
         return args.Length == 1 ? ResponseStop(access, bot) : await ResponseStop(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
+      case "ABSTATUS":
+        return args.Length == 1 ? ResponseStatus(access, bot) : await ResponseStatus(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
       default:
         break;
     }
@@ -72,15 +74,27 @@ internal static class CommandsHandler {
     return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
   }
 
+  // -- Start
+
   private static string? ResponseStart(EAccess access, Bot bot)
     => InvokeBot(access, bot, nameof(BoostCoordinator.Start), [typeof(bool)], [true], EAccess.Master);
 
   private static async Task<string?> ResponseStart(EAccess access, string botNames, ulong steamID = 0)
     => await InvokeBots(access, botNames, steamID, nameof(BoostCoordinator.Start), [typeof(bool)], [true], EAccess.Master).ConfigureAwait(false);
 
+  // -- Stop
+
   private static string? ResponseStop(EAccess access, Bot bot)
     => InvokeBot(access, bot, nameof(BoostCoordinator.Stop), null, null, EAccess.Master);
 
   private static async Task<string?> ResponseStop(EAccess access, string botNames, ulong steamID = 0)
     => await InvokeBots(access, botNames, steamID, nameof(BoostCoordinator.Stop), null, null, EAccess.Master).ConfigureAwait(false);
+
+  // -- Status
+
+  private static string? ResponseStatus(EAccess access, Bot bot)
+  => InvokeBot(access, bot, nameof(BoostCoordinator.GetStatus), null, null, EAccess.Master);
+
+  private static async Task<string?> ResponseStatus(EAccess access, string botNames, ulong steamID = 0)
+    => await InvokeBots(access, botNames, steamID, nameof(BoostCoordinator.GetStatus), null, null, EAccess.Master).ConfigureAwait(false);
 }

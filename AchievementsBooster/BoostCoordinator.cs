@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Booster;
@@ -78,6 +79,22 @@ internal sealed class BoostCoordinator {
   internal void OnDisconnected() {
     Logger.Warning(Strings.BotDisconnected);
     _ = Stop();
+  }
+
+  [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
+  internal string GetStatus() {
+    if (BoosterHeartBeatTimer == null) {
+      return string.Join(Environment.NewLine, [
+        "AchievementsBooster isn't running. Use the 'abstart' command to start boosting.",
+        "To enable automatic startup when ASF launches, add the bot name to the 'AutoStartBots' array in the JSON configuration file."
+      ]);
+    }
+
+    if (Booster?.CurrentBoostingAppsCount > 0) {
+      return $"AchievementsBooster is running (mode: {Booster.Mode}). Boosting {Booster.CurrentBoostingAppsCount} game(s)";
+    }
+
+    return "AchievementsBooster is running, but there are no games to boost";
   }
 
   private async void Heartbeating(object? state) {
