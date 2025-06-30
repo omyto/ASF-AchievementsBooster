@@ -1,14 +1,15 @@
-using System.Collections.Generic;
-using System.Globalization;
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Globalization;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
+using AchievementsBooster.Helpers;
 using ArchiSteamFarm.Core;
+using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Steam.Interaction;
-using ArchiSteamFarm.Localization;
-using System.Linq;
-using System.ComponentModel;
-using AchievementsBooster.Helpers;
 
 namespace AchievementsBooster.Handler;
 
@@ -34,7 +35,28 @@ internal static class CommandsHandler {
     return null;
   }
 
-  private static async Task<string?> ResponseStart(EAccess access, string botNames, ulong steamID = 0) {
+  // Generic
+
+  private static string? InvokeBot(EAccess access, Bot bot, string methodName, Type[]? types = null, object[]? parameters = null, EAccess accessRequired = EAccess.Master) {
+    if (access < accessRequired) {
+      return null;
+    }
+
+    if (!AchievementsBoosterPlugin.Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
+      return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+    }
+
+    MethodInfo? method = coordinator.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, types ?? Type.EmptyTypes);
+    if (method != null) {
+      string? response = method.Invoke(coordinator, parameters) as string;
+      return bot.Commands.FormatBotResponse(response ?? "No response");
+    }
+    else {
+      return Commands.FormatStaticResponse($"Method {methodName} not found");
+    }
+  }
+
+  private static async Task<string?> InvokeBots(EAccess access, string botNames, ulong steamID, string methodName, Type[]? types = null, object[]? parameters = null, EAccess accessRequired = EAccess.Master) {
     ArgumentException.ThrowIfNullOrEmpty(botNames);
 
     HashSet<Bot>? bots = Bot.GetBots(botNames);
@@ -43,52 +65,22 @@ internal static class CommandsHandler {
       return access >= EAccess.Owner ? Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Strings.BotNotFound, botNames)) : null;
     }
 
-    IList<string?> results = await Utilities.InParallel(bots.Select(bot => Task.Run(() => ResponseStart(Commands.GetProxyAccess(bot, access, steamID), bot)))).ConfigureAwait(false);
+    IList<string?> results = await Utilities.InParallel(bots.Select(bot => Task.Run(() => InvokeBot(Commands.GetProxyAccess(bot, access, steamID), bot, methodName, types, parameters, accessRequired)))).ConfigureAwait(false);
 
     List<string> responses = [.. results.Where(static result => !string.IsNullOrEmpty(result))!];
 
     return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
   }
 
-  private static string? ResponseStart(EAccess access, Bot bot) {
-    if (access < EAccess.Master) {
-      return null;
-    }
+  private static string? ResponseStart(EAccess access, Bot bot)
+    => InvokeBot(access, bot, nameof(BoostCoordinator.Start), [typeof(bool)], [true], EAccess.Master);
 
-    if (!AchievementsBoosterPlugin.Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
-      return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
-    }
+  private static async Task<string?> ResponseStart(EAccess access, string botNames, ulong steamID = 0)
+    => await InvokeBots(access, botNames, steamID, nameof(BoostCoordinator.Start), [typeof(bool)], [true], EAccess.Master).ConfigureAwait(false);
 
-    string response = coordinator.Start(true);
-    return bot.Commands.FormatBotResponse(response);
-  }
+  private static string? ResponseStop(EAccess access, Bot bot)
+    => InvokeBot(access, bot, nameof(BoostCoordinator.Stop), null, null, EAccess.Master);
 
-  private static string? ResponseStop(EAccess access, Bot bot) {
-    if (access < EAccess.Master) {
-      return null;
-    }
-
-    if (!AchievementsBoosterPlugin.Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
-      return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
-    }
-
-    string response = coordinator.Stop();
-    return bot.Commands.FormatBotResponse(response);
-  }
-
-  private static async Task<string?> ResponseStop(EAccess access, string botNames, ulong steamID = 0) {
-    ArgumentException.ThrowIfNullOrEmpty(botNames);
-
-    HashSet<Bot>? bots = Bot.GetBots(botNames);
-
-    if (bots == null || bots.Count == 0) {
-      return access >= EAccess.Owner ? Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Strings.BotNotFound, botNames)) : null;
-    }
-
-    IList<string?> results = await Utilities.InParallel(bots.Select(bot => Task.Run(() => ResponseStop(Commands.GetProxyAccess(bot, access, steamID), bot)))).ConfigureAwait(false);
-
-    List<string> responses = [.. results.Where(static result => !string.IsNullOrEmpty(result))!];
-
-    return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
-  }
+  private static async Task<string?> ResponseStop(EAccess access, string botNames, ulong steamID = 0)
+    => await InvokeBots(access, botNames, steamID, nameof(BoostCoordinator.Stop), null, null, EAccess.Master).ConfigureAwait(false);
 }
