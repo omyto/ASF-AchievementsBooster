@@ -79,7 +79,9 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
       }
       else {
         Logger.Info(GetNoBoostingAppsMessage());
-        FallBackToIdleGaming();
+        if (AchievementsBoosterPlugin.GlobalConfig.BoostHoursWhenIdle) {
+          _ = FallBackToIdleGaming();
+        }
       }
     }
     finally {

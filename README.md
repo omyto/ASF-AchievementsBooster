@@ -32,6 +32,7 @@ The `AchievementsBooster` plugin configuration has the following structure, whic
     "BoostDurationPerApp": 600,
     "BoostRestTimePerApp": 600,
     "RestTimePerDay": 0,
+    "BoostHoursWhenIdle": false,
     "RestrictAppWithVAC": true,
     "RestrictAppWithDLC": true,
     "RestrictDevelopers": [],
@@ -60,6 +61,7 @@ The `AchievementsBooster` plugin configuration has the following structure, whic
     "BoostDurationPerApp": 300,
     "BoostRestTimePerApp": 300,
     "RestTimePerDay": 0,
+    "BoostHoursWhenIdle": true,
     "RestrictAppWithVAC": true,
     "RestrictAppWithDLC": true,
     "RestrictDevelopers": [ "Valve" ],
@@ -82,10 +84,11 @@ The `AchievementsBooster` plugin configuration has the following structure, whic
 | BoostDurationPerApp         | Number      | 600     | 0-30000 | Maximum continuous boosting time for each application.<br>If this duration is exceeded, the plugin will add the application to the resting list and switch to boosting another application.<br>Set the value to 0 if you want to continuously boost an application until all its achievements are unlocked.<br>Unit: `minutes`. |
 | BoostRestTimePerApp         | Number      | 600     | 0-30000 | Resting time for each application.<br>Unit: `minutes`.                                                                                                                                                                                                                                                                          |
 | RestTimePerDay              | Number      | 0       | 0-600   | The duration during which the plugin does not boost any application.<br>Just like when you go to sleep and stop playing games.<br>Unit: `minutes`.                                                                                                                                                                              |
+| BoostHoursWhenIdle          | Boolean     | false   |         | If the value is `true`, the plugin will automatically boost hours for all random applications (ignoring the blacklist) when there are no achievements to unlock.                                                                                                                                                                |
 | RestrictAppWithVAC          | Boolean     | true    |         | If the value is `true`, plugin will skip unlocking achievements for applications with VAC.                                                                                                                                                                                                                                      |
 | RestrictAppWithDLC          | Boolean     | true    |         | Some achievements are tied to specific DLCs. If you don't own the DLC, unlocking these achievements might not be appropriate.<br>Set the value to `true` to skip boosting for applications with DLCs, or set it to `false` to unlock all achievements regardless.                                                               |
 | RestrictDevelopers          | List String |         |         | You may not want to boost certain applications developed by a specific developer.<br>Enter the developer's name in this list, and the plugin will skip boosting any applications by that developer.                                                                                                                             |
-| RestrictPublishers          | List String |         |         | Similar to RestrictDevelopers, but this list is for publishers.                                                                                                                                                                                                                                                                   |
+| RestrictPublishers          | List String |         |         | Similar to RestrictDevelopers, but this list is for publishers.                                                                                                                                                                                                                                                                 |
 | UnrestrictedApps            | List Number |         |         | A list of app IDs that will not be subject to the above restrictions.                                                                                                                                                                                                                                                           |
 | Blacklist                   | List Number |         |         | List of appIDs that the plugin will skip boosting achievements.                                                                                                                                                                                                                                                                 |
 
