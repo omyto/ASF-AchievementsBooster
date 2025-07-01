@@ -42,4 +42,18 @@ internal sealed class AutoBooster : Booster {
 
   protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingApps;
 
+  protected override async Task FallBackToIdleGaming() {
+    HoursBooster.Instance.Update(Bot.AppManager.OwnedGames);
+
+    if (HoursBooster.Instance.ReadyToBoostGames.Count > 0) {
+      (bool success, string message) = await Bot.PlayGames(HoursBooster.Instance.ReadyToBoostGames).ConfigureAwait(false);
+      if (success) {
+        HasTriggeredPlay = true;
+        Logger.Info($"Boosting hours {HoursBooster.Instance.ReadyToBoostGames.Count} game(s): {string.Join(",", HoursBooster.Instance.ReadyToBoostGames)}");
+      }
+      else {
+        Logger.Warning($"Boosting hours failed; reason: {message}");
+      }
+    }
+  }
 }

@@ -34,6 +34,8 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
 
   protected abstract void ResumePlay();
 
+  protected abstract Task FallBackToIdleGaming();
+
   internal int CurrentBoostingAppsCount => CurrentBoostingApps.Count;
 
   public void StopPlay(bool resumePlay = false) {
@@ -77,6 +79,7 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
       }
       else {
         Logger.Info(GetNoBoostingAppsMessage());
+        FallBackToIdleGaming();
       }
     }
     finally {

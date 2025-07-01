@@ -17,6 +17,7 @@ public sealed class BoosterGlobalConfig {
   public const int DefaultMaxConcurrentlyBoostingApps = 1;
   public const bool DefaultRestrictAppWithVAC = true;
   public const bool DefaultRestrictAppWithDLC = true;
+  public const bool DefaultBoostHoursWhenIdle = true;
 
   [JsonInclude]
   public ImmutableHashSet<string> AutoStartBots { get; private set; } = [];
@@ -62,6 +63,9 @@ public sealed class BoosterGlobalConfig {
 
   [JsonInclude]
   public ImmutableHashSet<uint> Blacklist { get; private set; } = [];
+
+  [JsonInclude]
+  public bool BoostHoursWhenIdle { get; private set; } = DefaultBoostHoursWhenIdle;
 
   [JsonConstructor]
   internal BoosterGlobalConfig() { }
