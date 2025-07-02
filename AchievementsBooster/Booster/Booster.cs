@@ -34,7 +34,7 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
 
   protected abstract void ResumePlay();
 
-  protected abstract Task FallBackToIdleGaming();
+  protected abstract Task FallBackToIdleGaming(CancellationToken cancellationToken);
 
   internal int CurrentBoostingAppsCount => CurrentBoostingApps.Count;
 
@@ -80,7 +80,7 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
       else {
         Logger.Info(GetNoBoostingAppsMessage());
         if (AchievementsBoosterPlugin.GlobalConfig.BoostHoursWhenIdle) {
-          _ = FallBackToIdleGaming();
+          await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
         }
       }
     }

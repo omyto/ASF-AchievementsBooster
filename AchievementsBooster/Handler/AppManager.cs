@@ -201,6 +201,9 @@ internal sealed class AppManager {
     return app;
   }
 
+  internal async Task<ProductInfo?> GetProductInfo(uint appID, CancellationToken cancellationToken)
+    => await AppUtils.GetProduct(appID, SteamClientHandler, Logger, cancellationToken).ConfigureAwait(false);
+
   private async Task<(EGetAppStatus status, AppBoostInfo?)> GetApp(uint appID, CancellationToken cancellationToken) {
     ProductInfo? productInfo = await AppUtils.GetProduct(appID, SteamClientHandler, Logger, cancellationToken).ConfigureAwait(false);
     if (productInfo == null) {
@@ -264,7 +267,7 @@ internal sealed class AppManager {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    int unlockableAchievementsCount = remainingAchievements.Where(e => !e.Restricted).Count();
+    int unlockableAchievementsCount = remainingAchievements.Count(e => !e.Restricted);
     if (unlockableAchievementsCount == 0) {
       Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, productInfo.FullName));
       return (EGetAppStatus.NonBoostable, null);

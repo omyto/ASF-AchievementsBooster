@@ -67,5 +67,5 @@ internal sealed class CardFarmingBooster : Booster {
 
   protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingAppsInArchiFarming;
 
-  protected override Task FallBackToIdleGaming() => Task.CompletedTask;
+  protected override Task FallBackToIdleGaming(CancellationToken cancellationToken) => Task.CompletedTask;
 }

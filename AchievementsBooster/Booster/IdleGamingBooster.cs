@@ -53,5 +53,5 @@ internal sealed class IdleGamingBooster : Booster {
 
   protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingAppsInArchiPlayedWhileIdle;
 
-  protected override Task FallBackToIdleGaming() => Task.CompletedTask;
+  protected override Task FallBackToIdleGaming(CancellationToken cancellationToken) => Task.CompletedTask;
 }

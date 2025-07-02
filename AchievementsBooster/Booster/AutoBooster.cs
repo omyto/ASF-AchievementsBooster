@@ -42,8 +42,8 @@ internal sealed class AutoBooster : Booster {
 
   protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingApps;
 
-  protected override async Task FallBackToIdleGaming() {
-    HoursBooster.Instance.Update(Bot.AppManager.OwnedGames);
+  protected override async Task FallBackToIdleGaming(CancellationToken cancellationToken) {
+    await HoursBooster.Instance.Update(Bot.AppManager, cancellationToken).ConfigureAwait(false);
 
     if (HoursBooster.Instance.ReadyToBoostGames.Count > 0) {
       (bool success, string message) = await Bot.PlayGames(HoursBooster.Instance.ReadyToBoostGames).ConfigureAwait(false);
