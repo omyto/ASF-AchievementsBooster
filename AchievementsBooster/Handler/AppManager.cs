@@ -179,11 +179,6 @@ internal sealed class AppManager {
   }
 
   internal async Task<AppBoostInfo?> GetAppBoost(uint appID, CancellationToken cancellationToken) {
-    if (!OwnedGames.Contains(appID)) {
-      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.NotOwnedGame, appID));
-      return null;
-    }
-
     if (!IsBoostableApp(appID)) {
       return null;
     }

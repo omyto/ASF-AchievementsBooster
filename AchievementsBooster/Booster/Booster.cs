@@ -59,7 +59,7 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
     await BoosterSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
     try {
-      await UnlockAchievements(DateTime.Now, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
+      await Achieve(DateTime.Now, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
       if (isRestingTime) {
         return;
       }
@@ -89,7 +89,8 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
     }
   }
 
-  private async Task UnlockAchievements(DateTime currentTime, DateTime lastBoosterHeartBeatTime, CancellationToken cancellationToken) {
+  // Unlock achievements
+  private async Task Achieve(DateTime currentTime, DateTime lastBoosterHeartBeatTime, CancellationToken cancellationToken) {
     if (CurrentBoostingApps.Count == 0) {
       return;
     }
@@ -128,13 +129,19 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
         }
       }
 
-      if (AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp > 0) {
-        if (app.BoostingDuration >= AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp) {
-          _ = CurrentBoostingApps.Remove(app.ID);
-          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
-          AppManager.MarkAppAsResting(app);
-        }
+      _ = Resting(app);
+    }
+  }
+
+  private bool Resting(AppBoostInfo app) {
+    if (AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp > 0) {
+      if (app.BoostingDuration >= AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp) {
+        _ = CurrentBoostingApps.Remove(app.ID);
+        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
+        AppManager.MarkAppAsResting(app);
+        return true;
       }
     }
+    return false;
   }
 }
