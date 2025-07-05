@@ -129,7 +129,9 @@ internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
         }
       }
 
-      _ = Resting(app);
+      if (Mode == EBoostMode.AutoBoost) {
+        _ = Resting(app);
+      }
     }
   }
 
