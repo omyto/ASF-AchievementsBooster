@@ -56,7 +56,7 @@ internal sealed class BoosterBot {
     if (AppManager.OwnedGames.Count == 0 || (now - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
       Dictionary<uint, string>? ownedGames = await ASFBot.ArchiHandler.GetOwnedGames(SteamID).ConfigureAwait(false);
       if (ownedGames != null) {
-        await AppManager.UpdateOwnedGames(ownedGames.Keys.ToHashSet(), cancellationToken).ConfigureAwait(false);
+        await AppManager.UpdateQueue(ownedGames.Keys.ToHashSet(), cancellationToken).ConfigureAwait(false);
         LastUpdateOwnedGamesTime = now;
       }
     }

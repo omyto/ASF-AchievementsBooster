@@ -40,7 +40,7 @@ internal sealed class AppManager {
     Logger = logger;
   }
 
-  internal async Task UpdateOwnedGames(HashSet<uint> newOwnedGames, CancellationToken cancellationToken) {
+  internal async Task UpdateQueue(HashSet<uint> newOwnedGames, CancellationToken cancellationToken) {
     HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
     if (gamesRemoved.Count > 0) {
       Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
@@ -76,9 +76,9 @@ internal sealed class AppManager {
 
     Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
     if (restingSet.Count > 0) {
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", restingSet)));
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", restingSet)));
     }
-    Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.BoostableQueue, $"{string.Join(",", BoostableAppQueue.Take(50))}{(BoostableAppQueue.Count > 50 ? ", ..." : ".")}"));
+    Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostableQueue, $"{string.Join(",", BoostableAppQueue.Take(50))}{(BoostableAppQueue.Count > 50 ? ", ..." : ".")}"));
   }
 
   internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
@@ -215,13 +215,13 @@ internal sealed class AppManager {
     if (productInfo.IsVACEnabled) {
       _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
       if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithVAC) {
-        Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, productInfo.FullName));
+        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, productInfo.FullName));
         return (EGetAppStatus.NonBoostable, null);
       }
     }
 
     if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithDLC && productInfo.DLCs.Count > 0) {
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, productInfo.FullName));
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, productInfo.FullName));
       _ = NonBoostableApps.Add(appID);
       return (EGetAppStatus.NonBoostable, null);
     }
@@ -229,7 +229,7 @@ internal sealed class AppManager {
     if (AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers.Count > 0) {
       foreach (string developer in AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers) {
         if (productInfo.Developers.Contains(developer)) {
-          Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, productInfo.FullName, developer));
+          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, productInfo.FullName, developer));
           _ = NonBoostableApps.Add(appID);
           return (EGetAppStatus.NonBoostable, null);
         }
@@ -239,7 +239,7 @@ internal sealed class AppManager {
     if (AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers.Count > 0) {
       foreach (string publisher in AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers) {
         if (productInfo.Publishers.Contains(publisher)) {
-          Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, productInfo.FullName, publisher));
+          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, productInfo.FullName, publisher));
           _ = NonBoostableApps.Add(appID);
           return (EGetAppStatus.NonBoostable, null);
         }
@@ -250,7 +250,7 @@ internal sealed class AppManager {
     List<StatData>? statDatas = response?.StatDatas;
     if (statDatas == null || statDatas.Count == 0) {
       _ = AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Add(appID);
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, productInfo.FullName));
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, productInfo.FullName));
       productInfo.IsBoostable = false;
       return (EGetAppStatus.NonBoostable, null);
     }
@@ -258,13 +258,13 @@ internal sealed class AppManager {
     List<StatData> remainingAchievements = statDatas.Where(e => !e.IsSet).ToList();
     if (remainingAchievements.Count == 0) {
       _ = Cache.PerfectGames.Add(appID);
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.PerfectApp, productInfo.FullName));
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.PerfectApp, productInfo.FullName));
       return (EGetAppStatus.NonBoostable, null);
     }
 
     int unlockableAchievementsCount = remainingAchievements.Count(e => !e.Restricted);
     if (unlockableAchievementsCount == 0) {
-      Logger.Debug(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, productInfo.FullName));
+      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, productInfo.FullName));
       return (EGetAppStatus.NonBoostable, null);
     }
 
