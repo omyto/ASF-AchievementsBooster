@@ -212,36 +212,38 @@ internal sealed class AppManager {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    if (productInfo.IsVACEnabled) {
-      _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
-      if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithVAC) {
-        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, productInfo.FullName));
-        return (EGetAppStatus.NonBoostable, null);
-      }
-    }
-
-    if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithDLC && productInfo.DLCs.Count > 0) {
-      Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, productInfo.FullName));
-      _ = NonBoostableApps.Add(appID);
-      return (EGetAppStatus.NonBoostable, null);
-    }
-
-    if (AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers.Count > 0) {
-      foreach (string developer in AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers) {
-        if (productInfo.Developers.Contains(developer)) {
-          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, productInfo.FullName, developer));
-          _ = NonBoostableApps.Add(appID);
+    if (!AchievementsBoosterPlugin.GlobalConfig.UnrestrictedApps.Contains(appID)) {
+      if (productInfo.IsVACEnabled) {
+        _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
+        if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithVAC) {
+          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, productInfo.FullName));
           return (EGetAppStatus.NonBoostable, null);
         }
       }
-    }
 
-    if (AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers.Count > 0) {
-      foreach (string publisher in AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers) {
-        if (productInfo.Publishers.Contains(publisher)) {
-          Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, productInfo.FullName, publisher));
-          _ = NonBoostableApps.Add(appID);
-          return (EGetAppStatus.NonBoostable, null);
+      if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithDLC && productInfo.DLCs.Count > 0) {
+        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, productInfo.FullName));
+        _ = NonBoostableApps.Add(appID);
+        return (EGetAppStatus.NonBoostable, null);
+      }
+
+      if (AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers.Count > 0) {
+        foreach (string developer in AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers) {
+          if (productInfo.Developers.Contains(developer)) {
+            Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, productInfo.FullName, developer));
+            _ = NonBoostableApps.Add(appID);
+            return (EGetAppStatus.NonBoostable, null);
+          }
+        }
+      }
+
+      if (AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers.Count > 0) {
+        foreach (string publisher in AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers) {
+          if (productInfo.Publishers.Contains(publisher)) {
+            Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, productInfo.FullName, publisher));
+            _ = NonBoostableApps.Add(appID);
+            return (EGetAppStatus.NonBoostable, null);
+          }
         }
       }
     }
