@@ -12,7 +12,7 @@ using SteamKit2;
 
 namespace AchievementsBooster;
 
-internal sealed class BoostCoordinator {
+internal sealed class Booster {
 
   internal SteamClientHandler SteamClientHandler => Bot.SteamClientHandler;
 
@@ -27,9 +27,9 @@ internal sealed class BoostCoordinator {
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
 
-  internal BoostCoordinator(Bot bot) => Bot = new BoosterBot(bot);
+  internal Booster(Bot bot) => Bot = new BoosterBot(bot);
 
-  ~BoostCoordinator() => StopTimer();
+  ~Booster() => StopTimer();
 
   private void StopTimer() {
     CancellationTokenSource.Cancel();

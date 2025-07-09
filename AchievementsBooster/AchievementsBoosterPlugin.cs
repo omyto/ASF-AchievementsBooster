@@ -19,7 +19,7 @@ namespace AchievementsBooster;
 [Export(typeof(IPlugin))]
 public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBotSteamClient, IBotCommand2, IGitHubPluginUpdates {
 
-  internal static readonly ConcurrentDictionary<Bot, BoostCoordinator> Coordinators = new();
+  internal static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
   internal static BoosterGlobalConfig GlobalConfig { get; private set; } = new();
 
@@ -66,9 +66,9 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   public Task OnBotDestroy(Bot bot) {
     ArgumentNullException.ThrowIfNull(bot);
-    if (Coordinators.TryRemove(bot, out BoostCoordinator? coordinator)) {
+    if (Boosters.TryRemove(bot, out Booster? booster)) {
       Logger.Shared.Trace($"Destroy booster for bot: {bot.BotName}");
-      _ = coordinator.Stop();
+      _ = booster.Stop();
     }
     return Task.CompletedTask;
   }
@@ -77,8 +77,8 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   public Task OnBotDisconnected(Bot bot, EResult reason) {
     ArgumentNullException.ThrowIfNull(bot);
-    if (Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
-      coordinator.OnDisconnected();
+    if (Boosters.TryGetValue(bot, out Booster? booster)) {
+      booster.OnDisconnected();
     }
     else {
       Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
@@ -88,9 +88,9 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   public Task OnBotLoggedOn(Bot bot) {
     ArgumentNullException.ThrowIfNull(bot);
-    if (Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
+    if (Boosters.TryGetValue(bot, out Booster? booster)) {
       if (GlobalConfig.AutoStartBots.Contains(bot.BotName)) {
-        _ = coordinator.Start();
+        _ = booster.Start();
       }
     }
     else {
@@ -103,8 +103,8 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   public Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager) {
     ArgumentNullException.ThrowIfNull(bot);
-    if (Coordinators.TryGetValue(bot, out BoostCoordinator? coordinator)) {
-      return coordinator.OnSteamCallbacksInit(callbackManager);
+    if (Boosters.TryGetValue(bot, out Booster? booster)) {
+      return booster.OnSteamCallbacksInit(callbackManager);
     }
     Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     return Task.CompletedTask;
@@ -112,9 +112,9 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
     ArgumentNullException.ThrowIfNull(bot);
-    BoostCoordinator coordinator = new(bot);
-    if (Coordinators.TryAdd(bot, coordinator)) {
-      return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([coordinator.SteamClientHandler]);
+    Booster booster = new(bot);
+    if (Boosters.TryAdd(bot, booster)) {
+      return Task.FromResult<IReadOnlyCollection<ClientMsgHandler>?>([booster.SteamClientHandler]);
     }
 
     Logger.Shared.Error(string.Format(CultureInfo.CurrentCulture, Messages.BoosterInitEror, bot.BotName));
