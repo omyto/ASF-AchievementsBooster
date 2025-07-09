@@ -21,9 +21,9 @@ internal sealed class Booster : IBooster {
 
   private BoostEngine? Engine { get; set; }
 
-  private Timer? BoosterHeartBeatTimer { get; set; }
-  private DateTime LastBoosterHeartBeatTime { get; set; }
-  private SemaphoreSlim BoosterHeartBeatSemaphore { get; } = new SemaphoreSlim(1);
+  private Timer? BeatingTimer { get; set; }
+  private DateTime LastBeatingTime { get; set; }
+  private SemaphoreSlim BeatingSemaphore { get; } = new SemaphoreSlim(1);
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
 
@@ -33,12 +33,12 @@ internal sealed class Booster : IBooster {
 
   private void StopTimer() {
     CancellationTokenSource.Cancel();
-    BoosterHeartBeatTimer?.Dispose();
-    BoosterHeartBeatTimer = null;
+    BeatingTimer?.Dispose();
+    BeatingTimer = null;
   }
 
   internal string Stop() {
-    if (BoosterHeartBeatTimer == null) {
+    if (BeatingTimer == null) {
       Logger.Trace(Messages.BoostingNotStart);
       return Messages.BoostingNotStart;
     }
@@ -52,7 +52,7 @@ internal sealed class Booster : IBooster {
 
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
   internal string GetStatus() {
-    if (BoosterHeartBeatTimer == null) {
+    if (BeatingTimer == null) {
       return string.Join(Environment.NewLine, [
         "AchievementsBooster isn't running. Use the 'abstart' command to start boosting.",
         "To enable automatic startup when ASF launches, add the bot name to the 'AutoStartBots' array in the JSON configuration file."
@@ -66,8 +66,8 @@ internal sealed class Booster : IBooster {
     return "AchievementsBooster is running, but there are no games to boost";
   }
 
-  private async void Heartbeating(object? state) {
-    if (!BoosterHeartBeatSemaphore.Wait(0)) {
+  private async void Beating(object? state) {
+    if (!BeatingSemaphore.Wait(0)) {
       Logger.Warning("The boosting process is currently running !!!");
       return;
     }
@@ -96,7 +96,7 @@ internal sealed class Booster : IBooster {
           }
 
           isRestingTime = IsRestingTime(currentTime);
-          await Engine.Boosting(LastBoosterHeartBeatTime, isRestingTime, cancellationToken).ConfigureAwait(false);
+          await Engine.Boosting(LastBeatingTime, isRestingTime, cancellationToken).ConfigureAwait(false);
         }
         else {
           Logger.Info(Messages.NoGamesBoosting);
@@ -123,9 +123,9 @@ internal sealed class Booster : IBooster {
       Engine?.StopPlay(true);
     }
     finally {
-      LastBoosterHeartBeatTime = currentTime;
+      LastBeatingTime = currentTime;
 
-      if (BoosterHeartBeatTimer != null) {
+      if (BeatingTimer != null) {
         // Due time for the next boosting
         TimeSpan dueTime;
 
@@ -147,7 +147,7 @@ internal sealed class Booster : IBooster {
           dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
         }
 
-        _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
+        _ = BeatingTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
         string dueTimeMessage = $"{dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}";
 
         if (Engine?.CurrentBoostingAppsCount > 0) {
@@ -158,7 +158,7 @@ internal sealed class Booster : IBooster {
         }
       }
 
-      _ = BoosterHeartBeatSemaphore.Release();
+      _ = BeatingSemaphore.Release();
     }
   }
 
@@ -202,7 +202,7 @@ internal sealed class Booster : IBooster {
   }
 
   public string Start(bool command = false) {
-    if (BoosterHeartBeatTimer != null) {
+    if (BeatingTimer != null) {
       Logger.Trace(Messages.BoostingStarted);
       return Messages.BoostingStarted;
     }
@@ -216,7 +216,7 @@ internal sealed class Booster : IBooster {
       Logger.Info($"The boosting process will begin in {Constants.AutoStartDelayTime} minutes");
     }
 
-    BoosterHeartBeatTimer = new Timer(Heartbeating, null, dueTime, Timeout.InfiniteTimeSpan);
+    BeatingTimer = new Timer(Beating, null, dueTime, Timeout.InfiniteTimeSpan);
     return Strings.Done;
   }
 }
