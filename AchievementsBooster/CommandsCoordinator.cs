@@ -11,9 +11,9 @@ using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Steam.Interaction;
 
-namespace AchievementsBooster.Handler;
+namespace AchievementsBooster;
 
-internal static class CommandsHandler {
+internal static class CommandsCoordinator {
 
   internal static async Task<string?> OnBotCommand(Bot bot, EAccess access, string _/*message*/, string[] args, ulong steamID) {
     if (!Enum.IsDefined(access)) {

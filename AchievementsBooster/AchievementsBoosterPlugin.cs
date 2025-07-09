@@ -6,7 +6,6 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
-using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
@@ -114,5 +113,5 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   /** IBotCommand */
   public Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0)
-    => CommandsHandler.OnBotCommand(bot, access, message, args, steamID);
+    => CommandsCoordinator.OnBotCommand(bot, access, message, args, steamID);
 }
