@@ -139,6 +139,10 @@ internal sealed class Booster : IBooster {
           Logger.Info(Messages.RestTime);
           Engine?.StopPlay(true);
         }
+        else if (Engine is CardFarmingAuxiliaryEngine) {
+          dueTime = TimeSpan.FromMinutes(5);
+          Logger.Trace("Card farming mode active, next check in 5 minutes.");
+        }
         else {
           dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
         }
@@ -147,7 +151,7 @@ internal sealed class Booster : IBooster {
         string dueTimeMessage = $"{dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}";
 
         if (Engine?.CurrentBoostingAppsCount > 0) {
-          Logger.Info($"Playing {Engine.CurrentBoostingAppsCount} games, unlock achievements after {dueTimeMessage}.");
+          Logger.Info($"Boosting {Engine.CurrentBoostingAppsCount} games, unlock achievements after {dueTimeMessage}.");
         }
         else {
           Logger.Info($"Next check after {dueTimeMessage}.");
