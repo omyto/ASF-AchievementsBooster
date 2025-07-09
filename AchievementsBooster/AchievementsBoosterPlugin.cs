@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Composition;
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using AchievementsBooster.Handler;
@@ -19,7 +20,7 @@ namespace AchievementsBooster;
 [Export(typeof(IPlugin))]
 public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBotSteamClient, IBotCommand2, IGitHubPluginUpdates {
 
-  internal static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
+  private static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
   internal static BoosterGlobalConfig GlobalConfig { get; private set; } = new();
 
@@ -40,6 +41,16 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
     }
     GlobalCache.Init();
     return Task.CompletedTask;
+  }
+
+  internal static IBooster GetBooster(Bot bot, [CallerMemberName] string? callerMethodName = null) {
+    ArgumentNullException.ThrowIfNull(bot);
+    if (Boosters.TryGetValue(bot, out Booster? booster)) {
+      return booster;
+    }
+
+    Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName), callerMethodName);
+    return DummyBooster.Shared;
   }
 
   /** IASF */
@@ -75,40 +86,20 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   /* IBotConnection */
 
-  public Task OnBotDisconnected(Bot bot, EResult reason) {
-    ArgumentNullException.ThrowIfNull(bot);
-    if (Boosters.TryGetValue(bot, out Booster? booster)) {
-      booster.OnDisconnected();
-    }
-    else {
-      Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
-    }
-    return Task.CompletedTask;
-  }
+  public Task OnBotDisconnected(Bot bot, EResult reason) => GetBooster(bot).OnDisconnected(reason);
 
   public Task OnBotLoggedOn(Bot bot) {
     ArgumentNullException.ThrowIfNull(bot);
-    if (Boosters.TryGetValue(bot, out Booster? booster)) {
-      if (GlobalConfig.AutoStartBots.Contains(bot.BotName)) {
-        _ = booster.Start();
-      }
-    }
-    else {
-      Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
+    if (GlobalConfig.AutoStartBots.Contains(bot.BotName)) {
+      IBooster booster = GetBooster(bot);
+      _ = booster.Start();
     }
     return Task.CompletedTask;
   }
 
   /** IBotSteamClient */
 
-  public Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager) {
-    ArgumentNullException.ThrowIfNull(bot);
-    if (Boosters.TryGetValue(bot, out Booster? booster)) {
-      return booster.OnSteamCallbacksInit(callbackManager);
-    }
-    Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
-    return Task.CompletedTask;
-  }
+  public Task OnBotSteamCallbacksInit(Bot bot, CallbackManager callbackManager) => GetBooster(bot).OnSteamCallbacksInit(callbackManager);
 
   public Task<IReadOnlyCollection<ClientMsgHandler>?> OnBotSteamHandlersInit(Bot bot) {
     ArgumentNullException.ThrowIfNull(bot);

@@ -44,7 +44,7 @@ internal static class CommandsHandler {
       return null;
     }
 
-    if (!AchievementsBoosterPlugin.Boosters.TryGetValue(bot, out Booster? booster)) {
+    if (AchievementsBoosterPlugin.GetBooster(bot) is not Booster booster) {
       return Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Messages.BoosterNotFound, bot.BotName));
     }
 

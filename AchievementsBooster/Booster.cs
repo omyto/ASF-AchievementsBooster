@@ -12,7 +12,7 @@ using SteamKit2;
 
 namespace AchievementsBooster;
 
-internal sealed class Booster {
+internal sealed class Booster : IBooster {
 
   internal SteamClientHandler SteamClientHandler => Bot.SteamClientHandler;
 
@@ -37,32 +37,6 @@ internal sealed class Booster {
     BoosterHeartBeatTimer = null;
   }
 
-  internal Task OnSteamCallbacksInit(CallbackManager callbackManager) {
-    ArgumentNullException.ThrowIfNull(callbackManager);
-    SteamClientHandler.Init();
-    _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionState);
-    return Task.CompletedTask;
-  }
-
-  internal string Start(bool command = false) {
-    if (BoosterHeartBeatTimer != null) {
-      Logger.Trace(Messages.BoostingStarted);
-      return Messages.BoostingStarted;
-    }
-
-    TimeSpan dueTime = TimeSpan.Zero;
-    if (command) {
-      Logger.Info("The boosting process is starting");
-    }
-    else {
-      dueTime = TimeSpan.FromMinutes(Constants.AutoStartDelayTime);
-      Logger.Info($"The boosting process will begin in {Constants.AutoStartDelayTime} minutes");
-    }
-
-    BoosterHeartBeatTimer = new Timer(Heartbeating, null, dueTime, Timeout.InfiniteTimeSpan);
-    return Strings.Done;
-  }
-
   internal string Stop() {
     if (BoosterHeartBeatTimer == null) {
       Logger.Trace(Messages.BoostingNotStart);
@@ -74,11 +48,6 @@ internal sealed class Booster {
 
     Logger.Info("The boosting process has been stopped!");
     return Strings.Done;
-  }
-
-  internal void OnDisconnected() {
-    Logger.Warning(Strings.BotDisconnected);
-    _ = Stop();
   }
 
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
@@ -212,5 +181,38 @@ internal sealed class Booster {
       Logger.Warning(Strings.BotStatusPlayingNotAvailable);
       CancellationTokenSource.Cancel();
     }
+  }
+
+  /** IBooster implementation */
+  public Task OnDisconnected(EResult reason) {
+    Logger.Warning(Strings.BotDisconnected);
+    _ = Stop();
+    return Task.CompletedTask;
+  }
+
+  public Task OnSteamCallbacksInit(CallbackManager callbackManager) {
+    ArgumentNullException.ThrowIfNull(callbackManager);
+    SteamClientHandler.Init();
+    _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionState);
+    return Task.CompletedTask;
+  }
+
+  public string Start(bool command = false) {
+    if (BoosterHeartBeatTimer != null) {
+      Logger.Trace(Messages.BoostingStarted);
+      return Messages.BoostingStarted;
+    }
+
+    TimeSpan dueTime = TimeSpan.Zero;
+    if (command) {
+      Logger.Info("The boosting process is starting");
+    }
+    else {
+      dueTime = TimeSpan.FromMinutes(Constants.AutoStartDelayTime);
+      Logger.Info($"The boosting process will begin in {Constants.AutoStartDelayTime} minutes");
+    }
+
+    BoosterHeartBeatTimer = new Timer(Heartbeating, null, dueTime, Timeout.InfiniteTimeSpan);
+    return Strings.Done;
   }
 }
