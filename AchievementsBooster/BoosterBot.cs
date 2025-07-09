@@ -2,14 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Engine;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Storage;
-using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Steam.Cards;
 
@@ -35,7 +33,7 @@ internal sealed class BoosterBot {
   internal BoosterBot(Bot bot) {
     ASFBot = bot;
     Logger = new Logger(bot.ArchiLogger);
-    Cache = LoadOrCreateCacheForBot(bot);
+    Cache = BotCache.LoadOrCreateCacheForBot(bot);
     SteamClientHandler = new SteamClientHandler(bot, Logger);
     AppManager = new AppManager(SteamClientHandler, Cache, Logger);
   }
@@ -62,27 +60,5 @@ internal sealed class BoosterBot {
     }
 
     return AppManager.OwnedGames.Count > 0;
-  }
-
-  private BotCache LoadOrCreateCacheForBot(Bot bot) {
-    if (bot.BotDatabase == null) {
-      throw new InvalidOperationException(nameof(bot.BotDatabase));
-    }
-
-    BotCache? cache = null;
-    JsonElement jsonElement = bot.BotDatabase.LoadFromJsonStorage(Constants.BotCacheKey);
-    if (jsonElement.ValueKind == JsonValueKind.Object) {
-      try {
-        cache = jsonElement.ToJsonObject<BotCache>();
-      }
-      catch (Exception ex) {
-        Logger.Exception(ex);
-      }
-    }
-
-    cache ??= new BotCache();
-    cache.Init(bot.BotDatabase);
-
-    return cache;
   }
 }

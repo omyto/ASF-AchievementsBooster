@@ -14,6 +14,9 @@ namespace AchievementsBooster;
 
 internal sealed class Booster : IBooster {
 
+  internal Booster(Bot bot) => Bot = new BoosterBot(bot);
+  ~Booster() => StopTimer();
+
   internal SteamClientHandler SteamClientHandler => Bot.SteamClientHandler;
 
   private readonly BoosterBot Bot;
@@ -26,10 +29,6 @@ internal sealed class Booster : IBooster {
   private SemaphoreSlim BeatingSemaphore { get; } = new SemaphoreSlim(1);
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
-
-  internal Booster(Bot bot) => Bot = new BoosterBot(bot);
-
-  ~Booster() => StopTimer();
 
   private void StopTimer() {
     CancellationTokenSource.Cancel();
