@@ -90,7 +90,7 @@ internal sealed class Booster : IBooster {
             Engine = newMode switch {
               EBoostMode.CardFarming => new CardFarmingAuxiliaryEngine(Bot),
               EBoostMode.IdleGaming => new GameIdlingAuxiliaryEngine(Bot),
-              EBoostMode.AutoBoost => new BoosterEngine(Bot),
+              EBoostMode.AutoBoost => new AutoBoostingEngine(Bot),
               _ => throw new NotImplementedException()
             };
           }

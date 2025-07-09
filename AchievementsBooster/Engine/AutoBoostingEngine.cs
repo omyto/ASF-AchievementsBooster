@@ -9,11 +9,11 @@ using AchievementsBooster.Model;
 
 namespace AchievementsBooster.Engine;
 
-internal sealed class BoosterEngine : BoostEngine {
+internal sealed class AutoBoostingEngine : BoostEngine {
 
   private bool HasTriggeredPlay { get; set; }
 
-  internal BoosterEngine(BoosterBot bot) : base(EBoostMode.AutoBoost, bot) {
+  internal AutoBoostingEngine(BoosterBot bot) : base(EBoostMode.AutoBoost, bot) {
   }
 
   protected override void ResumePlay() {
