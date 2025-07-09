@@ -148,13 +148,18 @@ internal sealed class Booster : IBooster {
         }
 
         _ = BeatingTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
-        string dueTimeMessage = $"{dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}";
+
+        TimeSpan timeRemaining = dueTime;
+        if (Engine is CardFarmingAuxiliaryEngine cardFarmingEngine) {
+          timeRemaining = cardFarmingEngine.TimeToUnlock - DateTime.Now;
+        }
+        string timeRemainingMessage = $"{timeRemaining.Minutes} minutes{(timeRemaining.Seconds > 0 ? $" and {timeRemaining.Seconds} seconds" : "")}";
 
         if (Engine?.CurrentBoostingAppsCount > 0) {
-          Logger.Info($"Boosting {Engine.CurrentBoostingAppsCount} games, unlock achievements after {dueTimeMessage}.");
+          Logger.Info($"Boosting {Engine.CurrentBoostingAppsCount} games, unlock achievements after {timeRemainingMessage}.");
         }
         else {
-          Logger.Info($"Next check after {dueTimeMessage}.");
+          Logger.Info($"Next check after {timeRemainingMessage}.");
         }
       }
 
