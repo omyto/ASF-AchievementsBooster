@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
-namespace AchievementsBooster.Data;
+namespace AchievementsBooster.Model;
 
 [SuppressMessage("Design", "CA1002:Do not expose generic lists", Justification = "<Pending>")]
 [SuppressMessage("Usage", "CA2227:Collection properties should be read only", Justification = "<Pending>")]

@@ -1,6 +1,6 @@
 using System.Collections.Immutable;
 
-namespace AchievementsBooster.Data;
+namespace AchievementsBooster.Model;
 
 public sealed class ProductInfo {
   public uint ID { get; }

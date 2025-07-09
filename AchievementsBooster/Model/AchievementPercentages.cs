@@ -1,6 +1,6 @@
 using System.Collections.Frozen;
 
-namespace AchievementsBooster.Data;
+namespace AchievementsBooster.Model;
 
 public sealed class AchievementPercentages {
   public uint AppID { get; }

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
+using AchievementsBooster.Model;
 using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Engine;

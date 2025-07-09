@@ -9,7 +9,7 @@ using AchievementsBooster.Handler;
 using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helpers;
 
-namespace AchievementsBooster.Data;
+namespace AchievementsBooster.Model;
 
 public sealed class AppBoostInfo {
   public uint ID { get; }

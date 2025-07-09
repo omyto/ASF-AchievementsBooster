@@ -4,9 +4,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
+using AchievementsBooster.Model;
 
 namespace AchievementsBooster.Engine;
 
