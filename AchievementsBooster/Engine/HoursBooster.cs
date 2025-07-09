@@ -7,7 +7,7 @@ using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using ArchiSteamFarm.Core;
 
-namespace AchievementsBooster.Booster;
+namespace AchievementsBooster.Engine;
 
 internal sealed class HoursBooster {
   private static readonly Lazy<HoursBooster> InstanceHolder = new(() => new HoursBooster());

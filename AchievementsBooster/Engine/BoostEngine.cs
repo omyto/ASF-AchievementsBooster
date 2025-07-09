@@ -8,7 +8,7 @@ using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 
-namespace AchievementsBooster.Booster;
+namespace AchievementsBooster.Engine;
 
 public enum EBoostMode {
   CardFarming,
@@ -16,7 +16,7 @@ public enum EBoostMode {
   AutoBoost
 }
 
-internal abstract class Booster(EBoostMode mode, BoosterBot bot) {
+internal abstract class BoostEngine(EBoostMode mode, BoosterBot bot) {
   public EBoostMode Mode { get; } = mode;
 
   protected BoosterBot Bot { get; } = bot;

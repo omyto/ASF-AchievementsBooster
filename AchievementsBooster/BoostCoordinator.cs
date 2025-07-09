@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Booster;
+using AchievementsBooster.Engine;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Handler.Exceptions;
 using AchievementsBooster.Helpers;
@@ -19,7 +19,7 @@ internal sealed class BoostCoordinator {
   private readonly BoosterBot Bot;
   private Logger Logger => Bot.Logger;
 
-  private Booster.Booster? Booster { get; set; }
+  private BoostEngine? Engine { get; set; }
 
   private Timer? BoosterHeartBeatTimer { get; set; }
   private DateTime LastBoosterHeartBeatTime { get; set; }
@@ -70,7 +70,7 @@ internal sealed class BoostCoordinator {
     }
 
     StopTimer();
-    Booster?.StopPlay(true);
+    Engine?.StopPlay(true);
 
     Logger.Info("The boosting process has been stopped!");
     return Strings.Done;
@@ -90,8 +90,8 @@ internal sealed class BoostCoordinator {
       ]);
     }
 
-    if (Booster?.CurrentBoostingAppsCount > 0) {
-      return $"AchievementsBooster is running (mode: {Booster.Mode}). Boosting {Booster.CurrentBoostingAppsCount} game(s)";
+    if (Engine?.CurrentBoostingAppsCount > 0) {
+      return $"AchievementsBooster is running (mode: {Engine.Mode}). Boosting {Engine.CurrentBoostingAppsCount} game(s)";
     }
 
     return "AchievementsBooster is running, but there are no games to boost";
@@ -115,19 +115,19 @@ internal sealed class BoostCoordinator {
       if (Bot.IsPlayingPossible) {
         if (await Bot.UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
           EBoostMode newMode = Bot.DetermineBoostMode();
-          if (newMode != Booster?.Mode) {
-            Booster?.StopPlay();
+          if (newMode != Engine?.Mode) {
+            Engine?.StopPlay();
 
-            Booster = newMode switch {
-              EBoostMode.CardFarming => new CardFarmingBooster(Bot),
-              EBoostMode.IdleGaming => new IdleGamingBooster(Bot),
-              EBoostMode.AutoBoost => new AutoBooster(Bot),
+            Engine = newMode switch {
+              EBoostMode.CardFarming => new CardFarmingAuxiliaryEngine(Bot),
+              EBoostMode.IdleGaming => new GameIdlingAuxiliaryEngine(Bot),
+              EBoostMode.AutoBoost => new BoosterEngine(Bot),
               _ => throw new NotImplementedException()
             };
           }
 
           isRestingTime = IsRestingTime(currentTime);
-          await Booster.Boosting(LastBoosterHeartBeatTime, isRestingTime, cancellationToken).ConfigureAwait(false);
+          await Engine.Boosting(LastBoosterHeartBeatTime, isRestingTime, cancellationToken).ConfigureAwait(false);
         }
         else {
           Logger.Info(Messages.NoGamesBoosting);
@@ -151,7 +151,7 @@ internal sealed class BoostCoordinator {
         Logger.Exception(exception);
       }
 
-      Booster?.StopPlay(true);
+      Engine?.StopPlay(true);
     }
     finally {
       LastBoosterHeartBeatTime = currentTime;
@@ -163,12 +163,12 @@ internal sealed class BoostCoordinator {
         if (!Bot.IsPlayingPossible) {
           dueTime = TimeSpan.FromMinutes(5);
           Logger.Info(Messages.BoostingImpossible);
-          Booster?.StopPlay();
+          Engine?.StopPlay();
         }
         else if (isRestingTime) {
           dueTime = TimeSpan.FromMinutes(AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
           Logger.Info(Messages.RestTime);
-          Booster?.StopPlay(true);
+          Engine?.StopPlay(true);
         }
         else {
           dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
@@ -177,8 +177,8 @@ internal sealed class BoostCoordinator {
         _ = BoosterHeartBeatTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
         string dueTimeMessage = $"{dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}";
 
-        if (Booster?.CurrentBoostingAppsCount > 0) {
-          Logger.Info($"Playing {Booster.CurrentBoostingAppsCount} games, unlock achievements after {dueTimeMessage}.");
+        if (Engine?.CurrentBoostingAppsCount > 0) {
+          Logger.Info($"Playing {Engine.CurrentBoostingAppsCount} games, unlock achievements after {dueTimeMessage}.");
         }
         else {
           Logger.Info($"Next check after {dueTimeMessage}.");

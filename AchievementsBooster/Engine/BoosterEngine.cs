@@ -7,13 +7,13 @@ using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 
-namespace AchievementsBooster.Booster;
+namespace AchievementsBooster.Engine;
 
-internal sealed class AutoBooster : Booster {
+internal sealed class BoosterEngine : BoostEngine {
 
   private bool HasTriggeredPlay { get; set; }
 
-  internal AutoBooster(BoosterBot bot) : base(EBoostMode.AutoBoost, bot) {
+  internal BoosterEngine(BoosterBot bot) : base(EBoostMode.AutoBoost, bot) {
   }
 
   protected override void ResumePlay() {

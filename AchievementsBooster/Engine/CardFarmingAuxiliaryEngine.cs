@@ -8,10 +8,10 @@ using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 using ArchiSteamFarm.Steam.Cards;
 
-namespace AchievementsBooster.Booster;
+namespace AchievementsBooster.Engine;
 
-internal sealed class CardFarmingBooster : Booster {
-  internal CardFarmingBooster(BoosterBot bot) : base(EBoostMode.CardFarming, bot) {
+internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
+  internal CardFarmingAuxiliaryEngine(BoosterBot bot) : base(EBoostMode.CardFarming, bot) {
   }
 
   protected override void ResumePlay() { }

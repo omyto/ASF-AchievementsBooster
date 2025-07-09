@@ -8,14 +8,14 @@ using AchievementsBooster.Data;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 
-namespace AchievementsBooster.Booster;
+namespace AchievementsBooster.Engine;
 
-internal sealed class IdleGamingBooster : Booster {
+internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
   private Queue<uint> ArchiBoostableAppsPlayedWhileIdle { get; }
 
   [SuppressMessage("Style", "IDE0306:Simplify collection initialization", Justification = "<Pending>")]
   [SuppressMessage("Style", "IDE0021:Use expression body for constructor", Justification = "<Pending>")]
-  internal IdleGamingBooster(BoosterBot bot) : base(EBoostMode.IdleGaming, bot) {
+  internal GameIdlingAuxiliaryEngine(BoosterBot bot) : base(EBoostMode.IdleGaming, bot) {
     // Since GamesPlayedWhileIdle may never change
     ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Bot.GamesPlayedWhileIdle ?? []);
   }
