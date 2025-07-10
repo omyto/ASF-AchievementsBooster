@@ -9,7 +9,7 @@ using ArchiSteamFarm.Localization;
 using SteamKit2;
 using static SteamKit2.SteamApps.PICSProductInfoCallback;
 
-namespace AchievementsBooster.Helpers;
+namespace AchievementsBooster.Helper;
 
 internal static class ProductUtils {
   internal static ProductInfo GenerateProduct(PICSProductInfo productInfoApp) {

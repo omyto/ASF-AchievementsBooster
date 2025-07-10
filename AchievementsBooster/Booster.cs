@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using AchievementsBooster.Engine;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Handler.Exceptions;
-using AchievementsBooster.Helpers;
+using AchievementsBooster.Helper;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;

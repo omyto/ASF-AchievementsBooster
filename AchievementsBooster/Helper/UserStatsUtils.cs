@@ -5,7 +5,7 @@ using ArchiSteamFarm.Localization;
 using SteamKit2;
 using SteamKit2.Internal;
 
-namespace AchievementsBooster.Helpers;
+namespace AchievementsBooster.Helper;
 
 /// Copyright (c) Rudokhvist
 /// Modified by omyto
@@ -46,13 +46,13 @@ internal static class UserStatsUtils {
             if (int.TryParse(achievement.Name, out int bitNum)) {
               if (uint.TryParse(stat.Name, out uint statNum)) {
                 uint? stat_value = response?.stats?.Find(statElement => statElement.stat_id == statNum)?.stat_value;
-                bool isSet = stat_value != null && (stat_value & ((uint) 1 << bitNum)) != 0;
+                bool isSet = stat_value != null && (stat_value & (uint) 1 << bitNum) != 0;
 
                 bool restricted = achievement.Children.Find(child => child.Name == "permission" && child.Value != null) != null;
 
-                string? dependancyName = (achievement.Children.Find(child => child.Name == "progress") == null) ? "" : achievement.Children.Find(child => child.Name == "progress")?.Children?.Find(child => child.Name == "value")?.Children?.Find(child => child.Name == "operand1")?.Value;
+                string? dependancyName = achievement.Children.Find(child => child.Name == "progress") == null ? "" : achievement.Children.Find(child => child.Name == "progress")?.Children?.Find(child => child.Name == "value")?.Children?.Find(child => child.Name == "operand1")?.Value;
 
-                if (!uint.TryParse((achievement.Children.Find(child => child.Name == "progress") == null) ? "0" : achievement.Children.Find(child => child.Name == "progress")!.Children.Find(child => child.Name == "max_val")?.Value, out uint dependancyValue)) {
+                if (!uint.TryParse(achievement.Children.Find(child => child.Name == "progress") == null ? "0" : achievement.Children.Find(child => child.Name == "progress")!.Children.Find(child => child.Name == "max_val")?.Value, out uint dependancyValue)) {
                   Logger.Shared.Error(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(dependancyValue)));
                   return null;
                 }

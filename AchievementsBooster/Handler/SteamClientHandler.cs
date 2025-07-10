@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Handler.Exceptions;
-using AchievementsBooster.Helpers;
+using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam;

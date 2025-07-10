@@ -1,7 +1,7 @@
 using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using AchievementsBooster.Helpers;
+using AchievementsBooster.Helper;
 using ArchiSteamFarm.Collections;
 using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Steam;

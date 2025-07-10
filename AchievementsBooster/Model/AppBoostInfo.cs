@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Handler.Callback;
-using AchievementsBooster.Helpers;
+using AchievementsBooster.Helper;
 
 namespace AchievementsBooster.Model;
 

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 
-namespace AchievementsBooster.Helpers;
+namespace AchievementsBooster.Helper;
 
 internal static class PossibleApps {
   internal static List<uint> FilterAchievementsApps(HashSet<uint> ownedGames) {

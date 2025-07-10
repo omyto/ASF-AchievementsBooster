@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Helpers;
+using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
 
 namespace AchievementsBooster.Engine;

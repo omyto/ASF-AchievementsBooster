@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.NLog;
 
-namespace AchievementsBooster.Helpers;
+namespace AchievementsBooster.Helper;
 
 public sealed class Logger(ArchiLogger archiLogger, string pluginName = Constants.PluginName) {
   internal static readonly Logger Shared = new(ASF.ArchiLogger);

@@ -6,7 +6,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Tasks;
-using AchievementsBooster.Helpers;
+using AchievementsBooster.Helper;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Helpers.Json;

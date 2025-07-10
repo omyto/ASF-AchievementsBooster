@@ -1,4 +1,4 @@
-namespace AchievementsBooster.Helpers;
+namespace AchievementsBooster.Helper;
 
 internal static class Messages {
   internal static string AutoStartBotsEmpty { get; } = "There are no bots configured for auto-start. To start the achievement boosting process, please use the command";

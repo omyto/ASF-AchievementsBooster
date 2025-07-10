@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Helpers;
+using AchievementsBooster.Helper;
 using ArchiSteamFarm.Helpers.Json;
 
 namespace AchievementsBooster.Storage;

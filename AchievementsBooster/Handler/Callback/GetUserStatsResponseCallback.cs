@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using AchievementsBooster.Helpers;
+using AchievementsBooster.Helper;
 using SteamKit2;
 using CMsgClientGetUserStatsResponse = SteamKit2.Internal.CMsgClientGetUserStatsResponse;
 

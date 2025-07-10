@@ -11,7 +11,7 @@ using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Web;
 using ArchiSteamFarm.Web.Responses;
 
-namespace AchievementsBooster.Helpers;
+namespace AchievementsBooster.Helper;
 
 internal static class AppUtils {
   private static readonly Lazy<string> ASFVersion = new(() => typeof(ASF).Assembly.GetName().Version?.ToString() ?? "");

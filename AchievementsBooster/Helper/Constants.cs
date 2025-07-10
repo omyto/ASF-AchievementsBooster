@@ -1,6 +1,6 @@
 using System;
 
-namespace AchievementsBooster.Helpers;
+namespace AchievementsBooster.Helper;
 
 public static class Constants {
   public static readonly Version PluginVersion = typeof(AchievementsBoosterPlugin).Assembly.GetName().Version ?? throw new InvalidOperationException(nameof(PluginVersion));

@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json.Serialization;
-using AchievementsBooster.Helpers;
+using AchievementsBooster.Helper;
 
 namespace AchievementsBooster.Storage;
 
