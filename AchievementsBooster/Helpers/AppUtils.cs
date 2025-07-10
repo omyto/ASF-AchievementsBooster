@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Handler;
 using AchievementsBooster.Model;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
