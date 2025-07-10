@@ -24,6 +24,7 @@ internal abstract class BoostEngine(EBoostMode mode, BoosterBot bot) {
   protected AppManager AppManager => Bot.AppManager;
 
   protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
+  internal IReadOnlySet<uint> CurrentGamesBoostingReadOnly => CurrentBoostingApps.Keys.ToHashSet();
 
   private SemaphoreSlim BoosterSemaphore { get; } = new SemaphoreSlim(1, 1);
 
@@ -68,10 +69,6 @@ internal abstract class BoostEngine(EBoostMode mode, BoosterBot bot) {
       if (CurrentBoostingApps.Count < AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps) {
         List<AppBoostInfo> newApps = await FindNewAppsForBoosting(AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
         newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
-
-        if (this is CardFarmingAuxiliaryEngine cardFarmingEngine) {
-          cardFarmingEngine.TimeToUnlock = DateTime.Now.Add(TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval));
-        }
       }
 
       if (CurrentBoostingApps.Count > 0) {
@@ -136,10 +133,6 @@ internal abstract class BoostEngine(EBoostMode mode, BoosterBot bot) {
       if (Mode == EBoostMode.AutoBoost) {
         _ = Resting(app);
       }
-    }
-
-    if (readyToUnlockApps.Length > 0 && this is CardFarmingAuxiliaryEngine cardFarmingEngine) {
-      cardFarmingEngine.TimeToUnlock = DateTime.Now.Add(TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval));
     }
   }
 

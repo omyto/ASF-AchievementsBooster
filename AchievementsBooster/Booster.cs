@@ -8,6 +8,7 @@ using AchievementsBooster.Handler.Exceptions;
 using AchievementsBooster.Helpers;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
+using ArchiSteamFarm.Steam.Cards;
 using SteamKit2;
 
 namespace AchievementsBooster;
@@ -27,6 +28,7 @@ internal sealed class Booster : IBooster {
   private Timer? BeatingTimer { get; set; }
   private DateTime LastBeatingTime { get; set; }
   private SemaphoreSlim BeatingSemaphore { get; } = new SemaphoreSlim(1);
+  private Timer? DetermineFarmingGamesChangedTimer { get; set; }
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
 
@@ -34,6 +36,8 @@ internal sealed class Booster : IBooster {
     CancellationTokenSource.Cancel();
     BeatingTimer?.Dispose();
     BeatingTimer = null;
+    DetermineFarmingGamesChangedTimer?.Dispose();
+    DetermineFarmingGamesChangedTimer = null;
   }
 
   internal string Stop() {
@@ -65,6 +69,29 @@ internal sealed class Booster : IBooster {
     return "AchievementsBooster is running, but there are no games to boost";
   }
 
+  private async void DetermineFarmingGamesChanged(object? state) {
+    if (BeatingTimer != null && Engine != null && Engine.Mode == EBoostMode.CardFarming) {
+      await BeatingSemaphore.WaitAsync().ConfigureAwait(false);
+      try {
+        bool isFarmingGamesChanged = true;
+        foreach (Game game in Bot.CurrentGamesFarming) {
+          if (Engine.CurrentGamesBoostingReadOnly.Contains(game.AppID)) {
+            isFarmingGamesChanged = false;
+            break;
+          }
+        }
+
+        if (isFarmingGamesChanged) {
+          Logger.Info("Farming games have changed, restarting the boosting process ...");
+          _ = BeatingTimer.Change(TimeSpan.FromSeconds(10), Timeout.InfiniteTimeSpan);
+        }
+      }
+      finally {
+        _ = BeatingSemaphore.Release();
+      }
+    }
+  }
+
   private async void Beating(object? state) {
     if (!BeatingSemaphore.Wait(0)) {
       Logger.Warning("The boosting process is currently running !!!");
@@ -92,6 +119,14 @@ internal sealed class Booster : IBooster {
               EBoostMode.AutoBoost => new AutoBoostingEngine(Bot),
               _ => throw new NotImplementedException()
             };
+          }
+
+          if (Engine.Mode == EBoostMode.CardFarming) {
+            DetermineFarmingGamesChangedTimer ??= new Timer(DetermineFarmingGamesChanged, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+          }
+          else if (DetermineFarmingGamesChangedTimer != null) {
+            DetermineFarmingGamesChangedTimer.Dispose();
+            DetermineFarmingGamesChangedTimer = null;
           }
 
           isRestingTime = IsRestingTime(currentTime);
@@ -138,22 +173,13 @@ internal sealed class Booster : IBooster {
           Logger.Info(Messages.RestTime);
           Engine?.StopPlay(true);
         }
-        else if (Engine is CardFarmingAuxiliaryEngine) {
-          dueTime = TimeSpan.FromMinutes(5);
-          Logger.Trace("Card farming mode active, next check in 5 minutes.");
-        }
         else {
           dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
         }
 
         _ = BeatingTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
 
-        TimeSpan timeRemaining = dueTime;
-        if (Engine is CardFarmingAuxiliaryEngine cardFarmingEngine) {
-          timeRemaining = cardFarmingEngine.TimeToUnlock - DateTime.Now;
-        }
-        string timeRemainingMessage = $"{timeRemaining.Minutes} minutes{(timeRemaining.Seconds > 0 ? $" and {timeRemaining.Seconds} seconds" : "")}";
-
+        string timeRemainingMessage = $"{dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}";
         if (Engine?.CurrentBoostingAppsCount > 0) {
           Logger.Info($"Boosting {Engine.CurrentBoostingAppsCount} games, unlock achievements after {timeRemainingMessage}.");
         }

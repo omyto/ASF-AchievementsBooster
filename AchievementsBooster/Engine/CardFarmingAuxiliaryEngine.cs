@@ -14,15 +14,9 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
   internal CardFarmingAuxiliaryEngine(BoosterBot bot) : base(EBoostMode.CardFarming, bot) {
   }
 
-  internal DateTime TimeToUnlock { get; set; } = DateTime.MaxValue;
-
   protected override void ResumePlay() { }
 
   protected override AppBoostInfo[] GetReadyToUnlockApps() {
-    if (DateTime.Now < TimeToUnlock) {
-      return [];
-    }
-
     // Intersect between BoostingApps and CurrentGamesFarming
     List<uint> boostingAppIDs = [];
     foreach (Game game in Bot.CurrentGamesFarming) {
