@@ -1,11 +1,15 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Engine;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Handler.Exceptions;
 using AchievementsBooster.Helpers;
+using AchievementsBooster.Storage;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Steam.Cards;
@@ -15,22 +19,43 @@ namespace AchievementsBooster;
 
 internal sealed class Booster : IBooster {
 
-  internal Booster(Bot bot) => Bot = new BoosterBot(bot);
-  ~Booster() => StopTimer();
+  private Bot Bot { get; }
 
-  internal SteamClientHandler SteamClientHandler => Bot.SteamClientHandler;
+  internal Logger Logger { get; }
 
-  private readonly BoosterBot Bot;
-  private Logger Logger => Bot.Logger;
+  internal BotCache Cache { get; }
+
+  internal AppManager AppManager { get; }
+
+  internal SteamClientHandler SteamClientHandler { get; }
+
+  internal IReadOnlyCollection<Game> CurrentGamesFarming => Bot.CardsFarmer.CurrentGamesFarmingReadOnly;
+
+  internal ImmutableList<uint>? GamesPlayedWhileIdle => Bot.BotConfig?.GamesPlayedWhileIdle;
 
   private BoostEngine? Engine { get; set; }
 
   private Timer? BeatingTimer { get; set; }
+
   private DateTime LastBeatingTime { get; set; }
+
   private SemaphoreSlim BeatingSemaphore { get; } = new SemaphoreSlim(1);
+
   private Timer? DetermineFarmingGamesChangedTimer { get; set; }
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
+
+  private DateTime LastUpdateOwnedGamesTime { get; set; }
+
+  internal Booster(Bot bot) {
+    Bot = bot;
+    Logger = new Logger(bot.ArchiLogger);
+    Cache = BotCache.LoadOrCreateCacheForBot(bot);
+    SteamClientHandler = new SteamClientHandler(bot, Logger);
+    AppManager = new AppManager(SteamClientHandler, Cache, Logger);
+  }
+
+  ~Booster() => StopTimer();
 
   private void StopTimer() {
     CancellationTokenSource.Cancel();
@@ -74,7 +99,7 @@ internal sealed class Booster : IBooster {
       await BeatingSemaphore.WaitAsync().ConfigureAwait(false);
       try {
         bool isFarmingGamesChanged = true;
-        foreach (Game game in Bot.CurrentGamesFarming) {
+        foreach (Game game in CurrentGamesFarming) {
           if (Engine.CurrentGamesBoostingReadOnly.Contains(game.AppID)) {
             isFarmingGamesChanged = false;
             break;
@@ -108,15 +133,15 @@ internal sealed class Booster : IBooster {
 
     try {
       if (Bot.IsPlayingPossible) {
-        if (await Bot.UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
-          EBoostMode newMode = Bot.DetermineBoostMode();
+        if (await UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
+          EBoostMode newMode = DetermineBoostMode();
           if (newMode != Engine?.Mode) {
             Engine?.StopPlay();
 
             Engine = newMode switch {
-              EBoostMode.CardFarming => new CardFarmingAuxiliaryEngine(Bot),
-              EBoostMode.IdleGaming => new GameIdlingAuxiliaryEngine(Bot),
-              EBoostMode.AutoBoost => new AutoBoostingEngine(Bot),
+              EBoostMode.CardFarming => new CardFarmingAuxiliaryEngine(this),
+              EBoostMode.IdleGaming => new GameIdlingAuxiliaryEngine(this),
+              EBoostMode.AutoBoost => new AutoBoostingEngine(this),
               _ => throw new NotImplementedException()
             };
           }
@@ -216,6 +241,31 @@ internal sealed class Booster : IBooster {
       CancellationTokenSource.Cancel();
     }
   }
+
+  internal EBoostMode DetermineBoostMode() => CurrentGamesFarming.Count > 0
+        ? EBoostMode.CardFarming
+        : GamesPlayedWhileIdle?.Count > 0
+          ? EBoostMode.IdleGaming
+          : EBoostMode.AutoBoost;
+
+  internal async Task<(bool Success, string Message)> PlayGames(IReadOnlyCollection<uint> gameIDs)
+    => await Bot.Actions.Play(gameIDs).ConfigureAwait(false);
+
+  internal (bool Success, string Message) ResumePlay() => Bot.Actions.Resume();
+
+  internal async Task<bool> UpdateOwnedGames(CancellationToken cancellationToken) {
+    DateTime now = DateTime.Now;
+    if (AppManager.OwnedGames.Count == 0 || (now - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
+      Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
+      if (ownedGames != null) {
+        await AppManager.UpdateQueue(ownedGames.Keys.ToHashSet(), cancellationToken).ConfigureAwait(false);
+        LastUpdateOwnedGamesTime = now;
+      }
+    }
+
+    return AppManager.OwnedGames.Count > 0;
+  }
+
 
   /** IBooster implementation */
   public Task OnDisconnected(EResult reason) {

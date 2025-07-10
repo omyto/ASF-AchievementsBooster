@@ -16,12 +16,12 @@ public enum EBoostMode {
   AutoBoost
 }
 
-internal abstract class BoostEngine(EBoostMode mode, BoosterBot bot) {
+internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
   public EBoostMode Mode { get; } = mode;
 
-  protected BoosterBot Bot { get; } = bot;
-  protected Logger Logger => Bot.Logger;
-  protected AppManager AppManager => Bot.AppManager;
+  protected Booster Booster { get; } = booster;
+  protected Logger Logger => Booster.Logger;
+  protected AppManager AppManager => Booster.AppManager;
 
   protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
   internal IReadOnlySet<uint> CurrentGamesBoostingReadOnly => CurrentBoostingApps.Keys.ToHashSet();
@@ -103,12 +103,12 @@ internal abstract class BoostEngine(EBoostMode mode, BoosterBot bot) {
       cancellationToken.ThrowIfCancellationRequested();
       app.BoostingDuration += deltaTime;
 
-      (bool success, string message) = await app.UnlockNextAchievement(Bot.SteamClientHandler, cancellationToken).ConfigureAwait(false);
+      (bool success, string message) = await app.UnlockNextAchievement(Booster.SteamClientHandler, cancellationToken).ConfigureAwait(false);
       if (success) {
         Logger.Info(message);
         if (app.UnlockableAchievementsCount == 0) {
           _ = CurrentBoostingApps.Remove(app.ID);
-          _ = Bot.Cache.PerfectGames.Add(app.ID);
+          _ = Booster.Cache.PerfectGames.Add(app.ID);
           Logger.Info(string.Format(CultureInfo.CurrentCulture, app.RemainingAchievementsCount == 0 ? Messages.FinishedBoost : Messages.FinishedBoostable, app.FullName));
           continue;
         }
@@ -117,7 +117,7 @@ internal abstract class BoostEngine(EBoostMode mode, BoosterBot bot) {
         Logger.Warning(message);
         if (app.UnlockableAchievementsCount == 0) {
           if (app.RemainingAchievementsCount == 0) {
-            _ = Bot.Cache.PerfectGames.Add(app.ID);
+            _ = Booster.Cache.PerfectGames.Add(app.ID);
           }
           _ = CurrentBoostingApps.Remove(app.ID);
           continue;

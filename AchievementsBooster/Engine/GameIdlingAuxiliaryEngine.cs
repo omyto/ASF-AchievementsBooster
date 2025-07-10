@@ -15,9 +15,9 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
 
   [SuppressMessage("Style", "IDE0306:Simplify collection initialization", Justification = "<Pending>")]
   [SuppressMessage("Style", "IDE0021:Use expression body for constructor", Justification = "<Pending>")]
-  internal GameIdlingAuxiliaryEngine(BoosterBot bot) : base(EBoostMode.IdleGaming, bot) {
+  internal GameIdlingAuxiliaryEngine(Booster booster) : base(EBoostMode.IdleGaming, booster) {
     // Since GamesPlayedWhileIdle may never change
-    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Bot.GamesPlayedWhileIdle ?? []);
+    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Booster.GamesPlayedWhileIdle ?? []);
   }
 
   protected override void ResumePlay() { }

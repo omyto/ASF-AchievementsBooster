@@ -13,12 +13,12 @@ internal sealed class AutoBoostingEngine : BoostEngine {
 
   private bool HasTriggeredPlay { get; set; }
 
-  internal AutoBoostingEngine(BoosterBot bot) : base(EBoostMode.AutoBoost, bot) {
+  internal AutoBoostingEngine(Booster booster) : base(EBoostMode.AutoBoost, booster) {
   }
 
   protected override void ResumePlay() {
     if (HasTriggeredPlay) {
-      _ = Bot.ResumePlay();
+      _ = Booster.ResumePlay();
       HasTriggeredPlay = false;
     }
   }
@@ -32,7 +32,7 @@ internal sealed class AutoBoostingEngine : BoostEngine {
 
   protected override async Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) {
     cancellationToken.ThrowIfCancellationRequested();
-    (bool success, string message) = await Bot.PlayGames(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
+    (bool success, string message) = await Booster.PlayGames(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
     if (!success) {
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
     }
@@ -43,10 +43,10 @@ internal sealed class AutoBoostingEngine : BoostEngine {
   protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingApps;
 
   protected override async Task FallBackToIdleGaming(CancellationToken cancellationToken) {
-    await HoursBooster.Instance.Update(Bot.AppManager, cancellationToken).ConfigureAwait(false);
+    await HoursBooster.Instance.Update(Booster.AppManager, cancellationToken).ConfigureAwait(false);
 
     if (HoursBooster.Instance.ReadyToBoostGames.Count > 0) {
-      (bool success, string message) = await Bot.PlayGames(HoursBooster.Instance.ReadyToBoostGames).ConfigureAwait(false);
+      (bool success, string message) = await Booster.PlayGames(HoursBooster.Instance.ReadyToBoostGames).ConfigureAwait(false);
       if (success) {
         HasTriggeredPlay = true;
         Logger.Info($"Boosting hours {HoursBooster.Instance.ReadyToBoostGames.Count} game(s): {string.Join(",", HoursBooster.Instance.ReadyToBoostGames)}");

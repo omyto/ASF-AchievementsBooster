@@ -11,7 +11,7 @@ using ArchiSteamFarm.Steam.Cards;
 namespace AchievementsBooster.Engine;
 
 internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
-  internal CardFarmingAuxiliaryEngine(BoosterBot bot) : base(EBoostMode.CardFarming, bot) {
+  internal CardFarmingAuxiliaryEngine(Booster booster) : base(EBoostMode.CardFarming, booster) {
   }
 
   protected override void ResumePlay() { }
@@ -19,7 +19,7 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
   protected override AppBoostInfo[] GetReadyToUnlockApps() {
     // Intersect between BoostingApps and CurrentGamesFarming
     List<uint> boostingAppIDs = [];
-    foreach (Game game in Bot.CurrentGamesFarming) {
+    foreach (Game game in Booster.CurrentGamesFarming) {
       if (CurrentBoostingApps.ContainsKey(game.AppID)) {
         boostingAppIDs.Add(game.AppID);
       }
@@ -40,7 +40,7 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
     List<AppBoostInfo> results = [];
 
     try {
-      Game[] currentGamesFarming = Bot.CurrentGamesFarming.ToArray();
+      Game[] currentGamesFarming = Booster.CurrentGamesFarming.ToArray();
       for (int index = 0; index < currentGamesFarming.Length && results.Count < count; index++) {
         cancellationToken.ThrowIfCancellationRequested();
         uint appID = currentGamesFarming[index].AppID;
