@@ -11,4 +11,9 @@ public interface IBooster {
 
   /** IBotSteamClient */
   public Task OnSteamCallbacksInit(CallbackManager callbackManager);
+
+  /** IBotCardsFarmerInfo */
+  public Task OnFarmingStarted();
+  public Task OnFarmingStopped();
+  public Task OnFarmingFinished(bool farmedSomething);
 }

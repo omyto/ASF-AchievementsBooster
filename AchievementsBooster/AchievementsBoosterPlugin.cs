@@ -17,7 +17,7 @@ using SteamKit2;
 namespace AchievementsBooster;
 
 [Export(typeof(IPlugin))]
-public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBotSteamClient, IBotCommand2, IGitHubPluginUpdates {
+public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBotSteamClient, IBotCommand2, IBotCardsFarmerInfo, IGitHubPluginUpdates {
 
   private static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
@@ -114,4 +114,9 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
   /** IBotCommand */
   public Task<string?> OnBotCommand(Bot bot, EAccess access, string message, string[] args, ulong steamID = 0)
     => CommandsCoordinator.OnBotCommand(bot, access, message, args, steamID);
+
+  /** IBotCardsFarmerInfo */
+  public Task OnBotFarmingStarted(Bot bot) => GetBooster(bot).OnFarmingStarted();
+  public Task OnBotFarmingStopped(Bot bot) => GetBooster(bot).OnFarmingStopped();
+  public Task OnBotFarmingFinished(Bot bot, bool farmedSomething) => GetBooster(bot).OnFarmingFinished(farmedSomething);
 }

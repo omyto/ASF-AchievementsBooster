@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -13,5 +12,12 @@ public sealed class DummyBooster : IBooster {
 
   /** ASF Plugin Interfaces */
   public Task OnDisconnected(EResult reason) => Task.CompletedTask;
+
   public Task OnSteamCallbacksInit(CallbackManager callbackManager) => Task.CompletedTask;
+
+  public Task OnFarmingStarted() => Task.CompletedTask;
+
+  public Task OnFarmingStopped() => Task.CompletedTask;
+
+  public Task OnFarmingFinished(bool farmedSomething) => Task.CompletedTask;
 }

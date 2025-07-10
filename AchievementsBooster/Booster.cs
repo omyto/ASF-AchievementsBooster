@@ -108,6 +108,7 @@ internal sealed class Booster : IBooster {
 
   private async void DetermineFarmingGamesChanged(object? state) {
     if (BeatingTimer != null && Engine != null && Engine.Mode == EBoostMode.CardFarming) {
+      Logger.Trace("Determining farming games changed");
       await BeatingSemaphore.WaitAsync().ConfigureAwait(false);
       try {
         bool isFarmingGamesChanged = true;
@@ -158,12 +159,19 @@ internal sealed class Booster : IBooster {
             };
           }
 
+          Logger.Info($"Card farmer NowFarming: {Bot.CardsFarmer.NowFarming}, Count: {CurrentGamesFarming.Count}");
+
           isRestingTime = IsRestingTime(currentTime);
           await Engine.Boosting(LastBeatingTime, isRestingTime, cancellationToken).ConfigureAwait(false);
 
           if (Engine.Mode == EBoostMode.CardFarming) {
             LastGamesFarming = CurrentGamesFarming.Select(e => e.AppID).ToImmutableHashSet();
             DetermineFarmingGamesChangedTimer ??= new Timer(DetermineFarmingGamesChanged, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+
+            Logger.Warning($"Bot on farming card! {CurrentGamesFarming.Count} game(s), NowFarming: {Bot.CardsFarmer.NowFarming}");
+            foreach (Game game in CurrentGamesFarming) {
+              Logger.Info($"  - {game.AppID} ({game.GameName}) | CardsRemaining: {game.CardsRemaining}, HoursPlayed: {game.HoursPlayed}");
+            }
           }
           else if (DetermineFarmingGamesChangedTimer != null) {
             DetermineFarmingGamesChangedTimer.Dispose();
@@ -281,19 +289,6 @@ internal sealed class Booster : IBooster {
 
 
   /** IBooster implementation */
-  public Task OnDisconnected(EResult reason) {
-    Logger.Warning(Strings.BotDisconnected);
-    _ = Stop();
-    return Task.CompletedTask;
-  }
-
-  public Task OnSteamCallbacksInit(CallbackManager callbackManager) {
-    ArgumentNullException.ThrowIfNull(callbackManager);
-    SteamClientHandler.Init();
-    _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionState);
-    return Task.CompletedTask;
-  }
-
   public string Start(bool command = false) {
     if (BeatingTimer != null) {
       Logger.Trace(Messages.BoostingStarted);
@@ -311,5 +306,36 @@ internal sealed class Booster : IBooster {
 
     BeatingTimer = new Timer(Beating, null, dueTime, Timeout.InfiniteTimeSpan);
     return Strings.Done;
+  }
+
+  public Task OnDisconnected(EResult reason) {
+    Logger.Warning(Strings.BotDisconnected);
+    _ = Stop();
+    return Task.CompletedTask;
+  }
+
+  public Task OnSteamCallbacksInit(CallbackManager callbackManager) {
+    ArgumentNullException.ThrowIfNull(callbackManager);
+    SteamClientHandler.Init();
+    _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionState);
+    return Task.CompletedTask;
+  }
+
+  public Task OnFarmingStarted() {
+    Logger.Warning($"Bot started farming card! {CurrentGamesFarming.Count} game(s), NowFarming: {Bot.CardsFarmer.NowFarming}");
+    foreach (Game game in CurrentGamesFarming) {
+      Logger.Info($"  - {game.AppID} ({game.GameName}) | CardsRemaining: {game.CardsRemaining}, HoursPlayed: {game.HoursPlayed}");
+    }
+    return Task.CompletedTask;
+  }
+
+  public Task OnFarmingStopped() {
+    Logger.Warning($"Bot farming card has been stoped! NowFarming: {Bot.CardsFarmer.NowFarming}");
+    return Task.CompletedTask;
+  }
+
+  public Task OnFarmingFinished(bool farmedSomething) {
+    Logger.Warning($"Bot farming card has been finished, farmedSomething: {farmedSomething}, NowFarming: {Bot.CardsFarmer.NowFarming}");
+    return Task.CompletedTask;
   }
 }
