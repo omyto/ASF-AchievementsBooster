@@ -33,6 +33,8 @@ internal sealed class Booster : IBooster {
 
   internal IReadOnlyCollection<Game> CurrentGamesFarming => Bot.CardsFarmer.CurrentGamesFarmingReadOnly;
 
+  private ImmutableHashSet<uint> LastGamesFarming { get; set; } = [];
+
   internal ImmutableList<uint>? GamesPlayedWhileIdle => Bot.BotConfig?.GamesPlayedWhileIdle;
 
   private BoostEngine? Engine { get; set; }
@@ -110,7 +112,7 @@ internal sealed class Booster : IBooster {
       try {
         bool isFarmingGamesChanged = true;
         foreach (Game game in CurrentGamesFarming) {
-          if (Engine.CurrentGamesBoostingReadOnly.Contains(game.AppID)) {
+          if (LastGamesFarming.Contains(game.AppID)) {
             isFarmingGamesChanged = false;
             break;
           }
@@ -156,16 +158,17 @@ internal sealed class Booster : IBooster {
             };
           }
 
+          isRestingTime = IsRestingTime(currentTime);
+          await Engine.Boosting(LastBeatingTime, isRestingTime, cancellationToken).ConfigureAwait(false);
+
           if (Engine.Mode == EBoostMode.CardFarming) {
+            LastGamesFarming = CurrentGamesFarming.Select(e => e.AppID).ToImmutableHashSet();
             DetermineFarmingGamesChangedTimer ??= new Timer(DetermineFarmingGamesChanged, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
           }
           else if (DetermineFarmingGamesChangedTimer != null) {
             DetermineFarmingGamesChangedTimer.Dispose();
             DetermineFarmingGamesChangedTimer = null;
           }
-
-          isRestingTime = IsRestingTime(currentTime);
-          await Engine.Boosting(LastBeatingTime, isRestingTime, cancellationToken).ConfigureAwait(false);
         }
         else {
           Logger.Info(Messages.NoGamesBoosting);
