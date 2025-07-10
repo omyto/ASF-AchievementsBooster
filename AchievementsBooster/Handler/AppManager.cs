@@ -48,7 +48,7 @@ internal sealed class AppManager {
 
     OwnedGames = newOwnedGames;
 
-    List<uint>? games = await AppUtils.FilterAchievementsApps(newOwnedGames, Booster.SteamClientHandler, Booster.Logger, cancellationToken).ConfigureAwait(false);
+    List<uint>? games = await AppUtils.FilterAchievementsApps(newOwnedGames, Booster, cancellationToken).ConfigureAwait(false);
     if (games == null) {
       if (BoostableAppQueue.Count > 0) {
         return;
@@ -189,10 +189,10 @@ internal sealed class AppManager {
   }
 
   internal async Task<ProductInfo?> GetProductInfo(uint appID, CancellationToken cancellationToken)
-    => await AppUtils.GetProduct(appID, Booster.SteamClientHandler, Booster.Logger, cancellationToken).ConfigureAwait(false);
+    => await AppUtils.GetProduct(appID, Booster, cancellationToken).ConfigureAwait(false);
 
   private async Task<(EGetAppStatus status, AppBoostInfo?)> GetApp(uint appID, CancellationToken cancellationToken) {
-    ProductInfo? productInfo = await AppUtils.GetProduct(appID, Booster.SteamClientHandler, Booster.Logger, cancellationToken).ConfigureAwait(false);
+    ProductInfo? productInfo = await AppUtils.GetProduct(appID, Booster, cancellationToken).ConfigureAwait(false);
     if (productInfo == null) {
       Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ProductInfoNotFound, appID));
       return (EGetAppStatus.ProductNotFound, null);
@@ -262,7 +262,7 @@ internal sealed class AppManager {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    AchievementPercentages? percentages = await AppUtils.GetAchievementPercentages(appID, Booster.SteamClientHandler, Booster.Logger, cancellationToken).ConfigureAwait(false);
+    AchievementPercentages? percentages = await AppUtils.GetAchievementPercentages(appID, Booster, cancellationToken).ConfigureAwait(false);
     if (percentages == null) {
       Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AchievementPercentagesNotFound, productInfo.FullName));
       return (EGetAppStatus.AchievementPercentagesNotFound, null);

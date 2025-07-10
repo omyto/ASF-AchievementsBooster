@@ -4,8 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Handler.Callback;
@@ -22,13 +20,6 @@ using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductI
 namespace AchievementsBooster.Handler;
 
 internal sealed class SteamClientHandler : ClientMsgHandler {
-  internal string Identifier {
-    get {
-      BoosterIdentifier ??= Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(Bot.SSteamID)));
-      return BoosterIdentifier ?? string.Empty;
-    }
-  }
-  private string? BoosterIdentifier;
   private readonly Bot Bot;
   private readonly Logger Logger;
   private const int RequestDelay = 600;

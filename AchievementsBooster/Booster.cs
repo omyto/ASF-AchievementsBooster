@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Engine;
@@ -46,6 +48,14 @@ internal sealed class Booster : IBooster {
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
 
   private DateTime LastUpdateOwnedGamesTime { get; set; }
+
+  [field: MaybeNull, AllowNull]
+  internal string Identifier {
+    get {
+      field ??= Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(Bot.SSteamID)));
+      return field ?? string.Empty;
+    }
+  }
 
   internal Booster(Bot bot) {
     Bot = bot;
