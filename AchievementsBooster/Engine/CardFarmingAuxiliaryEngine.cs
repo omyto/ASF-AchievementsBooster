@@ -45,7 +45,7 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
         cancellationToken.ThrowIfCancellationRequested();
         uint appID = currentGamesFarming[index].AppID;
         if (!CurrentBoostingApps.ContainsKey(appID)) {
-          AppBoostInfo? app = await AppManager.GetAppBoost(appID, cancellationToken).ConfigureAwait(false);
+          AppBoostInfo? app = await Booster.AppManager.GetAppBoost(appID, cancellationToken).ConfigureAwait(false);
           if (app != null) {
             results.Add(app);
           }
@@ -55,7 +55,7 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
     catch (Exception) {
       if (results.Count > 0) {
         DateTime now = DateTime.Now;
-        results.ForEach(app => AppManager.MarkAppAsResting(app, now));
+        results.ForEach(app => Booster.AppManager.MarkAppAsResting(app, now));
       }
       throw;
     }

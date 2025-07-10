@@ -31,7 +31,7 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
       while (ArchiBoostableAppsPlayedWhileIdle.Count > 0 && results.Count < count) {
         cancellationToken.ThrowIfCancellationRequested();
         uint appID = ArchiBoostableAppsPlayedWhileIdle.Peek();
-        AppBoostInfo? app = await AppManager.GetAppBoost(appID, cancellationToken).ConfigureAwait(false);
+        AppBoostInfo? app = await Booster.AppManager.GetAppBoost(appID, cancellationToken).ConfigureAwait(false);
         if (app != null) {
           results.Add(app);
         }
@@ -41,7 +41,7 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
     catch (Exception) {
       if (results.Count > 0) {
         DateTime now = DateTime.Now;
-        results.ForEach(app => AppManager.MarkAppAsResting(app, now));
+        results.ForEach(app => Booster.AppManager.MarkAppAsResting(app, now));
       }
       throw;
     }

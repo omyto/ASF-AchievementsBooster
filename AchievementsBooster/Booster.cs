@@ -52,7 +52,7 @@ internal sealed class Booster : IBooster {
     Logger = new Logger(bot.ArchiLogger);
     Cache = BotCache.LoadOrCreateCacheForBot(bot);
     SteamClientHandler = new SteamClientHandler(bot, Logger);
-    AppManager = new AppManager(SteamClientHandler, Cache, Logger);
+    AppManager = new AppManager(this);
   }
 
   ~Booster() => StopTimer();

@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Handler;
 using AchievementsBooster.Helpers;
 using AchievementsBooster.Model;
 
@@ -20,10 +19,9 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
   public EBoostMode Mode { get; } = mode;
 
   protected Booster Booster { get; } = booster;
-  protected Logger Logger => Booster.Logger;
-  protected AppManager AppManager => Booster.AppManager;
 
   protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
+
   internal IReadOnlySet<uint> CurrentGamesBoostingReadOnly => CurrentBoostingApps.Keys.ToHashSet();
 
   private SemaphoreSlim BoosterSemaphore { get; } = new SemaphoreSlim(1, 1);
@@ -43,7 +41,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
     if (CurrentBoostingApps.Count > 0) {
       BoosterSemaphore.Wait();
       try {
-        AppManager.MarkAppsAsResting(CurrentBoostingApps.Values.ToList(), DateTime.Now);
+        Booster.AppManager.MarkAppsAsResting(CurrentBoostingApps.Values.ToList(), DateTime.Now);
         CurrentBoostingApps.Clear();
       }
       finally {
@@ -74,12 +72,12 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
       if (CurrentBoostingApps.Count > 0) {
         if (await PlayCurrentBoostingApps(cancellationToken).ConfigureAwait(false)) {
           foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
-            Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
+            Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
           }
         }
       }
       else {
-        Logger.Info(GetNoBoostingAppsMessage());
+        Booster.Logger.Info(GetNoBoostingAppsMessage());
         if (AchievementsBoosterPlugin.GlobalConfig.BoostHoursWhenIdle) {
           await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
         }
@@ -105,16 +103,16 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
       (bool success, string message) = await app.UnlockNextAchievement(Booster.SteamClientHandler, cancellationToken).ConfigureAwait(false);
       if (success) {
-        Logger.Info(message);
+        Booster.Logger.Info(message);
         if (app.UnlockableAchievementsCount == 0) {
           _ = CurrentBoostingApps.Remove(app.ID);
           _ = Booster.Cache.PerfectGames.Add(app.ID);
-          Logger.Info(string.Format(CultureInfo.CurrentCulture, app.RemainingAchievementsCount == 0 ? Messages.FinishedBoost : Messages.FinishedBoostable, app.FullName));
+          Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, app.RemainingAchievementsCount == 0 ? Messages.FinishedBoost : Messages.FinishedBoostable, app.FullName));
           continue;
         }
       }
       else {
-        Logger.Warning(message);
+        Booster.Logger.Warning(message);
         if (app.UnlockableAchievementsCount == 0) {
           if (app.RemainingAchievementsCount == 0) {
             _ = Booster.Cache.PerfectGames.Add(app.ID);
@@ -125,7 +123,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
         if (app.FailedUnlockCount > Constants.MaxUnlockAchievementTries) {
           _ = CurrentBoostingApps.Remove(app.ID);
-          AppManager.MarkAppAsResting(app, DateTime.Now.AddHours(24));
+          Booster.AppManager.MarkAppAsResting(app, DateTime.Now.AddHours(24));
           continue;
         }
       }
@@ -140,8 +138,8 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
     if (AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp > 0) {
       if (app.BoostingDuration >= AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp) {
         _ = CurrentBoostingApps.Remove(app.ID);
-        Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
-        AppManager.MarkAppAsResting(app);
+        Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
+        Booster.AppManager.MarkAppAsResting(app);
         return true;
       }
     }

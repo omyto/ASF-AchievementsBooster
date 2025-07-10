@@ -27,14 +27,14 @@ internal sealed class AutoBoostingEngine : BoostEngine {
 
   protected override async Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken) {
     cancellationToken.ThrowIfCancellationRequested();
-    return await AppManager.NextAppsForBoost(count, cancellationToken).ConfigureAwait(false);
+    return await Booster.AppManager.NextAppsForBoost(count, cancellationToken).ConfigureAwait(false);
   }
 
   protected override async Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) {
     cancellationToken.ThrowIfCancellationRequested();
     (bool success, string message) = await Booster.PlayGames(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
     if (!success) {
-      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
+      Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
     }
 
     return HasTriggeredPlay = success;
@@ -49,10 +49,10 @@ internal sealed class AutoBoostingEngine : BoostEngine {
       (bool success, string message) = await Booster.PlayGames(HoursBooster.Instance.ReadyToBoostGames).ConfigureAwait(false);
       if (success) {
         HasTriggeredPlay = true;
-        Logger.Info($"Boosting hours {HoursBooster.Instance.ReadyToBoostGames.Count} game(s): {string.Join(",", HoursBooster.Instance.ReadyToBoostGames)}");
+        Booster.Logger.Info($"Boosting hours {HoursBooster.Instance.ReadyToBoostGames.Count} game(s): {string.Join(",", HoursBooster.Instance.ReadyToBoostGames)}");
       }
       else {
-        Logger.Warning($"Boosting hours failed; reason: {message}");
+        Booster.Logger.Warning($"Boosting hours failed; reason: {message}");
       }
     }
   }
