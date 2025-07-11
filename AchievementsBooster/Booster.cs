@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -254,4 +255,13 @@ internal sealed class Booster : IBooster {
     BeatingTimer = new Timer(Beating, null, dueTime, Timeout.InfiniteTimeSpan);
     return Strings.Done;
   }
+
+#if DEBUG
+  internal async Task<string> Debug(string[] args) {
+    Logger.Debug($"Debuging with args: {string.Join(" ", args)}");
+
+    await Task.Delay(100).ConfigureAwait(false);
+    return Strings.Done;
+  }
+#endif
 }
