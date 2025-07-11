@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -254,4 +255,22 @@ internal sealed class Booster : IBooster {
     BeatingTimer = new Timer(Beating, null, dueTime, Timeout.InfiniteTimeSpan);
     return Strings.Done;
   }
+
+#if DEBUG
+  internal async Task<string> Debug(string data) {
+    Logger.Debug($"Debuging with data: {data}");
+
+    string[] values = data.Split(',');
+    List<uint> appids = values.Select(uint.Parse).ToList();
+
+    List<SteamKit2.Internal.CPlayer_GetAchievementsProgress_Response.AchievementProgress>? achievementsProgress = await SteamClientHandler.GetAchievementsProgress(appids.ToList(), new()).ConfigureAwait(false);
+
+    if (achievementsProgress != null && achievementsProgress.Count > 0) {
+      foreach (SteamKit2.Internal.CPlayer_GetAchievementsProgress_Response.AchievementProgress p in achievementsProgress) {
+        Logger.Debug($"AppID: {p.appid}, unlocked: {p.unlocked}, total: {p.total}, percentage: {p.percentage}, all unlocked: {p.all_unlocked}, cache time: {p.cache_time}, vetted: {p.vetted}");
+      }
+    }
+    return Strings.Done;
+  }
+#endif
 }

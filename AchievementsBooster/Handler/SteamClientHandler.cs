@@ -16,6 +16,7 @@ using SteamKit2;
 using SteamKit2.Internal;
 using GameAchievement = SteamKit2.Internal.CPlayer_GetGameAchievements_Response.Achievement;
 using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
+using AchievementProgress = SteamKit2.Internal.CPlayer_GetAchievementsProgress_Response.AchievementProgress;
 
 namespace AchievementsBooster.Handler;
 
@@ -155,6 +156,37 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
     }
 
     return response.Result == EResult.OK ? response.Body.achievements : null;
+  }
+
+  internal async Task<List<AchievementProgress>?> GetAchievementsProgress(List<uint> appids, CancellationToken cancellationToken) {
+    ArgumentNullException.ThrowIfNull(Client);
+    ArgumentNullException.ThrowIfNull(UnifiedPlayerService);
+
+    if (!Client.IsConnected) {
+      return null;
+    }
+
+    CPlayer_GetAchievementsProgress_Request request = new() {
+      steamid = Bot.SteamID,
+      language = "english"
+    };
+    request.appids.AddRange(appids);
+
+    SteamUnifiedMessages.ServiceMethodResponse<CPlayer_GetAchievementsProgress_Response> response;
+
+    try {
+      await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
+      response = await UnifiedPlayerService.GetAchievementsProgress(request).ToLongRunningTask().ConfigureAwait(false);
+    }
+    catch (OperationCanceledException) {
+      throw;
+    }
+    catch (Exception exception) {
+      Logger.Shared.Warning(exception);
+      return null;
+    }
+
+    return response.Result == EResult.OK ? response.Body.achievement_progress : null;
   }
 
   internal async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries, CancellationToken cancellationToken) {
