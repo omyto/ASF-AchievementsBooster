@@ -24,6 +24,8 @@ internal sealed class AppManager {
 
   internal HashSet<uint> OwnedGames { get; private set; } = [];
 
+  private DateTime LastUpdateOwnedGamesTime { get; set; }
+
   private Queue<uint> BoostableAppQueue { get; set; } = new();
 
   private HashSet<uint> NonBoostableApps { get; } = [];
@@ -32,7 +34,20 @@ internal sealed class AppManager {
 
   internal AppManager(Booster booster) => Booster = booster;
 
-  internal async Task UpdateQueue(HashSet<uint> newOwnedGames, CancellationToken cancellationToken) {
+  internal async Task<bool> UpdateOwnedGames(CancellationToken cancellationToken) {
+    DateTime now = DateTime.Now;
+    if (OwnedGames.Count == 0 || (now - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
+      Dictionary<uint, string>? ownedGames = await Booster.Bot.ArchiHandler.GetOwnedGames(Booster.Bot.SteamID).ConfigureAwait(false);
+      if (ownedGames != null) {
+        await UpdateQueue(ownedGames.Keys.ToHashSet(), cancellationToken).ConfigureAwait(false);
+        LastUpdateOwnedGamesTime = now;
+      }
+    }
+
+    return OwnedGames.Count > 0;
+  }
+
+  private async Task UpdateQueue(HashSet<uint> newOwnedGames, CancellationToken cancellationToken) {
     HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
     if (gamesRemoved.Count > 0) {
       Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));

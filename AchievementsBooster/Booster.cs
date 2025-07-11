@@ -21,7 +21,7 @@ namespace AchievementsBooster;
 
 internal sealed class Booster : IBooster {
 
-  private Bot Bot { get; }
+  internal Bot Bot { get; }
 
   internal Logger Logger { get; }
 
@@ -48,8 +48,6 @@ internal sealed class Booster : IBooster {
   private Timer? DetermineFarmingGamesChangedTimer { get; set; }
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
-
-  private DateTime LastUpdateOwnedGamesTime { get; set; }
 
   [field: MaybeNull, AllowNull]
   internal string Identifier {
@@ -145,7 +143,7 @@ internal sealed class Booster : IBooster {
 
     try {
       if (Bot.IsPlayingPossible) {
-        if (await UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
+        if (await AppManager.UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
           EBoostMode newMode = DetermineBoostMode();
           if (newMode != Engine?.Mode) {
             Engine?.StopPlay();
@@ -265,20 +263,6 @@ internal sealed class Booster : IBooster {
     => await Bot.Actions.Play(gameIDs).ConfigureAwait(false);
 
   internal (bool Success, string Message) ResumePlay() => Bot.Actions.Resume();
-
-  internal async Task<bool> UpdateOwnedGames(CancellationToken cancellationToken) {
-    DateTime now = DateTime.Now;
-    if (AppManager.OwnedGames.Count == 0 || (now - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
-      Dictionary<uint, string>? ownedGames = await Bot.ArchiHandler.GetOwnedGames(Bot.SteamID).ConfigureAwait(false);
-      if (ownedGames != null) {
-        await AppManager.UpdateQueue(ownedGames.Keys.ToHashSet(), cancellationToken).ConfigureAwait(false);
-        LastUpdateOwnedGamesTime = now;
-      }
-    }
-
-    return AppManager.OwnedGames.Count > 0;
-  }
-
 
   /** IBooster implementation */
   public Task OnDisconnected(EResult reason) {
