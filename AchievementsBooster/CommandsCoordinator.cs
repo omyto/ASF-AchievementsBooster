@@ -26,11 +26,15 @@ internal static class CommandsCoordinator {
 
     switch (args[0].ToUpperInvariant()) {
       case "ABSTART":
-        return args.Length == 1 ? ResponseStart(access, bot) : await ResponseStart(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
+        return args.Length == 1 ? await ResponseStart(access, bot).ConfigureAwait(false) : await ResponseStart(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
       case "ABSTOP":
-        return args.Length == 1 ? ResponseStop(access, bot) : await ResponseStop(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
+        return args.Length == 1 ? await ResponseStop(access, bot).ConfigureAwait(false) : await ResponseStop(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
       case "ABSTATUS":
-        return args.Length == 1 ? ResponseStatus(access, bot) : await ResponseStatus(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
+        return args.Length == 1 ? await ResponseStatus(access, bot).ConfigureAwait(false) : await ResponseStatus(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
+#if DEBUG
+      case "DEBUG":
+        return await ResponseDebug(access, bot, Utilities.GetArgsAsText(args, 1, ",")).ConfigureAwait(false);
+#endif
       default:
         break;
     }
@@ -39,7 +43,7 @@ internal static class CommandsCoordinator {
 
   // Generic
 
-  private static string? InvokeBot(EAccess access, Bot bot, string methodName, Type[]? types = null, object[]? parameters = null, EAccess accessRequired = EAccess.Master) {
+  private static async Task<string?> InvokeBot(EAccess access, Bot bot, string methodName, Type[]? types = null, object[]? parameters = null, EAccess accessRequired = EAccess.Master) {
     if (access < accessRequired) {
       return null;
     }
@@ -50,7 +54,9 @@ internal static class CommandsCoordinator {
 
     MethodInfo? method = booster.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, types ?? Type.EmptyTypes);
     if (method != null) {
-      string? response = method.Invoke(booster, parameters) as string;
+      string? response;
+      object? result = method.Invoke(booster, parameters);
+      response = result is Task<string> task ? await task.ConfigureAwait(false) : result as string;
       return bot.Commands.FormatBotResponse(response ?? "No response");
     }
     else {
@@ -74,26 +80,31 @@ internal static class CommandsCoordinator {
     return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
   }
 
+#if DEBUG
+  // -- Debug
+  private static async Task<string?> ResponseDebug(EAccess access, Bot bot, string data) => await InvokeBot(access, bot, nameof(Booster.Debug), [typeof(string)], [data], EAccess.Master).ConfigureAwait(false);
+#endif
+
   // -- Start
 
-  private static string? ResponseStart(EAccess access, Bot bot)
-    => InvokeBot(access, bot, nameof(Booster.Start), [typeof(bool)], [true], EAccess.Master);
+  private static async Task<string?> ResponseStart(EAccess access, Bot bot)
+    => await InvokeBot(access, bot, nameof(Booster.Start), [typeof(bool)], [true], EAccess.Master).ConfigureAwait(false);
 
   private static async Task<string?> ResponseStart(EAccess access, string botNames, ulong steamID = 0)
     => await InvokeBots(access, botNames, steamID, nameof(Booster.Start), [typeof(bool)], [true], EAccess.Master).ConfigureAwait(false);
 
   // -- Stop
 
-  private static string? ResponseStop(EAccess access, Bot bot)
-    => InvokeBot(access, bot, nameof(Booster.Stop), null, null, EAccess.Master);
+  private static async Task<string?> ResponseStop(EAccess access, Bot bot)
+    => await InvokeBot(access, bot, nameof(Booster.Stop), null, null, EAccess.Master).ConfigureAwait(false);
 
   private static async Task<string?> ResponseStop(EAccess access, string botNames, ulong steamID = 0)
     => await InvokeBots(access, botNames, steamID, nameof(Booster.Stop), null, null, EAccess.Master).ConfigureAwait(false);
 
   // -- Status
 
-  private static string? ResponseStatus(EAccess access, Bot bot)
-  => InvokeBot(access, bot, nameof(Booster.GetStatus), null, null, EAccess.Master);
+  private static async Task<string?> ResponseStatus(EAccess access, Bot bot)
+  => await InvokeBot(access, bot, nameof(Booster.GetStatus), null, null, EAccess.Master).ConfigureAwait(false);
 
   private static async Task<string?> ResponseStatus(EAccess access, string botNames, ulong steamID = 0)
     => await InvokeBots(access, botNames, steamID, nameof(Booster.GetStatus), null, null, EAccess.Master).ConfigureAwait(false);
