@@ -68,8 +68,8 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
     try {
       DateTime currentTime = DateTime.Now;
       if (currentTime >= NextAchieveTime) {
-        await Achieve(currentTime, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
         shouldUpdateNextAchieveTime = true;
+        await Achieve(currentTime, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
       }
       else {
         shouldUpdateNextAchieveTime = !AreBoostingGamesStillValid();
