@@ -1,3 +1,7 @@
+#if DEBUG
+#define DEBUG_DATA_DUMPER
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -37,7 +41,8 @@ internal static class CommandsCoordinator {
         return args.Length == 1
           ? await ResponseStatus(access, bot).ConfigureAwait(false)
           : await ResponseStatus(access, Utilities.GetArgsAsText(args, 1, ","), steamID).ConfigureAwait(false);
-#if DEBUG
+#if DEBUG_DATA_DUMPER
+      case "DB":
       case "DEBUG":
         return await ResponseDebug(access, bot, args.Skip(1).Select(e => e.Trim()).ToArray()).ConfigureAwait(false);
 #endif
@@ -86,11 +91,9 @@ internal static class CommandsCoordinator {
     return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
   }
 
-#if DEBUG
-  // -- Debug
+  // -- Debug data dumper
   private static async Task<string?> ResponseDebug(EAccess access, Bot bot, string[] args)
     => await InvokeBot(access, bot, nameof(Booster.Debug), [typeof(string[])], [args], EAccess.Master).ConfigureAwait(false);
-#endif
 
   // -- Start
 

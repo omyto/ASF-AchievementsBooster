@@ -14,7 +14,6 @@ using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
-using ArchiSteamFarm.Steam.Cards;
 using SteamKit2;
 
 namespace AchievementsBooster;
@@ -256,12 +255,20 @@ internal sealed class Booster : IBooster {
     return Strings.Done;
   }
 
-#if DEBUG
   internal async Task<string> Debug(string[] args) {
     Logger.Debug($"Debuging with args: {string.Join(" ", args)}");
+
+    switch (args[0].ToUpperInvariant()) {
+      case "PRODUCT":
+      case "INFO":
+        await DataDumper.DumpProductsInfo(this, args[1].Split(',').Select(uint.Parse).ToList()).ConfigureAwait(false);
+        break;
+      default:
+        Logger.Warning($"Unknown debug command: {args[0]}");
+        break;
+    }
 
     await Task.Delay(100).ConfigureAwait(false);
     return Strings.Done;
   }
-#endif
 }
