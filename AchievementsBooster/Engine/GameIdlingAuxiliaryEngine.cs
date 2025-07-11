@@ -16,10 +16,8 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
   [SuppressMessage("Style", "IDE0021:Use expression body for constructor", Justification = "<Pending>")]
   internal GameIdlingAuxiliaryEngine(Booster booster) : base(EBoostMode.IdleGaming, booster) {
     // Since GamesPlayedWhileIdle may never change
-    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Booster.GamesPlayedWhileIdle ?? []);
+    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Booster.Bot.BotConfig.GamesPlayedWhileIdle);
   }
-
-  protected override void ResumePlay() { }
 
   protected override AppBoostInfo[] GetReadyToUnlockApps() => CurrentBoostingApps.Values.ToArray();
 
@@ -48,9 +46,5 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
     return results;
   }
 
-  protected override Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
-
   protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingAppsInArchiPlayedWhileIdle;
-
-  protected override Task FallBackToIdleGaming(CancellationToken cancellationToken) => Task.CompletedTask;
 }

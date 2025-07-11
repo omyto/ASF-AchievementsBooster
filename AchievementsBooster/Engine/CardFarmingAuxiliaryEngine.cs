@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,12 +14,33 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
   internal CardFarmingAuxiliaryEngine(Booster booster) : base(EBoostMode.CardFarming, booster) {
   }
 
-  protected override void ResumePlay() { }
+  internal override TimeSpan GetNextBoostDueTime() => TimeSpan.FromTicks(Math.Min((NextAchieveTime - DateTime.Now).Ticks, TimeSpan.FromMinutes(5).Ticks));
+
+  private ImmutableHashSet<uint> LastGamesFarming { get; set; } = [];
+  private IReadOnlyCollection<Game> CurrentGamesFarming => Booster.Bot.CardsFarmer.CurrentGamesFarmingReadOnly;
+
+  protected override bool AreBoostingGamesStillValid() {
+    Booster.Logger.Trace("Checking if the boosting games are still valid ...");
+    bool isFarmingGamesChanged = true;
+    foreach (Game game in CurrentGamesFarming) {
+      if (LastGamesFarming.Contains(game.AppID)) {
+        isFarmingGamesChanged = false;
+        break;
+      }
+    }
+
+    if (isFarmingGamesChanged) {
+      CurrentBoostingApps.Clear();
+      Booster.Logger.Info("Farming games have changed, update the boosting games ...");
+      return false;
+    }
+    return true;
+  }
 
   protected override AppBoostInfo[] GetReadyToUnlockApps() {
     // Intersect between BoostingApps and CurrentGamesFarming
     List<uint> boostingAppIDs = [];
-    foreach (Game game in Booster.CurrentGamesFarming) {
+    foreach (Game game in CurrentGamesFarming) {
       if (CurrentBoostingApps.ContainsKey(game.AppID)) {
         boostingAppIDs.Add(game.AppID);
       }
@@ -39,7 +61,7 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
     List<AppBoostInfo> results = [];
 
     try {
-      Game[] currentGamesFarming = Booster.CurrentGamesFarming.ToArray();
+      Game[] currentGamesFarming = CurrentGamesFarming.ToArray();
       for (int index = 0; index < currentGamesFarming.Length && results.Count < count; index++) {
         cancellationToken.ThrowIfCancellationRequested();
         uint appID = currentGamesFarming[index].AppID;
@@ -59,12 +81,9 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
       throw;
     }
 
+    LastGamesFarming = CurrentGamesFarming.Select(e => e.AppID).ToImmutableHashSet();
     return results;
   }
 
-  protected override Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
-
   protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingAppsInArchiFarming;
-
-  protected override Task FallBackToIdleGaming(CancellationToken cancellationToken) => Task.CompletedTask;
 }

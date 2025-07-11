@@ -20,22 +20,29 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   protected Booster Booster { get; } = booster;
 
-  protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
-
-  internal IReadOnlySet<uint> CurrentGamesBoostingReadOnly => CurrentBoostingApps.Keys.ToHashSet();
-
   private SemaphoreSlim BoosterSemaphore { get; } = new SemaphoreSlim(1, 1);
 
-  protected abstract AppBoostInfo[] GetReadyToUnlockApps();
-  protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
-  protected abstract Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken);
-  protected abstract string GetNoBoostingAppsMessage();
-
-  protected abstract void ResumePlay();
-
-  protected abstract Task FallBackToIdleGaming(CancellationToken cancellationToken);
+  protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
 
   internal int CurrentBoostingAppsCount => CurrentBoostingApps.Count;
+
+  internal DateTime NextAchieveTime { get; private set; } = DateTime.Now;
+
+  internal virtual TimeSpan GetNextBoostDueTime() => NextAchieveTime - DateTime.Now;
+
+  protected virtual bool AreBoostingGamesStillValid() => true;
+
+  protected abstract AppBoostInfo[] GetReadyToUnlockApps();
+
+  protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
+
+  protected virtual Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
+
+  protected abstract string GetNoBoostingAppsMessage();
+
+  protected virtual Task FallBackToIdleGaming(CancellationToken cancellationToken) => Task.CompletedTask;
+
+  protected virtual void ResumePlay() { }
 
   public void StopPlay(bool resumePlay = false) {
     if (CurrentBoostingApps.Count > 0) {
@@ -57,8 +64,17 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
   public async Task Boosting(DateTime lastBoosterHeartBeatTime, bool isRestingTime, CancellationToken cancellationToken) {
     await BoosterSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
+    bool shouldUpdateNextAchieveTime = false;
     try {
-      await Achieve(DateTime.Now, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
+      DateTime currentTime = DateTime.Now;
+      if (currentTime >= NextAchieveTime) {
+        await Achieve(currentTime, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
+        shouldUpdateNextAchieveTime = true;
+      }
+      else {
+        shouldUpdateNextAchieveTime = !AreBoostingGamesStillValid();
+      }
+
       if (isRestingTime) {
         return;
       }
@@ -84,12 +100,16 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
       }
     }
     finally {
+      if (shouldUpdateNextAchieveTime) {
+        NextAchieveTime = DateTime.Now.AddSeconds(30).Add(TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval));
+      }
       _ = BoosterSemaphore.Release();
     }
   }
 
   // Unlock achievements
   private async Task Achieve(DateTime currentTime, DateTime lastBoosterHeartBeatTime, CancellationToken cancellationToken) {
+    Booster.Logger.Trace($"Achieving achievements for {CurrentBoostingApps.Count} game(s) ...");
     if (CurrentBoostingApps.Count == 0) {
       return;
     }

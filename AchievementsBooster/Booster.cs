@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -12,6 +10,7 @@ using AchievementsBooster.Handler;
 using AchievementsBooster.Handler.Exceptions;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Storage;
+using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Steam.Cards;
@@ -31,12 +30,6 @@ internal sealed class Booster : IBooster {
 
   internal SteamClientHandler SteamClientHandler { get; }
 
-  internal IReadOnlyCollection<Game> CurrentGamesFarming => Bot.CardsFarmer.CurrentGamesFarmingReadOnly;
-
-  private ImmutableHashSet<uint> LastGamesFarming { get; set; } = [];
-
-  internal ImmutableList<uint>? GamesPlayedWhileIdle => Bot.BotConfig?.GamesPlayedWhileIdle;
-
   private BoostEngine? Engine { get; set; }
 
   private Timer? BeatingTimer { get; set; }
@@ -44,8 +37,6 @@ internal sealed class Booster : IBooster {
   private DateTime LastBeatingTime { get; set; }
 
   private SemaphoreSlim BeatingSemaphore { get; } = new SemaphoreSlim(1);
-
-  private Timer? DetermineFarmingGamesChangedTimer { get; set; }
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
 
@@ -71,8 +62,6 @@ internal sealed class Booster : IBooster {
     CancellationTokenSource.Cancel();
     BeatingTimer?.Dispose();
     BeatingTimer = null;
-    DetermineFarmingGamesChangedTimer?.Dispose();
-    DetermineFarmingGamesChangedTimer = null;
   }
 
   internal string Stop() {
@@ -102,29 +91,6 @@ internal sealed class Booster : IBooster {
     }
 
     return "AchievementsBooster is running, but there are no games to boost";
-  }
-
-  private async void DetermineFarmingGamesChanged(object? state) {
-    if (BeatingTimer != null && Engine != null && Engine.Mode == EBoostMode.CardFarming) {
-      await BeatingSemaphore.WaitAsync().ConfigureAwait(false);
-      try {
-        bool isFarmingGamesChanged = true;
-        foreach (Game game in CurrentGamesFarming) {
-          if (LastGamesFarming.Contains(game.AppID)) {
-            isFarmingGamesChanged = false;
-            break;
-          }
-        }
-
-        if (isFarmingGamesChanged) {
-          Logger.Info("Farming games have changed, restarting the boosting process ...");
-          _ = BeatingTimer.Change(TimeSpan.FromSeconds(10), Timeout.InfiniteTimeSpan);
-        }
-      }
-      finally {
-        _ = BeatingSemaphore.Release();
-      }
-    }
   }
 
   private async void Beating(object? state) {
@@ -158,19 +124,15 @@ internal sealed class Booster : IBooster {
 
           isRestingTime = IsRestingTime(currentTime);
           await Engine.Boosting(LastBeatingTime, isRestingTime, cancellationToken).ConfigureAwait(false);
-
-          if (Engine.Mode == EBoostMode.CardFarming) {
-            LastGamesFarming = CurrentGamesFarming.Select(e => e.AppID).ToImmutableHashSet();
-            DetermineFarmingGamesChangedTimer ??= new Timer(DetermineFarmingGamesChanged, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
-          }
-          else if (DetermineFarmingGamesChangedTimer != null) {
-            DetermineFarmingGamesChangedTimer.Dispose();
-            DetermineFarmingGamesChangedTimer = null;
-          }
         }
         else {
           Logger.Info(Messages.NoGamesBoosting);
         }
+      }
+      else {
+        Logger.Info(Messages.BoostingImpossible);
+        Engine?.StopPlay();
+        Engine = null;
       }
     }
     catch (Exception exception) {
@@ -196,31 +158,27 @@ internal sealed class Booster : IBooster {
       LastBeatingTime = currentTime;
 
       if (BeatingTimer != null) {
-        // Due time for the next boosting
+        // Due time for the next beating
         TimeSpan dueTime;
 
-        if (!Bot.IsPlayingPossible) {
-          dueTime = TimeSpan.FromMinutes(5);
-          Logger.Info(Messages.BoostingImpossible);
-          Engine?.StopPlay();
-        }
-        else if (isRestingTime) {
-          dueTime = TimeSpan.FromMinutes(AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
+        if (isRestingTime) {
           Logger.Info(Messages.RestTime);
           Engine?.StopPlay(true);
+          Engine = null;
+          dueTime = TimeSpan.FromMinutes(AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
         }
         else {
-          dueTime = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
+          dueTime = Engine?.GetNextBoostDueTime() ?? TimeSpan.FromMinutes(10);
         }
 
         _ = BeatingTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
 
-        string timeRemainingMessage = $"{dueTime.Minutes} minutes{(dueTime.Seconds > 0 ? $" and {dueTime.Seconds} seconds" : "")}";
         if (Engine?.CurrentBoostingAppsCount > 0) {
-          Logger.Info($"Boosting {Engine.CurrentBoostingAppsCount} games, unlock achievements after {timeRemainingMessage}.");
+          TimeSpan achieveTimeRemaining = Engine.NextAchieveTime - DateTime.Now;
+          Logger.Info($"Boosting {Engine.CurrentBoostingAppsCount} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()}.");
         }
         else {
-          Logger.Info($"Next check after {timeRemainingMessage}.");
+          Logger.Info($"Next check after: {dueTime.ToHumanReadable()}.");
         }
       }
 
@@ -253,9 +211,9 @@ internal sealed class Booster : IBooster {
     }
   }
 
-  internal EBoostMode DetermineBoostMode() => CurrentGamesFarming.Count > 0
+  internal EBoostMode DetermineBoostMode() => Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
         ? EBoostMode.CardFarming
-        : GamesPlayedWhileIdle?.Count > 0
+        : Bot.BotConfig.GamesPlayedWhileIdle.Count > 0
           ? EBoostMode.IdleGaming
           : EBoostMode.AutoBoost;
 
