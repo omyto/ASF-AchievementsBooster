@@ -157,6 +157,37 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
     return response.Result == EResult.OK ? response.Body.achievements : null;
   }
 
+  internal async Task<List<AchievementProgress>?> GetAchievementsProgress(List<uint> appids, CancellationToken cancellationToken) {
+    ArgumentNullException.ThrowIfNull(Client);
+    ArgumentNullException.ThrowIfNull(UnifiedPlayerService);
+
+    if (!Client.IsConnected) {
+      return null;
+    }
+
+    CPlayer_GetAchievementsProgress_Request request = new() {
+      steamid = Bot.SteamID,
+      language = "english"
+    };
+    request.appids.AddRange(appids);
+
+    SteamUnifiedMessages.ServiceMethodResponse<CPlayer_GetAchievementsProgress_Response> response;
+
+    try {
+      await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
+      response = await UnifiedPlayerService.GetAchievementsProgress(request).ToLongRunningTask().ConfigureAwait(false);
+    }
+    catch (OperationCanceledException) {
+      throw;
+    }
+    catch (Exception exception) {
+      Logger.Shared.Warning(exception);
+      return null;
+    }
+
+    return response.Result == EResult.OK ? response.Body.achievement_progress.Select(e => new AchievementProgress(e)).ToList() : null;
+  }
+
   internal async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries, CancellationToken cancellationToken) {
     ulong? accessToken = await GetPICSAccessTokens(appID, maxTries, cancellationToken).ConfigureAwait(false);
     SteamApps.PICSRequest request = new(appID, accessToken ?? 0);

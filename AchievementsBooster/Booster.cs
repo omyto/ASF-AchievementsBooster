@@ -263,9 +263,18 @@ internal sealed class Booster : IBooster {
       case "INFO":
         await DataDumper.DumpProductsInfo(this, args[1].Split(',').Select(uint.Parse).ToList()).ConfigureAwait(false);
         break;
-      default:
-        Logger.Warning($"Unknown debug command: {args[0]}");
+      case "P":
+      case "PROGRESS":
+        await DataDumper.DumpAchievementsProgress(this, args[1].Split(',').Select(uint.Parse).ToList()).ConfigureAwait(false);
         break;
+      case "STATS":
+      case "STATUS":
+        await DataDumper.DumpStatsData(this, args[1].Split(',').Select(uint.Parse).ToList()).ConfigureAwait(false);
+        break;
+      default:
+        string msg = $"Unknown debug command: {args[0]}";
+        Logger.Warning(msg);
+        return msg;
     }
 
     await Task.Delay(100).ConfigureAwait(false);
