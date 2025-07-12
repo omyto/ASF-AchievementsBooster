@@ -14,7 +14,10 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
   internal CardFarmingAuxiliaryEngine(Booster booster) : base(EBoostMode.CardFarming, booster) {
   }
 
-  internal override TimeSpan GetNextBoostDueTime() => TimeSpan.FromTicks(Math.Min((NextAchieveTime - DateTime.Now).Ticks, TimeSpan.FromMinutes(5).Ticks));
+  internal override TimeSpan GetNextBoostDueTime() {
+    TimeSpan dueTime = base.GetNextBoostDueTime();
+    return dueTime > Constants.FiveMinutes ? Constants.FiveMinutes : dueTime;
+  }
 
   private ImmutableHashSet<uint> LastGamesFarming { get; set; } = [];
   private IReadOnlyCollection<Game> CurrentGamesFarming => Booster.Bot.CardsFarmer.CurrentGamesFarmingReadOnly;

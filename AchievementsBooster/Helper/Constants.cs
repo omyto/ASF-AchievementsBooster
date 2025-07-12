@@ -32,4 +32,12 @@ public static class Constants {
   public const byte MaxUnlockAchievementTries = 3;
 
   public static readonly Uri AchievementsFilterAPI = new("https://ab.omyto.com/api/filters");
+
+  public static readonly TimeSpan OneSeconds = TimeSpan.FromSeconds(1);
+
+  public static readonly TimeSpan FiveMinutes = TimeSpan.FromMinutes(5);
+
+  public static readonly TimeSpan FiveSeconds = TimeSpan.FromSeconds(5);
+
+  public static readonly TimeSpan TenMinutes = TimeSpan.FromMinutes(10);
 }

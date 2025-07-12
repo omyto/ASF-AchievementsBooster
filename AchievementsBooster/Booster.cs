@@ -158,8 +158,7 @@ internal sealed class Booster : IBooster {
       LastBeatingTime = currentTime;
 
       if (BeatingTimer != null) {
-        // Due time for the next beating
-        TimeSpan dueTime;
+        TimeSpan dueTime = Constants.TenMinutes;// Due time for the next beating
 
         if (isRestingTime) {
           Logger.Info(Messages.RestTime);
@@ -167,19 +166,23 @@ internal sealed class Booster : IBooster {
           Engine = null;
           dueTime = TimeSpan.FromMinutes(AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
         }
-        else {
-          dueTime = Engine?.GetNextBoostDueTime() ?? TimeSpan.FromMinutes(10);
+        else if (Engine != null) {
+          dueTime = Engine.GetNextBoostDueTime();
+          if (dueTime < TimeSpan.Zero) {
+            Logger.Warning("The due time for the next beating is negative, resetting to 5 seconds.");
+            dueTime = Constants.FiveSeconds;
+          }
         }
 
-        _ = BeatingTimer.Change(dueTime, Timeout.InfiniteTimeSpan);
-
         if (Engine?.CurrentBoostingAppsCount > 0) {
-          TimeSpan achieveTimeRemaining = Engine.NextAchieveTime - DateTime.Now;
-          Logger.Info($"Boosting {Engine.CurrentBoostingAppsCount} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()}.");
+          Logger.Trace($"Next beating in {dueTime.ToHumanReadable()} ({DateTime.Now.Add(dueTime).ToShortTimeString()})");
         }
         else {
           Logger.Info($"Next check after: {dueTime.ToHumanReadable()}.");
         }
+
+        // Restart the timer with the new due time
+        _ = BeatingTimer.Change(dueTime.Add(Constants.OneSeconds), Timeout.InfiniteTimeSpan);
       }
 
       _ = BeatingSemaphore.Release();

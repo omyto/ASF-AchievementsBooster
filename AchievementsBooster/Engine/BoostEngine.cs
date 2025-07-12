@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
+using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Engine;
 
@@ -67,6 +68,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
     bool shouldUpdateNextAchieveTime = false;
     try {
       DateTime currentTime = DateTime.Now;
+      Booster.Logger.Trace($"Now: {currentTime.ToLongTimeString()} ({currentTime.Ticks}) and NextAchieveTime: {NextAchieveTime.ToLongTimeString()} ({NextAchieveTime.Ticks})");
       if (currentTime >= NextAchieveTime) {
         shouldUpdateNextAchieveTime = true;
         await Achieve(currentTime, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
@@ -101,7 +103,11 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
     }
     finally {
       if (shouldUpdateNextAchieveTime) {
-        NextAchieveTime = DateTime.Now.AddSeconds(30).Add(TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval));
+        TimeSpan achieveTimeRemaining = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
+        if (CurrentBoostingAppsCount > 0) {
+          Booster.Logger.Info($"Boosting {CurrentBoostingAppsCount} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()}.");
+        }
+        NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
       }
       _ = BoosterSemaphore.Release();
     }
