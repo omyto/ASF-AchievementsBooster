@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
+using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Handler;
@@ -90,7 +91,7 @@ internal sealed class AppManager {
 
   internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
     app.BoostingDuration = 0;
-    app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(AchievementsBoosterPlugin.GlobalConfig.BoostRestTimePerApp);
+    app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(BoosterConfig.Global.BoostRestTimePerApp);
     RestingApps.Add(app);
   }
 
@@ -107,12 +108,12 @@ internal sealed class AppManager {
       return false;
     }
 
-    if (AchievementsBoosterPlugin.GlobalConfig.Blacklist.Contains(appID)) {
+    if (BoosterConfig.Global.Blacklist.Contains(appID)) {
       Booster.Logger.Trace($"App {appID} is on your AchievementsBooster blacklist list");
       return false;
     }
 
-    if (AchievementsBoosterPlugin.GlobalConfig.UnrestrictedApps.Contains(appID)) {
+    if (BoosterConfig.Global.UnrestrictedApps.Contains(appID)) {
       return true;
     }
 
@@ -120,7 +121,7 @@ internal sealed class AppManager {
       return false;
     }
 
-    if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithVAC && AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)) {
+    if (BoosterConfig.Global.RestrictAppWithVAC && AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)) {
       return false;
     }
 
@@ -219,23 +220,23 @@ internal sealed class AppManager {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    if (!AchievementsBoosterPlugin.GlobalConfig.UnrestrictedApps.Contains(appID)) {
+    if (!BoosterConfig.Global.UnrestrictedApps.Contains(appID)) {
       if (productInfo.IsVACEnabled) {
         _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
-        if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithVAC) {
+        if (BoosterConfig.Global.RestrictAppWithVAC) {
           Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, productInfo.FullName));
           return (EGetAppStatus.NonBoostable, null);
         }
       }
 
-      if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithDLC && productInfo.DLCs.Count > 0) {
+      if (BoosterConfig.Global.RestrictAppWithDLC && productInfo.DLCs.Count > 0) {
         Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, productInfo.FullName));
         _ = NonBoostableApps.Add(appID);
         return (EGetAppStatus.NonBoostable, null);
       }
 
-      if (AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers.Count > 0) {
-        foreach (string developer in AchievementsBoosterPlugin.GlobalConfig.RestrictDevelopers) {
+      if (BoosterConfig.Global.RestrictDevelopers.Count > 0) {
+        foreach (string developer in BoosterConfig.Global.RestrictDevelopers) {
           if (productInfo.Developers.Contains(developer)) {
             Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, productInfo.FullName, developer));
             _ = NonBoostableApps.Add(appID);
@@ -244,8 +245,8 @@ internal sealed class AppManager {
         }
       }
 
-      if (AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers.Count > 0) {
-        foreach (string publisher in AchievementsBoosterPlugin.GlobalConfig.RestrictPublishers) {
+      if (BoosterConfig.Global.RestrictPublishers.Count > 0) {
+        foreach (string publisher in BoosterConfig.Global.RestrictPublishers) {
           if (productInfo.Publishers.Contains(publisher)) {
             Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, productInfo.FullName, publisher));
             _ = NonBoostableApps.Add(appID);

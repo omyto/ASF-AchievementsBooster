@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
+using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Engine;
@@ -90,15 +91,15 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
       // Add new apps for boosting if need
       bool isBoostingAppsChanged = false;
-      if (CurrentBoostingApps.Count < AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps) {
-        List<AppBoostInfo> newApps = await FindNewAppsForBoosting(AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
+      if (CurrentBoostingApps.Count < BoosterConfig.Global.MaxConcurrentlyBoostingApps) {
+        List<AppBoostInfo> newApps = await FindNewAppsForBoosting(BoosterConfig.Global.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
         newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
         isBoostingAppsChanged = true;
       }
 
       if (CurrentBoostingApps.Count == 0) {
         Booster.Logger.Info(GetNoBoostingAppsMessage());
-        if (AchievementsBoosterPlugin.GlobalConfig.BoostHoursWhenIdle) {
+        if (BoosterConfig.Global.BoostHoursWhenIdle) {
           await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
         }
         return;
@@ -112,7 +113,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
     }
     finally {
       if (shouldUpdateNextAchieveTime) {
-        TimeSpan achieveTimeRemaining = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
+        TimeSpan achieveTimeRemaining = TimeSpanUtils.RandomInMinutesRange(BoosterConfig.Global.MinBoostInterval, BoosterConfig.Global.MaxBoostInterval);
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
         if (CurrentBoostingAppsCount > 0) {
           Booster.Logger.Info($"Boosting {CurrentBoostingAppsCount} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
@@ -170,8 +171,8 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
   }
 
   private bool Resting(AppBoostInfo app) {
-    if (AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp > 0) {
-      if (app.BoostingDuration >= AchievementsBoosterPlugin.GlobalConfig.BoostDurationPerApp) {
+    if (BoosterConfig.Global.BoostDurationPerApp > 0) {
+      if (app.BoostingDuration >= BoosterConfig.Global.BoostDurationPerApp) {
         _ = CurrentBoostingApps.Remove(app.ID);
         Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
         Booster.AppManager.MarkAppAsResting(app);

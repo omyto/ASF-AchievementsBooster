@@ -8,7 +8,10 @@ using AchievementsBooster.Helper;
 
 namespace AchievementsBooster.Storage;
 
-public sealed class BoosterGlobalConfig {
+public sealed class BoosterConfig {
+
+  public static BoosterConfig Global => AchievementsBoosterPlugin.GlobalConfig;
+
   public const int DefaultMinBoostInterval = 30;
   public const int DefaultMaxBoostInterval = 60;
   public const int DefaultBoostDurationPerApp = 600;
@@ -68,7 +71,7 @@ public sealed class BoosterGlobalConfig {
   public bool BoostHoursWhenIdle { get; private set; } = DefaultBoostHoursWhenIdle;
 
   [JsonConstructor]
-  internal BoosterGlobalConfig() { }
+  internal BoosterConfig() { }
 
   internal void Validate() {
     PropertyInfo[] properties = GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);

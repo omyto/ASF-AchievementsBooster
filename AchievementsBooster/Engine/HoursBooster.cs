@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Handler;
 using AchievementsBooster.Model;
+using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Engine;
@@ -26,8 +27,8 @@ internal sealed class HoursBooster {
       validGames.ExceptWith(ASF.GlobalConfig.Blacklist);
     }
 
-    if (AchievementsBoosterPlugin.GlobalConfig.Blacklist.Count > 0) {
-      validGames.ExceptWith(AchievementsBoosterPlugin.GlobalConfig.Blacklist);
+    if (BoosterConfig.Global.Blacklist.Count > 0) {
+      validGames.ExceptWith(BoosterConfig.Global.Blacklist);
     }
 
     List<uint> waitingGames = validGames.Except(BoostedGames).ToList();
@@ -46,7 +47,7 @@ internal sealed class HoursBooster {
     List<uint> readyToBoostGames = [];
 
     foreach (uint appID in appIDs) {
-      if (AchievementsBoosterPlugin.GlobalConfig.RestrictAppWithVAC) {
+      if (BoosterConfig.Global.RestrictAppWithVAC) {
         if (AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)) {
           continue;
         }
@@ -59,7 +60,7 @@ internal sealed class HoursBooster {
       }
 
       readyToBoostGames.Add(appID);
-      if (readyToBoostGames.Count >= AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps) {
+      if (readyToBoostGames.Count >= BoosterConfig.Global.MaxConcurrentlyBoostingApps) {
         break;
       }
     }

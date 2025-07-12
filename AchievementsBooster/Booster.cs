@@ -165,7 +165,7 @@ internal sealed class Booster : IBooster {
           Logger.Info(Messages.RestTime);
           Engine?.StopPlay(true);
           Engine = null;
-          dueTime = TimeSpan.FromMinutes(AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
+          dueTime = TimeSpan.FromMinutes(BoosterConfig.Global.RestTimePerDay);
         }
         else if (Engine != null) {
           dueTime = Engine.GetNextBoostDueTime();
@@ -191,13 +191,13 @@ internal sealed class Booster : IBooster {
   }
 
   private static bool IsRestingTime(DateTime currentTime) {
-    if (AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay == 0) {
+    if (BoosterConfig.Global.RestTimePerDay == 0) {
       return false;
     }
 
     DateTime weakUpTime = new(currentTime.Year, currentTime.Month, currentTime.Day, 6, 0, 0, 0);
     if (currentTime < weakUpTime) {
-      DateTime restingStartTime = weakUpTime.AddMinutes(-AchievementsBoosterPlugin.GlobalConfig.RestTimePerDay);
+      DateTime restingStartTime = weakUpTime.AddMinutes(-BoosterConfig.Global.RestTimePerDay);
       if (currentTime > restingStartTime) {
         return true;
       }

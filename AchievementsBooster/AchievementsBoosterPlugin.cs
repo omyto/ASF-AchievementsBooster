@@ -21,7 +21,7 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   private static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
-  internal static BoosterGlobalConfig GlobalConfig { get; private set; } = new();
+  internal static BoosterConfig GlobalConfig { get; private set; } = new();
 
   internal static GlobalCache GlobalCache { get; private set; } = new();
 
@@ -57,7 +57,7 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
   public Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties) {
     if (additionalConfigProperties != null && additionalConfigProperties.Count > 0) {
       if (additionalConfigProperties.TryGetValue(Constants.AchievementsBoosterConfigKey, out JsonElement configValue)) {
-        BoosterGlobalConfig? config = configValue.ToJsonObject<BoosterGlobalConfig>();
+        BoosterConfig? config = configValue.ToJsonObject<BoosterConfig>();
         if (config != null) {
           GlobalConfig = config;
           GlobalConfig.Validate();

@@ -86,8 +86,6 @@ internal static class AppUtils {
     await AchievementsFilterSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
     try {
-      BoosterGlobalConfig config = AchievementsBoosterPlugin.GlobalConfig;
-
       Dictionary<string, string> headers = new() {
         { "ab-booster", booster.Identifier },
         { "ab-version", Constants.PluginVersionString },
@@ -97,11 +95,11 @@ internal static class AppUtils {
       Dictionary<string, object> data = new() {
         { "appIds", ownedGames.ToArray() },
         { "restriction",  new Dictionary<string, object>() {
-          { "vac", config.RestrictAppWithVAC },
-          { "dlc", config.RestrictAppWithDLC },
-          { "developers", config.RestrictDevelopers.ToArray() },
-          { "publishers", config.RestrictPublishers.ToArray() },
-          { "excludedAppIds", config.UnrestrictedApps.ToArray() }
+          { "vac", BoosterConfig.Global.RestrictAppWithVAC },
+          { "dlc", BoosterConfig.Global.RestrictAppWithDLC },
+          { "developers", BoosterConfig.Global.RestrictDevelopers.ToArray() },
+          { "publishers", BoosterConfig.Global.RestrictPublishers.ToArray() },
+          { "excludedAppIds", BoosterConfig.Global.UnrestrictedApps.ToArray() }
         }}
       };
 
