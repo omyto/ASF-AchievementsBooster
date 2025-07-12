@@ -33,7 +33,6 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
     }
 
     if (isFarmingGamesChanged) {
-      CurrentBoostingApps.Clear();
       Booster.Logger.Info("Farming games have changed, update the boosting games ...");
       return false;
     }

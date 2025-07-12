@@ -27,7 +27,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   internal int CurrentBoostingAppsCount => CurrentBoostingApps.Count;
 
-  internal DateTime NextAchieveTime { get; private set; } = DateTime.Now;
+  internal DateTime NextAchieveTime { get; private set; } = DateTime.MinValue;
 
   internal virtual TimeSpan GetNextBoostDueTime() => NextAchieveTime - DateTime.Now;
 
@@ -65,16 +65,23 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
   public async Task Boosting(DateTime lastBoosterHeartBeatTime, bool isRestingTime, CancellationToken cancellationToken) {
     await BoosterSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-    bool shouldUpdateNextAchieveTime = false;
+    bool isFirstTime = NextAchieveTime == DateTime.MinValue;
+    bool shouldUpdateNextAchieveTime = isFirstTime;
+
     try {
       DateTime currentTime = DateTime.Now;
-      Booster.Logger.Trace($"Now: {currentTime.ToLongTimeString()} ({currentTime.Ticks}) and NextAchieveTime: {NextAchieveTime.ToLongTimeString()} ({NextAchieveTime.Ticks})");
-      if (currentTime >= NextAchieveTime) {
-        shouldUpdateNextAchieveTime = true;
-        await Achieve(currentTime, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
-      }
-      else {
-        shouldUpdateNextAchieveTime = !AreBoostingGamesStillValid();
+      if (!isFirstTime) {
+        Booster.Logger.Trace($"Now        : {currentTime.ToLongTimeString()} ({currentTime.Ticks})");
+        Booster.Logger.Trace($"NextAchieve: {NextAchieveTime.ToLongTimeString()} ({NextAchieveTime.Ticks})");
+
+        if (currentTime >= NextAchieveTime) {
+          shouldUpdateNextAchieveTime = true;
+          await Achieve(currentTime, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
+        }
+        else if (!AreBoostingGamesStillValid()) {
+          CurrentBoostingApps.Clear();
+          shouldUpdateNextAchieveTime = true;
+        }
       }
 
       if (isRestingTime) {
@@ -82,32 +89,34 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
       }
 
       // Add new apps for boosting if need
+      bool isBoostingAppsChanged = false;
       if (CurrentBoostingApps.Count < AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps) {
         List<AppBoostInfo> newApps = await FindNewAppsForBoosting(AchievementsBoosterPlugin.GlobalConfig.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
         newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
+        isBoostingAppsChanged = true;
       }
 
-      if (CurrentBoostingApps.Count > 0) {
-        if (await PlayCurrentBoostingApps(cancellationToken).ConfigureAwait(false)) {
-          foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
-            Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
-          }
-        }
-      }
-      else {
+      if (CurrentBoostingApps.Count == 0) {
         Booster.Logger.Info(GetNoBoostingAppsMessage());
         if (AchievementsBoosterPlugin.GlobalConfig.BoostHoursWhenIdle) {
           await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
+        }
+        return;
+      }
+
+      if (isBoostingAppsChanged && await PlayCurrentBoostingApps(cancellationToken).ConfigureAwait(false)) {
+        foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
+          Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
         }
       }
     }
     finally {
       if (shouldUpdateNextAchieveTime) {
         TimeSpan achieveTimeRemaining = TimeSpanUtils.RandomInMinutesRange(AchievementsBoosterPlugin.GlobalConfig.MinBoostInterval, AchievementsBoosterPlugin.GlobalConfig.MaxBoostInterval);
-        if (CurrentBoostingAppsCount > 0) {
-          Booster.Logger.Info($"Boosting {CurrentBoostingAppsCount} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()}.");
-        }
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
+        if (CurrentBoostingAppsCount > 0) {
+          Booster.Logger.Info($"Boosting {CurrentBoostingAppsCount} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
+        }
       }
       _ = BoosterSemaphore.Release();
     }

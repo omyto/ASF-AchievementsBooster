@@ -72,6 +72,7 @@ internal sealed class Booster : IBooster {
 
     StopTimer();
     Engine?.StopPlay(true);
+    Engine = null;
 
     Logger.Info("The boosting process has been stopped!");
     return Strings.Done;
