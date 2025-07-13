@@ -107,7 +107,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
       GetUserStatsResponseCallback responseCallback = await new AsyncJob<GetUserStatsResponseCallback>(Client, request.SourceJobID).ToLongRunningTask().ConfigureAwait(false);
       return responseCallback;
     }
-    catch (OperationCanceledException) {
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
       throw;
     }
     catch (Exception e) {
@@ -146,7 +146,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
       await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
       response = await UnifiedPlayerService.GetGameAchievements(request).ToLongRunningTask().ConfigureAwait(false);
     }
-    catch (OperationCanceledException) {
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
       throw;
     }
     catch (Exception exception) {
@@ -177,7 +177,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
       await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
       response = await UnifiedPlayerService.GetAchievementsProgress(request).ToLongRunningTask().ConfigureAwait(false);
     }
-    catch (OperationCanceledException) {
+    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
       throw;
     }
     catch (Exception exception) {
@@ -203,7 +203,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
         await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
         productInfoResultSet = await Bot.SteamApps.PICSGetProductInfo(request.ToEnumerable(), []).ToLongRunningTask().ConfigureAwait(false);
       }
-      catch (OperationCanceledException) {
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
         throw;
       }
       catch (Exception exception) {
@@ -256,7 +256,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
         await Task.Delay(RequestDelay, cancellationToken).ConfigureAwait(false);
         tokenCallback = await Bot.SteamApps.PICSGetAccessTokens(appID, null).ToLongRunningTask().ConfigureAwait(false);
       }
-      catch (OperationCanceledException) {
+      catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) {
         throw;
       }
       catch (Exception exception) {
