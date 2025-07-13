@@ -63,6 +63,7 @@ internal sealed class AppManager {
     }
 
     OwnedGames = newOwnedGames;
+    //Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
 
     List<uint>? games = await AppUtils.FilterAchievementsApps(newOwnedGames, Booster, cancellationToken).ConfigureAwait(false);
     if (games == null) {
@@ -82,7 +83,6 @@ internal sealed class AppManager {
       }
     }
 
-    Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
     if (restingSet.Count > 0) {
       Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", restingSet)));
     }

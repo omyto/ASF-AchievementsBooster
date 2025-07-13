@@ -82,6 +82,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
         else if (!AreBoostingGamesStillValid()) {
           CurrentBoostingApps.Clear();
           shouldUpdateNextAchieveTime = true;
+          Booster.Logger.Info("Farming games have changed, update the boosting games ...");
         }
       }
 
