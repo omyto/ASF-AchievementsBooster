@@ -96,6 +96,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
         List<AppBoostInfo> newApps = await FindNewAppsForBoosting(BoosterConfig.Global.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
         newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
         isBoostingAppsChanged = true;
+        shouldUpdateNextAchieveTime = true;
       }
 
       if (CurrentBoostingApps.Count == 0) {
@@ -106,7 +107,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
         return;
       }
 
-      if (isBoostingAppsChanged && await PlayCurrentBoostingApps(cancellationToken).ConfigureAwait(false)) {
+      if ((isBoostingAppsChanged || shouldUpdateNextAchieveTime) && await PlayCurrentBoostingApps(cancellationToken).ConfigureAwait(false)) {
         foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
           Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
         }
