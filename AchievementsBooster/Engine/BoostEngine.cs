@@ -28,8 +28,6 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
 
-  internal int CurrentBoostingAppsCount => CurrentBoostingApps.Count;
-
   internal DateTime NextAchieveTime { get; private set; } = DateTime.MinValue;
 
   internal virtual TimeSpan GetNextBoostDueTime() => NextAchieveTime - DateTime.Now;
@@ -38,7 +36,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   protected virtual bool ShouldRestingApp(AppBoostInfo app) => false;
 
-  protected virtual Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
+  protected virtual Task<bool> PlayBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
 
   protected virtual Task FallBackToIdleGaming(CancellationToken cancellationToken) => Task.CompletedTask;
 
@@ -111,13 +109,14 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
         return;
       }
 
-      if (!await PlayCurrentBoostingApps(cancellationToken).ConfigureAwait(false)) {
+      if (!await PlayBoostingApps(cancellationToken).ConfigureAwait(false)) {
         CurrentBoostingApps.Clear();
       }
     }
     finally {
       if (shouldUpdateNextAchieveTime) {
-        TimeSpan achieveTimeRemaining = TimeSpanUtils.RandomInMinutesRange(BoosterConfig.Global.MinBoostInterval, BoosterConfig.Global.MaxBoostInterval);
+        TimeSpan minBoostInterval = TimeSpan.FromMinutes(BoosterConfig.Global.MinBoostInterval);
+        TimeSpan achieveTimeRemaining = minBoostInterval.AddRandomMinutes(BoosterConfig.Global.MaxBoostInterval - BoosterConfig.Global.MinBoostInterval);
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
         if (CurrentBoostingApps.Count > 0) {
           foreach (AppBoostInfo app in CurrentBoostingApps.Values) {

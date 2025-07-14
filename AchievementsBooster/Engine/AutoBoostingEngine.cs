@@ -36,7 +36,7 @@ internal sealed class AutoBoostingEngine : BoostEngine {
     return await Booster.AppManager.NextAppsForBoost(count, cancellationToken).ConfigureAwait(false);
   }
 
-  protected override async Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) {
+  protected override async Task<bool> PlayBoostingApps(CancellationToken cancellationToken) {
     cancellationToken.ThrowIfCancellationRequested();
     (bool success, string message) = await Booster.PlayGames(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
     if (!success) {
