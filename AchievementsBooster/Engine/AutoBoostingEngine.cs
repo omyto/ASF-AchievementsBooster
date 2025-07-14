@@ -14,6 +14,8 @@ internal sealed class AutoBoostingEngine : BoostEngine {
   private bool HasTriggeredPlay { get; set; }
 
   internal AutoBoostingEngine(Booster booster) : base(EBoostMode.AutoBoost, booster) {
+    HasTriggeredPlay = false;
+    NoBoostingAppsMessage = Messages.NoBoostingApps;
   }
 
   protected override void ResumePlay() {
@@ -43,8 +45,6 @@ internal sealed class AutoBoostingEngine : BoostEngine {
 
     return HasTriggeredPlay = success;
   }
-
-  protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingApps;
 
   protected override async Task FallBackToIdleGaming(CancellationToken cancellationToken) {
     await HoursBooster.Instance.Update(Booster.AppManager, cancellationToken).ConfigureAwait(false);

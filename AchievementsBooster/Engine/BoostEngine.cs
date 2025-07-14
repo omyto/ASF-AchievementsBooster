@@ -22,6 +22,8 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   protected Booster Booster { get; } = booster;
 
+  protected string NoBoostingAppsMessage { get; set; } = string.Empty;
+
   private SemaphoreSlim BoosterSemaphore { get; } = new SemaphoreSlim(1, 1);
 
   protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
@@ -41,8 +43,6 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
   protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
 
   protected virtual Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
-
-  protected abstract string GetNoBoostingAppsMessage();
 
   protected virtual Task FallBackToIdleGaming(CancellationToken cancellationToken) => Task.CompletedTask;
 
@@ -93,26 +93,22 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
       }
 
       // Add new apps for boosting if need
-      bool isBoostingAppsChanged = false;
       if (CurrentBoostingApps.Count < BoosterConfig.Global.MaxConcurrentlyBoostingApps) {
         List<AppBoostInfo> newApps = await FindNewAppsForBoosting(BoosterConfig.Global.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
         newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
-        isBoostingAppsChanged = true;
         shouldUpdateNextAchieveTime = true;
       }
 
       if (CurrentBoostingApps.Count == 0) {
-        Booster.Logger.Info(GetNoBoostingAppsMessage());
+        Booster.Logger.Info(NoBoostingAppsMessage);
         if (BoosterConfig.Global.BoostHoursWhenIdle) {
           await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
         }
         return;
       }
 
-      if ((isBoostingAppsChanged || shouldUpdateNextAchieveTime) && await PlayCurrentBoostingApps(cancellationToken).ConfigureAwait(false)) {
-        foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
-          Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
-        }
+      if (!await PlayCurrentBoostingApps(cancellationToken).ConfigureAwait(false)) {
+        CurrentBoostingApps.Clear();
       }
     }
     finally {
@@ -120,6 +116,9 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
         TimeSpan achieveTimeRemaining = TimeSpanUtils.RandomInMinutesRange(BoosterConfig.Global.MinBoostInterval, BoosterConfig.Global.MaxBoostInterval);
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
         if (CurrentBoostingAppsCount > 0) {
+          foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
+            Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
+          }
           Booster.Logger.Info($"Boosting {CurrentBoostingAppsCount} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
         }
       }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +12,10 @@ using ArchiSteamFarm.Steam.Cards;
 namespace AchievementsBooster.Engine;
 
 internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
+
+  [SuppressMessage("Style", "IDE0021:Use expression body for constructor", Justification = "<Pending>")]
   internal CardFarmingAuxiliaryEngine(Booster booster) : base(EBoostMode.CardFarming, booster) {
+    NoBoostingAppsMessage = Messages.NoBoostingAppsInArchiFarming;
   }
 
   internal override TimeSpan GetNextBoostDueTime() {
@@ -82,6 +86,4 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
     LastGamesFarming = CurrentGamesFarming.Select(e => e.AppID).ToImmutableHashSet();
     return results;
   }
-
-  protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingAppsInArchiFarming;
 }

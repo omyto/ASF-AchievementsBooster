@@ -13,10 +13,10 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
   private Queue<uint> ArchiBoostableAppsPlayedWhileIdle { get; }
 
   [SuppressMessage("Style", "IDE0306:Simplify collection initialization", Justification = "<Pending>")]
-  [SuppressMessage("Style", "IDE0021:Use expression body for constructor", Justification = "<Pending>")]
   internal GameIdlingAuxiliaryEngine(Booster booster) : base(EBoostMode.IdleGaming, booster) {
     // Since GamesPlayedWhileIdle may never change
     ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Booster.Bot.BotConfig.GamesPlayedWhileIdle);
+    NoBoostingAppsMessage = Messages.NoBoostingAppsInArchiPlayedWhileIdle;
   }
 
   protected override AppBoostInfo[] GetReadyToUnlockApps() => CurrentBoostingApps.Values.ToArray();
@@ -45,6 +45,4 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
 
     return results;
   }
-
-  protected override string GetNoBoostingAppsMessage() => Messages.NoBoostingAppsInArchiPlayedWhileIdle;
 }
