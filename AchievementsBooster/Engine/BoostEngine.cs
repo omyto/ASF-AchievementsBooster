@@ -22,7 +22,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   protected Booster Booster { get; } = booster;
 
-  protected string NoBoostingAppsMessage { get; set; } = string.Empty;
+  protected string NoBoostingAppsMessage { get; init; } = string.Empty;
 
   private SemaphoreSlim BoosterSemaphore { get; } = new SemaphoreSlim(1, 1);
 
