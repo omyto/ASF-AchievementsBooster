@@ -13,7 +13,7 @@ using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Handler;
 
-internal sealed class AppManager {
+internal sealed class AppRepository {
   private enum EGetAppStatus : byte {
     OK,
     ProductNotFound,
@@ -33,7 +33,7 @@ internal sealed class AppManager {
 
   private List<AppBoostInfo> RestingApps { get; } = [];
 
-  internal AppManager(Booster booster) => Booster = booster;
+  internal AppRepository(Booster booster) => Booster = booster;
 
   internal async Task<bool> UpdateOwnedGames(CancellationToken cancellationToken) {
     DateTime now = DateTime.Now;

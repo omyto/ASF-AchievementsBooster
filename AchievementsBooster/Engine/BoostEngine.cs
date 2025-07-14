@@ -54,7 +54,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
     if (CurrentBoostingApps.Count > 0) {
       BoosterSemaphore.Wait();
       try {
-        Booster.AppManager.MarkAppsAsResting(CurrentBoostingApps.Values.ToList(), DateTime.Now);
+        Booster.AppRepository.MarkAppsAsResting(CurrentBoostingApps.Values.ToList(), DateTime.Now);
         CurrentBoostingApps.Clear();
       }
       finally {
@@ -169,7 +169,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
         if (app.FailedUnlockCount > Constants.MaxUnlockAchievementTries) {
           _ = CurrentBoostingApps.Remove(app.ID);
-          Booster.AppManager.MarkAppAsResting(app, DateTime.Now.AddHours(24));
+          Booster.AppRepository.MarkAppAsResting(app, DateTime.Now.AddHours(24));
           continue;
         }
       }
@@ -177,7 +177,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
       if (ShouldRestingApp(app)) {
         _ = CurrentBoostingApps.Remove(app.ID);
         Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
-        Booster.AppManager.MarkAppAsResting(app);
+        Booster.AppRepository.MarkAppAsResting(app);
       }
     }
   }

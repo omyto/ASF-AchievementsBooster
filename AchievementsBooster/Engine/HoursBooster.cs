@@ -17,11 +17,11 @@ internal sealed class HoursBooster {
   private List<uint> BoostedGames { get; set; } = [];
   internal List<uint> ReadyToBoostGames { get; private set; } = [];
 
-  internal async Task Update(AppManager appManager, CancellationToken cancellationToken) {
+  internal async Task Update(AppRepository appRepository, CancellationToken cancellationToken) {
     BoostedGames.AddRange(ReadyToBoostGames);
     ReadyToBoostGames.Clear();
 
-    HashSet<uint> validGames = appManager.OwnedGames.ToHashSet();
+    HashSet<uint> validGames = appRepository.OwnedGames.ToHashSet();
 
     if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Count > 0) {
       validGames.ExceptWith(ASF.GlobalConfig.Blacklist);
@@ -34,16 +34,16 @@ internal sealed class HoursBooster {
     List<uint> waitingGames = validGames.Except(BoostedGames).ToList();
 
     if (waitingGames.Count > 0) {
-      ReadyToBoostGames = await FindReadyToBoostGames(waitingGames, appManager, cancellationToken).ConfigureAwait(false);
+      ReadyToBoostGames = await FindReadyToBoostGames(waitingGames, appRepository, cancellationToken).ConfigureAwait(false);
     }
 
     if (ReadyToBoostGames.Count == 0) {
       BoostedGames.Clear();
-      ReadyToBoostGames = await FindReadyToBoostGames(validGames, appManager, cancellationToken).ConfigureAwait(false);
+      ReadyToBoostGames = await FindReadyToBoostGames(validGames, appRepository, cancellationToken).ConfigureAwait(false);
     }
   }
 
-  private static async Task<List<uint>> FindReadyToBoostGames(ICollection<uint> appIDs, AppManager appManager, CancellationToken cancellationToken) {
+  private static async Task<List<uint>> FindReadyToBoostGames(ICollection<uint> appIDs, AppRepository appRepository, CancellationToken cancellationToken) {
     List<uint> readyToBoostGames = [];
 
     foreach (uint appID in appIDs) {
@@ -52,7 +52,7 @@ internal sealed class HoursBooster {
           continue;
         }
 
-        ProductInfo? productInfo = await appManager.GetProductInfo(appID, cancellationToken).ConfigureAwait(false);
+        ProductInfo? productInfo = await appRepository.GetProductInfo(appID, cancellationToken).ConfigureAwait(false);
         if (productInfo != null && productInfo.IsVACEnabled) {
           _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
           continue;

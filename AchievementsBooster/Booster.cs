@@ -26,7 +26,7 @@ internal sealed class Booster : IBooster {
 
   internal BotCache Cache { get; }
 
-  internal AppManager AppManager { get; }
+  internal AppRepository AppRepository { get; }
 
   internal SteamClientHandler SteamClientHandler { get; }
 
@@ -55,7 +55,7 @@ internal sealed class Booster : IBooster {
     Logger = new Logger(bot.ArchiLogger);
     Cache = BotCache.LoadOrCreateCacheForBot(bot);
     SteamClientHandler = new SteamClientHandler(bot, Logger);
-    AppManager = new AppManager(this);
+    AppRepository = new AppRepository(this);
   }
 
   ~Booster() => StopTimer();
@@ -120,7 +120,7 @@ internal sealed class Booster : IBooster {
 
     try {
       if (Bot.IsPlayingPossible) {
-        if (await AppManager.UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
+        if (await AppRepository.UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
           EBoostMode newMode = DetermineBoostMode();
           if (newMode != Engine?.Mode) {
             Engine?.StopPlay();

@@ -33,7 +33,7 @@ internal sealed class AutoBoostingEngine : BoostEngine {
 
   protected override async Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken) {
     cancellationToken.ThrowIfCancellationRequested();
-    return await Booster.AppManager.NextAppsForBoost(count, cancellationToken).ConfigureAwait(false);
+    return await Booster.AppRepository.NextAppsForBoost(count, cancellationToken).ConfigureAwait(false);
   }
 
   protected override async Task<bool> PlayBoostingApps(CancellationToken cancellationToken) {
@@ -47,7 +47,7 @@ internal sealed class AutoBoostingEngine : BoostEngine {
   }
 
   protected override async Task FallBackToIdleGaming(CancellationToken cancellationToken) {
-    await HoursBooster.Instance.Update(Booster.AppManager, cancellationToken).ConfigureAwait(false);
+    await HoursBooster.Instance.Update(Booster.AppRepository, cancellationToken).ConfigureAwait(false);
 
     if (HoursBooster.Instance.ReadyToBoostGames.Count > 0) {
       (bool success, string message) = await Booster.PlayGames(HoursBooster.Instance.ReadyToBoostGames).ConfigureAwait(false);
