@@ -20,8 +20,8 @@ internal static class AppUtils {
   private static class Holder {
     internal static ConcurrentDictionary<uint, SemaphoreSlim> ProductSemaphores { get; } = new();
     internal static ConcurrentDictionary<uint, ProductInfo> ProductDictionary { get; } = new();
-    internal static ConcurrentDictionary<uint, SemaphoreSlim> AchievementPercentagesSemaphores { get; } = new();
-    internal static ConcurrentDictionary<uint, AchievementPercentages> AchievementPercentagesDictionary { get; } = new();
+    internal static ConcurrentDictionary<uint, SemaphoreSlim> AchievementRatesSemaphores { get; } = new();
+    internal static ConcurrentDictionary<uint, AchievementRates> AchievementRatesDictionary { get; } = new();
   }
 
   internal static async Task<ProductInfo?> GetProduct(uint appID, Booster booster, CancellationToken cancellationToken) {
@@ -50,16 +50,16 @@ internal static class AppUtils {
     return product;
   }
 
-  internal static async Task<AchievementPercentages?> GetAchievementPercentages(uint appID, Booster booster, CancellationToken cancellationToken) {
-    SemaphoreSlim semaphore = Holder.AchievementPercentagesSemaphores.GetOrAdd(appID, _ => new SemaphoreSlim(1, 1));
+  internal static async Task<AchievementRates?> GetAchievementCompletionRates(uint appID, Booster booster, CancellationToken cancellationToken) {
+    SemaphoreSlim semaphore = Holder.AchievementRatesSemaphores.GetOrAdd(appID, _ => new SemaphoreSlim(1, 1));
     await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
-    AchievementPercentages? percentages = null;
+    AchievementRates? achievementRates = null;
     try {
-      if (!Holder.AchievementPercentagesDictionary.TryGetValue(appID, out percentages)) {
-        percentages = await booster.SteamClientHandler.GetAchievementPercentages(appID, cancellationToken).ConfigureAwait(false);
-        if (percentages != null) {
-          _ = Holder.AchievementPercentagesDictionary.TryAdd(appID, percentages);
+      if (!Holder.AchievementRatesDictionary.TryGetValue(appID, out achievementRates)) {
+        achievementRates = await booster.SteamClientHandler.GetAchievementCompletionRates(appID, cancellationToken).ConfigureAwait(false);
+        if (achievementRates != null) {
+          _ = Holder.AchievementRatesDictionary.TryAdd(appID, achievementRates);
         }
       }
 #if DEBUG
@@ -70,10 +70,10 @@ internal static class AppUtils {
     }
     finally {
       _ = semaphore.Release();
-      _ = Holder.AchievementPercentagesSemaphores.TryRemove(appID, out _);
+      _ = Holder.AchievementRatesSemaphores.TryRemove(appID, out _);
     }
 
-    return percentages;
+    return achievementRates;
   }
 
   //TODO: Maybe no need cancel token for this method

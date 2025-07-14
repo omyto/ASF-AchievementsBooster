@@ -278,13 +278,13 @@ internal sealed class AppManager {
       return (EGetAppStatus.NonBoostable, null);
     }
 
-    AchievementPercentages? percentages = await AppUtils.GetAchievementPercentages(appID, Booster, cancellationToken).ConfigureAwait(false);
-    if (percentages == null) {
+    AchievementRates? achievementRates = await AppUtils.GetAchievementCompletionRates(appID, Booster, cancellationToken).ConfigureAwait(false);
+    if (achievementRates == null) {
       Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AchievementPercentagesNotFound, productInfo.FullName));
       return (EGetAppStatus.AchievementPercentagesNotFound, null);
     }
 
     Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, productInfo.FullName, unlockableAchievementsCount));
-    return (EGetAppStatus.OK, new AppBoostInfo(appID, productInfo, percentages, remainingAchievements.Count, unlockableAchievementsCount));
+    return (EGetAppStatus.OK, new AppBoostInfo(appID, productInfo, achievementRates, remainingAchievements.Count, unlockableAchievementsCount));
   }
 }

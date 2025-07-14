@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -14,7 +13,6 @@ using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam;
 using SteamKit2;
 using SteamKit2.Internal;
-using GameAchievement = SteamKit2.Internal.CPlayer_GetGameAchievements_Response.Achievement;
 using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
 
 namespace AchievementsBooster.Handler;
@@ -116,18 +114,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
     }
   }
 
-  internal async Task<AchievementPercentages?> GetAchievementPercentages(uint appID, CancellationToken cancellationToken) {
-    List<GameAchievement>? gameAchievements = await GetGameAchievements(appID, cancellationToken).ConfigureAwait(false);
-    if (gameAchievements == null || gameAchievements.Count == 0) {
-      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.GameAchievementNotExist, appID));
-      return null;
-    }
-
-    FrozenDictionary<string, double> percentages = gameAchievements.ToFrozenDictionary(k => k.internal_name, v => double.TryParse(v.player_percent_unlocked, out double value) ? value : 0.0);
-    return new AchievementPercentages(appID, percentages);
-  }
-
-  private async Task<List<GameAchievement>?> GetGameAchievements(uint appid, CancellationToken cancellationToken) {
+  internal async Task<AchievementRates?> GetAchievementCompletionRates(uint appid, CancellationToken cancellationToken) {
     ArgumentNullException.ThrowIfNull(Client);
     ArgumentNullException.ThrowIfNull(UnifiedPlayerService);
 
@@ -154,7 +141,13 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
       return null;
     }
 
-    return response.Result == EResult.OK ? response.Body.achievements : null;
+    if (response.Result != EResult.OK) {
+      Logger.Trace($"Get game achievements percentages failed for app {appid}: {response.Result}");
+      Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.GameAchievementNotExist, appid));
+      return null;
+    }
+
+    return new AchievementRates(appid, response.Body.achievements);
   }
 
   internal async Task<List<AchievementProgress>?> GetAchievementsProgress(List<uint> appids, CancellationToken cancellationToken) {

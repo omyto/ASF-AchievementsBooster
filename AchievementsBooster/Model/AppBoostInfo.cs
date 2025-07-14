@@ -30,14 +30,14 @@ public sealed class AppBoostInfo {
 
   private ProductInfo ProductInfo { get; }
 
-  private AchievementPercentages AchievementPercentages { get; }
+  private AchievementRates AchievementRates { get; }
 
   private StatData? FailedUnlockStat { get; set; }
 
-  internal AppBoostInfo(uint id, ProductInfo product, AchievementPercentages percentages, int remainingAchievementsCount, int unlockableAchievementsCount) {
+  internal AppBoostInfo(uint id, ProductInfo product, AchievementRates rates, int remainingAchievementsCount, int unlockableAchievementsCount) {
     ID = id;
     ProductInfo = product;
-    AchievementPercentages = percentages;
+    AchievementRates = rates;
     RemainingAchievementsCount = remainingAchievementsCount;
     UnlockableAchievementsCount = unlockableAchievementsCount;
   }
@@ -61,7 +61,7 @@ public sealed class AppBoostInfo {
     }
 
     foreach (StatData statData in unlockableAchievements) {
-      statData.Percentage = AchievementPercentages.GetPercentage(statData.APIName, 0);
+      statData.Percentage = AchievementRates.GetAchievementRate(statData.APIName, 0);
     }
     unlockableAchievements.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
 
