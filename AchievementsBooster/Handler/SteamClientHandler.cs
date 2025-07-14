@@ -224,7 +224,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
         continue;
       }
 
-      ProductInfo info = ProductUtils.GenerateProduct(productInfoApp);
+      ProductInfo info = new(productInfoApp);
 
 #if DEBUG_PRODUCT
       string fileName = $"{appID} ({info.Name}) - {Bot.BotName}";

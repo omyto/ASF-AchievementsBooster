@@ -261,7 +261,6 @@ internal sealed class AppManager {
     if (statDatas == null || statDatas.Count == 0) {
       _ = AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Add(appID);
       Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, productInfo.FullName));
-      productInfo.IsBoostable = false;
       return (EGetAppStatus.NonBoostable, null);
     }
 

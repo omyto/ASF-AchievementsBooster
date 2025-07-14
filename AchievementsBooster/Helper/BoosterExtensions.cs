@@ -4,7 +4,7 @@ using AchievementsBooster.Storage;
 
 namespace AchievementsBooster.Helper;
 
-public static class Extensions {
+public static class BoosterExtensions {
   public static bool IsBoosterRestingTime(this DateTime time) {
     if (BoosterConfig.Global.RestTimePerDay == 0) {
       return false;

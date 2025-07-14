@@ -118,11 +118,15 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
         TimeSpan minBoostInterval = TimeSpan.FromMinutes(BoosterConfig.Global.MinBoostInterval);
         TimeSpan achieveTimeRemaining = minBoostInterval.AddRandomMinutes(BoosterConfig.Global.MaxBoostInterval - BoosterConfig.Global.MinBoostInterval);
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
+
         if (CurrentBoostingApps.Count > 0) {
           foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
             Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
           }
           Booster.Logger.Info($"Boosting {CurrentBoostingApps.Count} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
+        }
+        else {
+          Booster.Logger.Info($"No games to boost, next check after: {achieveTimeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
         }
       }
       _ = BoosterSemaphore.Release();
