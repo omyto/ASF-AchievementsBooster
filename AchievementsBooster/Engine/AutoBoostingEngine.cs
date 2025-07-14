@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
+using AchievementsBooster.Storage;
 
 namespace AchievementsBooster.Engine;
 
@@ -22,7 +23,11 @@ internal sealed class AutoBoostingEngine : BoostEngine {
     }
   }
 
-  protected override AppBoostInfo[] GetReadyToUnlockApps() => CurrentBoostingApps.Values.ToArray();
+  protected override AppBoostInfo[] GetReadyToUnlockApps()
+    => CurrentBoostingApps.Values.ToArray();
+
+  protected override bool ShouldRestingApp(AppBoostInfo app)
+    => BoosterConfig.Global.BoostDurationPerApp > 0 && app.BoostingDuration >= BoosterConfig.Global.BoostDurationPerApp;
 
   protected override async Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken) {
     cancellationToken.ThrowIfCancellationRequested();

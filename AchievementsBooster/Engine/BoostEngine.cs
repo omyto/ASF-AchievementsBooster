@@ -34,6 +34,8 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   protected virtual bool AreBoostingGamesStillValid() => true;
 
+  protected virtual bool ShouldRestingApp(AppBoostInfo app) => false;
+
   protected abstract AppBoostInfo[] GetReadyToUnlockApps();
 
   protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
@@ -166,21 +168,11 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
         }
       }
 
-      if (Mode == EBoostMode.AutoBoost) {
-        _ = Resting(app);
-      }
-    }
-  }
-
-  private bool Resting(AppBoostInfo app) {
-    if (BoosterConfig.Global.BoostDurationPerApp > 0) {
-      if (app.BoostingDuration >= BoosterConfig.Global.BoostDurationPerApp) {
+      if (ShouldRestingApp(app)) {
         _ = CurrentBoostingApps.Remove(app.ID);
         Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
         Booster.AppManager.MarkAppAsResting(app);
-        return true;
       }
     }
-    return false;
   }
 }
