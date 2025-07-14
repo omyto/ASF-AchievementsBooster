@@ -119,7 +119,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
     ArgumentNullException.ThrowIfNull(UnifiedPlayerService);
 
     if (!Client.IsConnected) {
-      return null;
+      throw new BotDisconnectedException();
     }
 
     CPlayer_GetGameAchievements_Request request = new() {
@@ -142,7 +142,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
     }
 
     if (response.Result != EResult.OK) {
-      Logger.Trace($"Get game achievements percentages failed for app {appid}: {response.Result}");
+      Logger.Trace($"Get game achievements completion rates failed for app {appid}: {response.Result}");
       Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.GameAchievementNotExist, appid));
       return null;
     }
@@ -155,7 +155,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
     ArgumentNullException.ThrowIfNull(UnifiedPlayerService);
 
     if (!Client.IsConnected) {
-      return null;
+      throw new BotDisconnectedException();
     }
 
     CPlayer_GetAchievementsProgress_Request request = new() {
