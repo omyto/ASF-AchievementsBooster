@@ -38,15 +38,19 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   protected virtual bool ShouldRestingApp(AppBoostInfo app) => false;
 
-  protected abstract AppBoostInfo[] GetReadyToUnlockApps();
-
-  protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
-
   protected virtual Task<bool> PlayCurrentBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
 
   protected virtual Task FallBackToIdleGaming(CancellationToken cancellationToken) => Task.CompletedTask;
 
   protected virtual void ResumePlay() { }
+
+  protected abstract AppBoostInfo[] GetReadyToUnlockApps();
+
+  protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
+
+  internal string GetStatus() => CurrentBoostingApps.Count > 0
+      ? $"AchievementsBooster is running (mode: {Mode}). Boosting {CurrentBoostingApps.Count} game(s)"
+      : $"AchievementsBooster is running (mode: {Mode}), but there are no games to boost";
 
   public void StopPlay(bool resumePlay = false) {
     if (CurrentBoostingApps.Count > 0) {
@@ -115,11 +119,11 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
       if (shouldUpdateNextAchieveTime) {
         TimeSpan achieveTimeRemaining = TimeSpanUtils.RandomInMinutesRange(BoosterConfig.Global.MinBoostInterval, BoosterConfig.Global.MaxBoostInterval);
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
-        if (CurrentBoostingAppsCount > 0) {
+        if (CurrentBoostingApps.Count > 0) {
           foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
             Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
           }
-          Booster.Logger.Info($"Boosting {CurrentBoostingAppsCount} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
+          Booster.Logger.Info($"Boosting {CurrentBoostingApps.Count} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
         }
       }
       _ = BoosterSemaphore.Release();

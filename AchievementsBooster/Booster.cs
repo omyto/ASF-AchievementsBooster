@@ -40,6 +40,8 @@ internal sealed class Booster : IBooster {
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
 
+  private bool IsRestingTime;
+
   [field: MaybeNull, AllowNull]
   internal string Identifier {
     get {
@@ -80,6 +82,10 @@ internal sealed class Booster : IBooster {
 
   [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
   internal string GetStatus() {
+    if (!Bot.IsPlayingPossible) {
+      return "AchievementsBooster is not ready to boost; playing is blocked.";
+    }
+
     if (BeatingTimer == null) {
       return string.Join(Environment.NewLine, [
         "AchievementsBooster isn't running. Use the 'abstart' command to start boosting.",
@@ -87,11 +93,15 @@ internal sealed class Booster : IBooster {
       ]);
     }
 
-    if (Engine?.CurrentBoostingAppsCount > 0) {
-      return $"AchievementsBooster is running (mode: {Engine.Mode}). Boosting {Engine.CurrentBoostingAppsCount} game(s)";
+    if (IsRestingTime) {
+      return "AchievementsBooster is currently in resting time. It will resume boosting after the configured rest time ends.";
     }
 
-    return "AchievementsBooster is running, but there are no games to boost";
+    if (Engine == null) {
+      return "AchievementsBooster is running, but no boosting engine is initialized.";
+    }
+
+    return Engine.GetStatus();
   }
 
   private async void Beating(object? state) {
@@ -102,8 +112,8 @@ internal sealed class Booster : IBooster {
 
     Logger.Trace("Boosting heartbeating ...");
 
-    bool isRestingTime = false;
     DateTime currentTime = DateTime.Now;
+    IsRestingTime = currentTime.IsBoosterRestingTime();
 
     CancellationTokenSource = new CancellationTokenSource();
     CancellationToken cancellationToken = CancellationTokenSource.Token;
@@ -123,8 +133,7 @@ internal sealed class Booster : IBooster {
             };
           }
 
-          isRestingTime = IsRestingTime(currentTime);
-          await Engine.Boosting(LastBeatingTime, isRestingTime, cancellationToken).ConfigureAwait(false);
+          await Engine.Boosting(LastBeatingTime, IsRestingTime, cancellationToken).ConfigureAwait(false);
         }
         else {
           Logger.Info(Messages.NoGamesBoosting);
@@ -160,12 +169,14 @@ internal sealed class Booster : IBooster {
 
       if (BeatingTimer != null) {
         TimeSpan dueTime = Constants.TenMinutes;// Due time for the next beating
+        string dueTimeString = DateTime.Now.Add(dueTime).ToShortTimeString();
 
-        if (isRestingTime) {
+        if (IsRestingTime) {
           Logger.Info(Messages.RestTime);
           Engine?.StopPlay(true);
           Engine = null;
           dueTime = TimeSpan.FromMinutes(BoosterConfig.Global.RestTimePerDay);
+          Logger.Info($"Resting time. Wake up after {dueTime.ToHumanReadable()}, which is at {dueTimeString}");
         }
         else if (Engine != null) {
           dueTime = Engine.GetNextBoostDueTime();
@@ -174,13 +185,11 @@ internal sealed class Booster : IBooster {
             dueTime = Constants.FiveSeconds;
           }
         }
-
-        if (Engine?.CurrentBoostingAppsCount > 0) {
-          Logger.Trace($"Next beating in {dueTime.ToHumanReadable()} ({DateTime.Now.Add(dueTime).ToShortTimeString()})");
-        }
         else {
-          Logger.Info($"Next check after: {dueTime.ToHumanReadable()}.");
+          Logger.Info($"Next check after: {dueTime.ToHumanReadable()} ({dueTimeString}).");
         }
+
+        Logger.Trace($"Next beating in {dueTime.ToHumanReadable()} ({dueTimeString})");
 
         // Restart the timer with the new due time
         _ = BeatingTimer.Change(dueTime.Add(Constants.OneSeconds), Timeout.InfiniteTimeSpan);
@@ -188,22 +197,6 @@ internal sealed class Booster : IBooster {
 
       _ = BeatingSemaphore.Release();
     }
-  }
-
-  private static bool IsRestingTime(DateTime currentTime) {
-    if (BoosterConfig.Global.RestTimePerDay == 0) {
-      return false;
-    }
-
-    DateTime weakUpTime = new(currentTime.Year, currentTime.Month, currentTime.Day, 6, 0, 0, 0);
-    if (currentTime < weakUpTime) {
-      DateTime restingStartTime = weakUpTime.AddMinutes(-BoosterConfig.Global.RestTimePerDay);
-      if (currentTime > restingStartTime) {
-        return true;
-      }
-    }
-
-    return false;
   }
 
   private void OnPlayingSessionState(SteamUser.PlayingSessionStateCallback callback) {
