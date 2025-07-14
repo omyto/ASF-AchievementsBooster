@@ -63,9 +63,8 @@ public sealed class AppBoostInfo {
     foreach (StatData statData in unlockableAchievements) {
       statData.Percentage = AchievementRates.GetAchievementRate(statData.APIName, 0);
     }
-    unlockableAchievements.Sort((x, y) => y.Percentage.CompareTo(x.Percentage));
 
-    StatData nextStat = unlockableAchievements.First();
+    StatData nextStat = unlockableAchievements.OrderByDescending(e => e.Percentage).First();
 
     // Achieve next achievement
     if (await clientHandler.UnlockStat(ID, nextStat, response.CrcStats).ConfigureAwait(false)) {
