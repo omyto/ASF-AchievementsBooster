@@ -150,6 +150,18 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
     return new AchievementRates(appid, response.Body.achievements);
   }
 
+  internal async Task<AchievementProgress?> GetAchievementProgress(uint appid, CancellationToken cancellationToken) {
+    List<AchievementProgress>? results = await GetAchievementsProgress([appid], cancellationToken).ConfigureAwait(false);
+    if (results != null && results.Count > 0) {
+      AchievementProgress progress = results[0];
+      if (progress.AppID == appid) {
+        return progress;
+      }
+      Logger.Warning($"Achievement progress for app {appid} does not match the requested app ID");
+    }
+    return null;
+  }
+
   internal async Task<List<AchievementProgress>?> GetAchievementsProgress(List<uint> appids, CancellationToken cancellationToken) {
     ArgumentNullException.ThrowIfNull(Client);
     ArgumentNullException.ThrowIfNull(UnifiedPlayerService);

@@ -59,7 +59,7 @@ internal sealed class AutoBoostingEngine : BoostEngine {
         cancellationToken.ThrowIfCancellationRequested();
         uint appID = WaitingBoostApps.Dequeue();
 
-        AppBoostInfo? app = await Booster.AppRepository.GetBoostableApp(appID, cancellationToken).ConfigureAwait(false);
+        AppBoostInfo? app = await Booster.AppRepository.GetBoostableApp(appID, cancellationToken, false, false).ConfigureAwait(false);
         if (app != null) {
           results.Add(app);
         }

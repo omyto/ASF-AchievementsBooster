@@ -13,13 +13,6 @@ using ArchiSteamFarm.Core;
 namespace AchievementsBooster.Handler;
 
 internal sealed class AppRepository(Booster booster) {
-  private enum EGetAppStatus : byte {
-    OK,
-    ProductNotFound,
-    AchievementPercentagesNotFound,
-    NonBoostable
-  }
-
   private Booster Booster { get; } = booster;
 
   internal HashSet<uint> OwnedGames { get; private set; } = [];
@@ -30,16 +23,14 @@ internal sealed class AppRepository(Booster booster) {
 
   private DateTime LastUpdateOwnedGamesTime { get; set; }
 
-  private HashSet<uint> NonBoostableApps { get; } = [];
+  private HashSet<uint> UnboostableApps { get; } = [];
 
   private Dictionary<uint, AppBoostInfo> RestingBoostApps { get; } = [];
 
   internal async Task Update(CancellationToken cancellationToken) {
-    // Update owned games
     await UpdateOwnedGames(cancellationToken).ConfigureAwait(false);
 
     if (IsOwnedGamesUpdated) {
-      // Filter out non-achievement apps
       await UpdateFilteredGames(cancellationToken).ConfigureAwait(false);
     }
   }
@@ -132,7 +123,7 @@ internal sealed class AppRepository(Booster booster) {
     }
 
     return BoosterConfig.Global.UnrestrictedApps.Contains(appID)
-      || (!NonBoostableApps.Contains(appID)
+      || (!UnboostableApps.Contains(appID)
         && !Booster.Cache.PerfectGames.Contains(appID)
         && !AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Contains(appID)
         && (!BoosterConfig.Global.RestrictAppWithVAC || !AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)));
@@ -157,105 +148,139 @@ internal sealed class AppRepository(Booster booster) {
     return results;
   }
 
-  internal async Task<AppBoostInfo?> GetAppBoost(uint appID, CancellationToken cancellationToken) {
-    if (!IsBoostableApp(appID)) {
+  internal async Task<ProductInfo?> GetProductInfo(uint appID, CancellationToken cancellationToken) {
+    ProductInfo? product = await AppUtils.GetProduct(appID, Booster, cancellationToken).ConfigureAwait(false);
+    if (product == null) {
+      Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ProductInfoNotFound, appID));
+    }
+    return product;
+  }
+
+  internal async Task<AppBoostInfo?> GetBoostableApp(uint appID, CancellationToken cancellationToken, bool reCheckBoostable = true, bool allowRestingApp = true) {
+    if (reCheckBoostable && !IsBoostableApp(appID)) {
       return null;
     }
 
-    if (RestingBoostApps.TryGetValue(appID, out AppBoostInfo? app)) {
-      _ = RestingBoostApps.Remove(appID);
-      return app;
+    if (allowRestingApp) {
+      if (RestingBoostApps.TryGetValue(appID, out AppBoostInfo? restingApp)) {
+        _ = RestingBoostApps.Remove(appID);
+        return restingApp;
+      }
     }
 
-    (_, app) = await GetApp(appID, cancellationToken).ConfigureAwait(false);
-    return app;
-  }
+    // Check achievement progress
+    AchievementProgress? progress = await Booster.SteamClientHandler.GetAchievementProgress(appID, cancellationToken).ConfigureAwait(false);
+    if (progress == null) {
+      Booster.Logger.Warning($"Achievement progress for app {appID} not found");
+      return null;
+    }
 
-  internal async Task<AppBoostInfo?> GetBoostableApp(uint appID, CancellationToken cancellationToken) {
-    (EGetAppStatus status, AppBoostInfo? app) = await GetApp(appID, cancellationToken).ConfigureAwait(false);
-    return status == EGetAppStatus.OK ? app : null;
-  }
+    if (progress.Total == 0) {
+      _ = UnboostableApps.Add(appID);
+      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
+      return null;
+    }
 
-  internal async Task<ProductInfo?> GetProductInfo(uint appID, CancellationToken cancellationToken)
-    => await AppUtils.GetProduct(appID, Booster, cancellationToken).ConfigureAwait(false);
+    if (progress.AllUnlocked && progress.Unlocked == progress.Total) {
+      _ = Booster.Cache.PerfectGames.Add(appID);
+      Booster.Logger.Info($"All achievements already unlocked for app {appID}");
+      return null;
+    }
 
-  private async Task<(EGetAppStatus status, AppBoostInfo?)> GetApp(uint appID, CancellationToken cancellationToken) {
-    ProductInfo? productInfo = await AppUtils.GetProduct(appID, Booster, cancellationToken).ConfigureAwait(false);
-    if (productInfo == null) {
+    // Check product info
+    ProductInfo? product = await GetProductInfo(appID, cancellationToken).ConfigureAwait(false);
+    if (product == null) {
       Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ProductInfoNotFound, appID));
-      return (EGetAppStatus.ProductNotFound, null);
+      return null;
     }
 
-    if (!productInfo.IsBoostable) {
-      //TODO: Consider adding to the NonBoostableApps set
-      Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.NonBoostableApp, productInfo.FullName));
-      return (EGetAppStatus.NonBoostable, null);
+    if (!product.IsBoostable) {
+      Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.NonBoostableApp, product.FullName));
+      return null;
     }
 
-    if (!BoosterConfig.Global.UnrestrictedApps.Contains(appID)) {
-      if (productInfo.IsVACEnabled) {
-        _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
-        if (BoosterConfig.Global.RestrictAppWithVAC) {
-          Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, productInfo.FullName));
-          return (EGetAppStatus.NonBoostable, null);
-        }
-      }
-
-      if (BoosterConfig.Global.RestrictAppWithDLC && productInfo.DLCs.Count > 0) {
-        Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, productInfo.FullName));
-        _ = NonBoostableApps.Add(appID);
-        return (EGetAppStatus.NonBoostable, null);
-      }
-
-      if (BoosterConfig.Global.RestrictDevelopers.Count > 0) {
-        foreach (string developer in BoosterConfig.Global.RestrictDevelopers) {
-          if (productInfo.Developers.Contains(developer)) {
-            Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, productInfo.FullName, developer));
-            _ = NonBoostableApps.Add(appID);
-            return (EGetAppStatus.NonBoostable, null);
-          }
-        }
-      }
-
-      if (BoosterConfig.Global.RestrictPublishers.Count > 0) {
-        foreach (string publisher in BoosterConfig.Global.RestrictPublishers) {
-          if (productInfo.Publishers.Contains(publisher)) {
-            Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, productInfo.FullName, publisher));
-            _ = NonBoostableApps.Add(appID);
-            return (EGetAppStatus.NonBoostable, null);
-          }
-        }
-      }
+    if (IsRestrictedApp(product)) {
+      return null;
     }
 
-    UserStatsResponse? response = await Booster.SteamClientHandler.GetStats(appID, cancellationToken).ConfigureAwait(false);
-    List<StatData>? statDatas = response?.StatDatas;
-    if (statDatas == null || statDatas.Count == 0) {
-      _ = AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Add(appID);
-      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, productInfo.FullName));
-      return (EGetAppStatus.NonBoostable, null);
+    // Check user stats
+    UserStatsResponse? statsResponse = await Booster.SteamClientHandler.GetStats(appID, cancellationToken).ConfigureAwait(false);
+    if (statsResponse == null) {
+      Booster.Logger.Warning($"No user stats found for app {appID}");
+      return null;
     }
 
-    List<StatData> remainingAchievements = statDatas.Where(e => !e.IsSet).ToList();
+    List<StatData> stats = statsResponse.StatDatas;
+    if (stats.Count == 0) {
+      _ = UnboostableApps.Add(appID);
+      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, product.FullName));
+      return null;
+    }
+
+    List<StatData> remainingAchievements = stats.Where(e => !e.IsSet).ToList();
     if (remainingAchievements.Count == 0) {
       _ = Booster.Cache.PerfectGames.Add(appID);
-      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.PerfectApp, productInfo.FullName));
-      return (EGetAppStatus.NonBoostable, null);
+      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.PerfectApp, product.FullName));
+      return null;
     }
 
     int unlockableAchievementsCount = remainingAchievements.Count(e => !e.Restricted);
     if (unlockableAchievementsCount == 0) {
-      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, productInfo.FullName));
-      return (EGetAppStatus.NonBoostable, null);
+      _ = UnboostableApps.Add(appID);
+      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, product.FullName));
+      return null;
     }
 
     AchievementRates? achievementRates = await AppUtils.GetAchievementCompletionRates(appID, Booster, cancellationToken).ConfigureAwait(false);
     if (achievementRates == null) {
-      Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AchievementPercentagesNotFound, productInfo.FullName));
-      return (EGetAppStatus.AchievementPercentagesNotFound, null);
+      Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AchievementPercentagesNotFound, product.FullName));
+      return null;
     }
 
-    Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, productInfo.FullName, unlockableAchievementsCount));
-    return (EGetAppStatus.OK, new AppBoostInfo(appID, productInfo, achievementRates, remainingAchievements.Count, unlockableAchievementsCount));
+    Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, product.FullName, unlockableAchievementsCount));
+    return new AppBoostInfo(appID, product, achievementRates, remainingAchievements.Count, unlockableAchievementsCount);
+  }
+
+  private bool IsRestrictedApp(ProductInfo product) {
+    uint appID = product.ID;
+    if (BoosterConfig.Global.UnrestrictedApps.Contains(appID)) {
+      return false;
+    }
+
+    if (product.IsVACEnabled) {
+      _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
+      if (BoosterConfig.Global.RestrictAppWithVAC) {
+        Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, product.FullName));
+        return true;
+      }
+    }
+
+    if (BoosterConfig.Global.RestrictAppWithDLC && product.DLCs.Count > 0) {
+      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, product.FullName));
+      _ = UnboostableApps.Add(appID);
+      return true;
+    }
+
+    if (BoosterConfig.Global.RestrictDevelopers.Count > 0) {
+      foreach (string developer in BoosterConfig.Global.RestrictDevelopers) {
+        if (product.Developers.Contains(developer)) {
+          Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, product.FullName, developer));
+          _ = UnboostableApps.Add(appID);
+          return true;
+        }
+      }
+    }
+
+    if (BoosterConfig.Global.RestrictPublishers.Count > 0) {
+      foreach (string publisher in BoosterConfig.Global.RestrictPublishers) {
+        if (product.Publishers.Contains(publisher)) {
+          Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, product.FullName, publisher));
+          _ = UnboostableApps.Add(appID);
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 }

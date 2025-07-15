@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,11 +11,9 @@ namespace AchievementsBooster.Engine;
 internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
   private Queue<uint> ArchiBoostableAppsPlayedWhileIdle { get; }
 
-  [SuppressMessage("Style", "IDE0306:Simplify collection initialization", Justification = "<Pending>")]
   internal GameIdlingAuxiliaryEngine(Booster booster) : base(EBoostMode.IdleGaming, booster) {
-    // Since GamesPlayedWhileIdle may never change
-    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Booster.Bot.BotConfig.GamesPlayedWhileIdle);
     NoBoostingAppsMessage = Messages.NoBoostingAppsInArchiPlayedWhileIdle;
+    ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Booster.Bot.BotConfig.GamesPlayedWhileIdle);
   }
 
   protected override AppBoostInfo[] GetReadyToUnlockApps() => CurrentBoostingApps.Values.ToArray();
@@ -28,7 +25,7 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
       while (ArchiBoostableAppsPlayedWhileIdle.Count > 0 && results.Count < count) {
         cancellationToken.ThrowIfCancellationRequested();
         uint appID = ArchiBoostableAppsPlayedWhileIdle.Peek();
-        AppBoostInfo? app = await Booster.AppRepository.GetAppBoost(appID, cancellationToken).ConfigureAwait(false);
+        AppBoostInfo? app = await Booster.AppRepository.GetBoostableApp(appID, cancellationToken).ConfigureAwait(false);
         if (app != null) {
           results.Add(app);
         }

@@ -68,7 +68,7 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
         cancellationToken.ThrowIfCancellationRequested();
         uint appID = currentGamesFarming[index].AppID;
         if (!CurrentBoostingApps.ContainsKey(appID)) {
-          AppBoostInfo? app = await Booster.AppRepository.GetAppBoost(appID, cancellationToken).ConfigureAwait(false);
+          AppBoostInfo? app = await Booster.AppRepository.GetBoostableApp(appID, cancellationToken).ConfigureAwait(false);
           if (app != null) {
             results.Add(app);
           }
