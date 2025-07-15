@@ -135,6 +135,7 @@ internal sealed class Booster : IBooster {
             };
           }
 
+          await Engine.Update().ConfigureAwait(false);
           await Engine.Boosting(LastBeatingTime, IsRestingTime, cancellationToken).ConfigureAwait(false);
         }
         else {

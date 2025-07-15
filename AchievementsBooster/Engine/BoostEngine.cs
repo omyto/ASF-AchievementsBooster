@@ -30,6 +30,8 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   internal DateTime NextAchieveTime { get; private set; } = DateTime.MinValue;
 
+  internal virtual Task Update() => Task.CompletedTask;
+
   internal virtual TimeSpan GetNextBoostDueTime() => NextAchieveTime - DateTime.Now;
 
   protected virtual bool AreBoostingGamesStillValid() => true;
@@ -54,7 +56,10 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
     if (CurrentBoostingApps.Count > 0) {
       BoosterSemaphore.Wait();
       try {
-        Booster.AppRepository.MarkAppsAsResting(CurrentBoostingApps.Values.ToList(), DateTime.Now);
+        DateTime now = DateTime.Now;
+        foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
+          Booster.AppRepository.MarkAppAsResting(app, now);
+        }
         CurrentBoostingApps.Clear();
       }
       finally {
