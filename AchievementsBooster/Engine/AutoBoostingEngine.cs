@@ -10,7 +10,7 @@ using AchievementsBooster.Storage;
 
 namespace AchievementsBooster.Engine;
 
-internal sealed class AutoBoostingEngine : BoostEngine {
+internal sealed class AutoBoostingEngine : BoostingEngineBase {
 
   private bool HasTriggeredPlay { get; set; }
 
@@ -43,9 +43,6 @@ internal sealed class AutoBoostingEngine : BoostEngine {
       HasTriggeredPlay = false;
     }
   }
-
-  protected override AppBoostInfo[] GetReadyToUnlockApps()
-    => CurrentBoostingApps.Values.ToArray();
 
   protected override bool ShouldRestingApp(AppBoostInfo app)
     => BoosterConfig.Global.BoostDurationPerApp > 0 && app.BoostingDuration >= BoosterConfig.Global.BoostDurationPerApp;

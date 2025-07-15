@@ -11,7 +11,7 @@ using ArchiSteamFarm.Steam.Cards;
 
 namespace AchievementsBooster.Engine;
 
-internal sealed class CardFarmingAuxiliaryEngine : BoostEngine {
+internal sealed class CardFarmingAuxiliaryEngine : BoostingEngineBase {
 
   [SuppressMessage("Style", "IDE0021:Use expression body for constructor", Justification = "<Pending>")]
   internal CardFarmingAuxiliaryEngine(Booster booster) : base(EBoostMode.CardFarming, booster) {

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Helper;
@@ -8,15 +7,13 @@ using AchievementsBooster.Model;
 
 namespace AchievementsBooster.Engine;
 
-internal sealed class GameIdlingAuxiliaryEngine : BoostEngine {
+internal sealed class GameIdlingAuxiliaryEngine : BoostingEngineBase {
   private Queue<uint> ArchiBoostableAppsPlayedWhileIdle { get; }
 
   internal GameIdlingAuxiliaryEngine(Booster booster) : base(EBoostMode.IdleGaming, booster) {
     NoBoostingAppsMessage = Messages.NoBoostingAppsInArchiPlayedWhileIdle;
     ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Booster.Bot.BotConfig.GamesPlayedWhileIdle);
   }
-
-  protected override AppBoostInfo[] GetReadyToUnlockApps() => CurrentBoostingApps.Values.ToArray();
 
   protected override async Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken) {
     List<AppBoostInfo> results = [];

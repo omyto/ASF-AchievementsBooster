@@ -30,7 +30,7 @@ internal sealed class Booster : IBooster {
 
   internal SteamClientHandler SteamClientHandler { get; }
 
-  private BoostEngine? Engine { get; set; }
+  private BoostingEngineBase? Engine { get; set; }
 
   private Timer? BeatingTimer { get; set; }
 
@@ -125,7 +125,7 @@ internal sealed class Booster : IBooster {
         if (AppRepository.OwnedGames.Count > 0) {
           EBoostMode newMode = DetermineBoostMode();
           if (newMode != Engine?.Mode) {
-            Engine?.StopPlay();
+            Engine?.Destroy();
 
             Engine = newMode switch {
               EBoostMode.CardFarming => new CardFarmingAuxiliaryEngine(this),
@@ -133,6 +133,7 @@ internal sealed class Booster : IBooster {
               EBoostMode.AutoBoost => new AutoBoostingEngine(this),
               _ => throw new NotImplementedException()
             };
+            Engine.Initialize();
           }
 
           await Engine.Update().ConfigureAwait(false);

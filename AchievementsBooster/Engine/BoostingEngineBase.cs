@@ -11,14 +11,14 @@ using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Engine;
 
-public enum EBoostMode {
+internal enum EBoostMode {
   CardFarming,
   IdleGaming,
   AutoBoost
 }
 
-internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
-  public EBoostMode Mode { get; } = mode;
+internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
+  internal EBoostMode Mode { get; } = mode;
 
   protected Booster Booster { get; } = booster;
 
@@ -38,21 +38,28 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
 
   protected virtual bool ShouldRestingApp(AppBoostInfo app) => false;
 
-  protected virtual Task<bool> PlayBoostingApps(CancellationToken cancellationToken) => Task.FromResult(true);
+  protected virtual Task<bool> PlayBoostingApps(CancellationToken token) => Task.FromResult(true);
 
-  protected virtual Task FallBackToIdleGaming(CancellationToken cancellationToken) => Task.CompletedTask;
+  protected virtual Task FallBackToIdleGaming(CancellationToken token) => Task.CompletedTask;
 
   protected virtual void ResumePlay() { }
 
-  protected abstract AppBoostInfo[] GetReadyToUnlockApps();
+  protected virtual AppBoostInfo[] GetReadyToUnlockApps() => CurrentBoostingApps.Values.ToArray();
 
-  protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken);
+  protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken token);
 
   internal string GetStatus() => CurrentBoostingApps.Count > 0
       ? $"AchievementsBooster is running (mode: {Mode}). Boosting {CurrentBoostingApps.Count} game(s)"
       : $"AchievementsBooster is running (mode: {Mode}), but there are no games to boost";
 
-  public void StopPlay(bool resumePlay = false) {
+  internal void Initialize() => Booster.Logger.Info($"Initializing new boosting mode {Mode} ....");
+
+  internal void Destroy() {
+    Booster.Logger.Info("Boosting mode changed, stopping the current boosting process ...");
+    StopPlay();
+  }
+
+  internal void StopPlay(bool resumePlay = false) {
     if (CurrentBoostingApps.Count > 0) {
       BoosterSemaphore.Wait();
       try {
@@ -72,7 +79,7 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
     }
   }
 
-  public async Task Boosting(DateTime lastBoosterHeartBeatTime, bool isRestingTime, CancellationToken cancellationToken) {
+  internal async Task Boosting(DateTime lastBoosterHeartBeatTime, bool isRestingTime, CancellationToken cancellationToken) {
     await BoosterSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
     bool isFirstTime = NextAchieveTime == DateTime.MinValue;
@@ -183,10 +190,14 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
       }
 
       if (ShouldRestingApp(app)) {
-        _ = CurrentBoostingApps.Remove(app.ID);
-        Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
-        Booster.AppRepository.MarkAppAsResting(app);
+        Resting(app);
       }
     }
+  }
+
+  private void Resting(AppBoostInfo app) {
+    _ = CurrentBoostingApps.Remove(app.ID);
+    Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
+    Booster.AppRepository.MarkAppAsResting(app);
   }
 }
