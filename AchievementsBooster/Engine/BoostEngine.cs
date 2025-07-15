@@ -109,8 +109,11 @@ internal abstract class BoostEngine(EBoostMode mode, Booster booster) {
         return;
       }
 
-      if (!await PlayBoostingApps(cancellationToken).ConfigureAwait(false)) {
-        CurrentBoostingApps.Clear();
+      // Play boosting apps if first time or if the next achievement time is reached or if the boosting apps have changed
+      if (shouldUpdateNextAchieveTime) {
+        if (!await PlayBoostingApps(cancellationToken).ConfigureAwait(false)) {
+          CurrentBoostingApps.Clear();
+        }
       }
     }
     finally {
