@@ -32,7 +32,7 @@ internal sealed class AppRepository(Booster booster) {
 
   private HashSet<uint> NonBoostableApps { get; } = [];
 
-  private List<AppBoostInfo> RestingBoostApps { get; } = [];
+  private Dictionary<uint, AppBoostInfo> RestingBoostApps { get; } = [];
 
   internal async Task Update(CancellationToken cancellationToken) {
     // Update owned games
@@ -60,7 +60,7 @@ internal sealed class AppRepository(Booster booster) {
     }
 
     HashSet<uint> newOwnedGames = ownedGames.Keys.ToHashSet();
-    HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
+    List<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToList();
 
     OwnedGames = newOwnedGames;
     IsOwnedGamesUpdated = true;
@@ -71,22 +71,14 @@ internal sealed class AppRepository(Booster booster) {
 
     if (gamesRemoved.Count > 0) {
       Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
-      List<uint> restingApps = [];
 
       // Remove from resting list
-      for (int index = 0; index < RestingBoostApps.Count; index++) {
-        AppBoostInfo app = RestingBoostApps[index];
-        if (gamesRemoved.Contains(app.ID)) {
-          RestingBoostApps.RemoveAt(index);
-          index--;
-        }
-        else {
-          restingApps.Add(app.ID);
-        }
+      foreach (uint appID in gamesRemoved) {
+        _ = RestingBoostApps.Remove(appID);
       }
 
-      if (restingApps.Count > 0) {
-        Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", restingApps)));
+      if (RestingBoostApps.Count > 0) {
+        Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", RestingBoostApps.Keys)));
       }
     }
 
@@ -113,14 +105,17 @@ internal sealed class AppRepository(Booster booster) {
     }
 
     if (RestingBoostApps.Count > 0) {
-      FilteredGames = FilteredGames.Except(RestingBoostApps.Select(e => e.ID)).ToList();
+      FilteredGames = FilteredGames.Except(RestingBoostApps.Keys).ToList();
     }
   }
 
   internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
     app.BoostingDuration = 0;
     app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(BoosterConfig.Global.BoostRestTimePerApp);
-    RestingBoostApps.Add(app);
+
+    if (!RestingBoostApps.TryAdd(app.ID, app)) {
+      Booster.Logger.Warning($"App {app.FullName} already resting");
+    }
   }
 
   internal bool IsBoostableApp(uint appID, bool isFiltered = false) {
@@ -147,13 +142,15 @@ internal sealed class AppRepository(Booster booster) {
     List<AppBoostInfo> results = [];
     DateTime now = DateTime.Now;
 
-    for (int index = 0; index < RestingBoostApps.Count && results.Count < max; index++) {
-      AppBoostInfo app = RestingBoostApps[index];
-
+    foreach (AppBoostInfo app in RestingBoostApps.Values.ToList()) {
       if (now > app.RestingEndTime) {
-        RestingBoostApps.RemoveAt(index--);
         results.Add(app);
+        _ = RestingBoostApps.Remove(app.ID);
         Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.UnlockableAchievementsCount));
+
+        if (results.Count >= max) {
+          break;
+        }
       }
     }
 
@@ -165,26 +162,22 @@ internal sealed class AppRepository(Booster booster) {
       return null;
     }
 
-    for (int i = 0; i < RestingBoostApps.Count; i++) {
-      cancellationToken.ThrowIfCancellationRequested();
-      AppBoostInfo restingApp = RestingBoostApps[i];
-      if (restingApp.ID == appID) {
-        RestingBoostApps.RemoveAt(i);
-        return restingApp;
-      }
+    if (RestingBoostApps.TryGetValue(appID, out AppBoostInfo? app)) {
+      _ = RestingBoostApps.Remove(appID);
+      return app;
     }
 
-    (EGetAppStatus _, AppBoostInfo? app) = await GetApp(appID, cancellationToken).ConfigureAwait(false);
+    (_, app) = await GetApp(appID, cancellationToken).ConfigureAwait(false);
     return app;
   }
-
-  internal async Task<ProductInfo?> GetProductInfo(uint appID, CancellationToken cancellationToken)
-    => await AppUtils.GetProduct(appID, Booster, cancellationToken).ConfigureAwait(false);
 
   internal async Task<AppBoostInfo?> GetBoostableApp(uint appID, CancellationToken cancellationToken) {
     (EGetAppStatus status, AppBoostInfo? app) = await GetApp(appID, cancellationToken).ConfigureAwait(false);
     return status == EGetAppStatus.OK ? app : null;
   }
+
+  internal async Task<ProductInfo?> GetProductInfo(uint appID, CancellationToken cancellationToken)
+    => await AppUtils.GetProduct(appID, Booster, cancellationToken).ConfigureAwait(false);
 
   private async Task<(EGetAppStatus status, AppBoostInfo?)> GetApp(uint appID, CancellationToken cancellationToken) {
     ProductInfo? productInfo = await AppUtils.GetProduct(appID, Booster, cancellationToken).ConfigureAwait(false);
