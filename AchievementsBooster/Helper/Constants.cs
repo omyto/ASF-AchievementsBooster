@@ -9,6 +9,8 @@ public static class Constants {
 
   public const string PluginName = "AchievementsBooster";
 
+  public const string PluginShortName = "AchvBoost";
+
   public const string RepositoryName = "omyto/ASF-AchievementsBooster";
 
   public const string AchievementsBoosterConfigKey = PluginName;

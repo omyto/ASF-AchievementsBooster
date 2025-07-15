@@ -5,7 +5,7 @@ using ArchiSteamFarm.NLog;
 
 namespace AchievementsBooster.Helper;
 
-public sealed class Logger(ArchiLogger archiLogger, string pluginName = Constants.PluginName) {
+public sealed class Logger(ArchiLogger archiLogger, string pluginName = Constants.PluginShortName) {
   internal static readonly Logger Shared = new(ASF.ArchiLogger);
 
   private readonly ArchiLogger ArchiLogger = archiLogger;
