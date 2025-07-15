@@ -120,7 +120,9 @@ internal sealed class Booster : IBooster {
 
     try {
       if (Bot.IsPlayingPossible) {
-        if (await AppRepository.UpdateOwnedGames(cancellationToken).ConfigureAwait(false)) {
+        await AppRepository.Update(cancellationToken).ConfigureAwait(false);
+
+        if (AppRepository.OwnedGames.Count > 0) {
           EBoostMode newMode = DetermineBoostMode();
           if (newMode != Engine?.Mode) {
             Engine?.StopPlay();

@@ -25,74 +25,116 @@ internal sealed class AppRepository {
 
   internal HashSet<uint> OwnedGames { get; private set; } = [];
 
+  internal List<uint> FilteredGames { get; private set; } = [];
+
   private DateTime LastUpdateOwnedGamesTime { get; set; }
 
   private Queue<uint> BoostableAppQueue { get; set; } = new();
 
   private HashSet<uint> NonBoostableApps { get; } = [];
 
-  private List<AppBoostInfo> RestingApps { get; } = [];
+  private List<AppBoostInfo> RestingBoostApps { get; } = [];
 
   internal AppRepository(Booster booster) => Booster = booster;
 
-  internal async Task<bool> UpdateOwnedGames(CancellationToken cancellationToken) {
-    DateTime now = DateTime.Now;
-    if (OwnedGames.Count == 0 || (now - LastUpdateOwnedGamesTime).TotalHours > 12.0) {
-      Dictionary<uint, string>? ownedGames = await Booster.Bot.ArchiHandler.GetOwnedGames(Booster.Bot.SteamID).ConfigureAwait(false);
-      if (ownedGames != null) {
-        await UpdateQueue(ownedGames.Keys.ToHashSet(), cancellationToken).ConfigureAwait(false);
-        LastUpdateOwnedGamesTime = now;
-      }
-    }
+  internal async Task Update(CancellationToken cancellationToken) {
+    // Update owned games
+    await UpdateOwnedGames(cancellationToken).ConfigureAwait(false);
 
-    return OwnedGames.Count > 0;
+    // Filter out non-achievement apps
+    await UpdateFilteredGames(cancellationToken).ConfigureAwait(false);
+
+    // Update boostable queue
+    await UpdateQueue(OwnedGames).ConfigureAwait(false);
   }
 
-  private async Task UpdateQueue(HashSet<uint> newOwnedGames, CancellationToken cancellationToken) {
-    HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
-    if (gamesRemoved.Count > 0) {
-      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
-      // Remove from resting list
-      for (int index = 0; index < RestingApps.Count; index++) {
-        AppBoostInfo app = RestingApps[index];
-        if (gamesRemoved.Contains(app.ID)) {
-          RestingApps.RemoveAt(index);
-          index--;
-        }
-      }
+  private async Task UpdateOwnedGames(CancellationToken cancellationToken) {
+    DateTime now = DateTime.Now;
+    if (OwnedGames.Count > 0 && (now - LastUpdateOwnedGamesTime).TotalHours < 12.0) {
+      return;
     }
+
+    Dictionary<uint, string>? ownedGames = await Booster.Bot.ArchiHandler.GetOwnedGames(Booster.Bot.SteamID).ConfigureAwait(false);
+    cancellationToken.ThrowIfCancellationRequested();
+
+    if (ownedGames == null || ownedGames.Count == 0) {
+      return;
+    }
+
+    HashSet<uint> newOwnedGames = ownedGames.Keys.ToHashSet();
+    HashSet<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToHashSet();
 
     OwnedGames = newOwnedGames;
-    //Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.GamesOwned, string.Join(",", newOwnedGames)));
+    LastUpdateOwnedGamesTime = now;
 
-    List<uint>? games = await AppUtils.FilterAchievementsApps(newOwnedGames, Booster, cancellationToken).ConfigureAwait(false);
-    if (games == null) {
-      if (BoostableAppQueue.Count > 0) {
-        return;
+    Booster.Logger.Info($"Owned games updated: {OwnedGames.Count} game(s).");
+    //Booster.Logger.Trace($"Games owned: {string.Join(",", OwnedGames)}");
+
+    if (gamesRemoved.Count > 0) {
+      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
+      List<uint> restingApps = [];
+
+      // Remove from resting list
+      for (int index = 0; index < RestingBoostApps.Count; index++) {
+        AppBoostInfo app = RestingBoostApps[index];
+        if (gamesRemoved.Contains(app.ID)) {
+          RestingBoostApps.RemoveAt(index);
+          index--;
+        }
+        else {
+          restingApps.Add(app.ID);
+        }
       }
 
-      games = PossibleApps.FilterAchievementsApps(newOwnedGames);
+      if (restingApps.Count > 0) {
+        Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", restingApps)));
+      }
     }
 
-    BoostableAppQueue.Clear();
-    HashSet<uint> restingSet = RestingApps.Select(app => app.ID).ToHashSet();
+    return;
+  }
 
-    foreach (uint appID in games) {
-      if (!restingSet.Contains(appID) && IsBoostableApp(appID)) {
+  private async Task UpdateFilteredGames(CancellationToken cancellationToken) {
+    List<uint>? filteredGames = await AppUtils.FilterAchievementsApps(OwnedGames, Booster, cancellationToken).ConfigureAwait(false);
+
+    if (filteredGames != null) {
+      FilteredGames = filteredGames;
+    }
+    else if (FilteredGames.Count == 0) {
+      FilteredGames = PossibleApps.FilterAchievementsApps(OwnedGames);
+    }
+
+    // Filter out blacklisted apps and resting apps
+    if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Count > 0) {
+      FilteredGames = FilteredGames.Except(ASF.GlobalConfig.Blacklist).ToList();
+    }
+
+    if (BoosterConfig.Global.Blacklist.Count > 0) {
+      FilteredGames = FilteredGames.Except(BoosterConfig.Global.Blacklist).ToList();
+    }
+
+    if (RestingBoostApps.Count > 0) {
+      FilteredGames = FilteredGames.Except(RestingBoostApps.Select(e => e.ID)).ToList();
+    }
+  }
+
+  private Task UpdateQueue(HashSet<uint> filteredGames) {
+    BoostableAppQueue.Clear();
+
+    foreach (uint appID in filteredGames) {
+      if (IsBoostableApp(appID)) {
         BoostableAppQueue.Enqueue(appID);
       }
     }
 
-    if (restingSet.Count > 0) {
-      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", restingSet)));
-    }
     Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostableQueue, $"{string.Join(",", BoostableAppQueue.Take(50))}{(BoostableAppQueue.Count > 50 ? ", ..." : ".")}"));
+    return Task.CompletedTask;
   }
 
   internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
     app.BoostingDuration = 0;
     app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(BoosterConfig.Global.BoostRestTimePerApp);
-    RestingApps.Add(app);
+    RestingBoostApps.Add(app);
   }
 
   internal void MarkAppsAsResting(IList<AppBoostInfo> apps, DateTime restingEndTime) {
@@ -101,35 +143,27 @@ internal sealed class AppRepository {
     }
   }
 
-  [SuppressMessage("Style", "IDE0046:Convert to conditional expression", Justification = "<Pending>")]
-  internal bool IsBoostableApp(uint appID) {
-    if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
-      Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
-      return false;
+  internal bool IsBoostableApp(uint appID, bool isFiltered = false) {
+    if (!isFiltered) {
+      if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
+        Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
+        return false;
+      }
+
+      if (BoosterConfig.Global.Blacklist.Contains(appID)) {
+        Booster.Logger.Trace($"App {appID} is on your AchievementsBooster blacklist list");
+        return false;
+      }
+
+      if (BoosterConfig.Global.UnrestrictedApps.Contains(appID)) {
+        return true;
+      }
     }
 
-    if (BoosterConfig.Global.Blacklist.Contains(appID)) {
-      Booster.Logger.Trace($"App {appID} is on your AchievementsBooster blacklist list");
-      return false;
-    }
-
-    if (BoosterConfig.Global.UnrestrictedApps.Contains(appID)) {
-      return true;
-    }
-
-    if (AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Contains(appID)) {
-      return false;
-    }
-
-    if (BoosterConfig.Global.RestrictAppWithVAC && AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)) {
-      return false;
-    }
-
-    if (Booster.Cache.PerfectGames.Contains(appID)) {
-      return false;
-    }
-
-    return !NonBoostableApps.Contains(appID);
+    return !NonBoostableApps.Contains(appID)
+      && !Booster.Cache.PerfectGames.Contains(appID)
+      && !AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Contains(appID)
+      && (!BoosterConfig.Global.RestrictAppWithVAC || !AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID));
   }
 
   internal async Task<List<AppBoostInfo>> NextAppsForBoost(int size, CancellationToken cancellationToken) {
@@ -139,11 +173,11 @@ internal sealed class AppRepository {
     try {
       // Get from resting list first
       DateTime now = DateTime.Now;
-      for (int index = 0; index < RestingApps.Count && results.Count < size; index++) {
+      for (int index = 0; index < RestingBoostApps.Count && results.Count < size; index++) {
         cancellationToken.ThrowIfCancellationRequested();
-        AppBoostInfo app = RestingApps[index];
+        AppBoostInfo app = RestingBoostApps[index];
         if (now > app.RestingEndTime) {
-          RestingApps.RemoveAt(index--);
+          RestingBoostApps.RemoveAt(index--);
           results.Add(app);
           Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.UnlockableAchievementsCount));
         }
@@ -191,11 +225,11 @@ internal sealed class AppRepository {
       return null;
     }
 
-    for (int i = 0; i < RestingApps.Count; i++) {
+    for (int i = 0; i < RestingBoostApps.Count; i++) {
       cancellationToken.ThrowIfCancellationRequested();
-      AppBoostInfo restingApp = RestingApps[i];
+      AppBoostInfo restingApp = RestingBoostApps[i];
       if (restingApp.ID == appID) {
-        RestingApps.RemoveAt(i);
+        RestingBoostApps.RemoveAt(i);
         return restingApp;
       }
     }
