@@ -130,9 +130,14 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
     }
     finally {
       if (shouldUpdateNextAchieveTime) {
-        TimeSpan minBoostInterval = TimeSpan.FromMinutes(BoosterConfig.Global.MinBoostInterval);
-        TimeSpan achieveTimeRemaining = minBoostInterval.AddRandomMinutes(BoosterConfig.Global.MaxBoostInterval - BoosterConfig.Global.MinBoostInterval);
+        TimeSpan achieveTimeRemaining = Constants.FiveMinutes;
+        if (CurrentBoostingApps.Count > 0) {
+          TimeSpan minBoostInterval = TimeSpan.FromMinutes(BoosterConfig.Global.MinBoostInterval);
+          achieveTimeRemaining = minBoostInterval.AddRandomMinutes(BoosterConfig.Global.MaxBoostInterval - BoosterConfig.Global.MinBoostInterval);
+        }
+
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
+        await Task.Delay(Constants.OneSeconds, cancellationToken).ConfigureAwait(false);
 
         if (CurrentBoostingApps.Count > 0) {
           foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
