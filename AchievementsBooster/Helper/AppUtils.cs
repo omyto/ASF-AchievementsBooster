@@ -19,9 +19,10 @@ internal static class AppUtils {
 
   private static class Holder {
     internal static ConcurrentDictionary<uint, SemaphoreSlim> ProductSemaphores { get; } = new();
-    internal static ConcurrentDictionary<uint, ProductInfo> ProductDictionary { get; } = new();
+    internal static LRUCache<ProductInfo> ProductCache = new(256);
+
     internal static ConcurrentDictionary<uint, SemaphoreSlim> AchievementRatesSemaphores { get; } = new();
-    internal static ConcurrentDictionary<uint, AchievementRates> AchievementRatesDictionary { get; } = new();
+    internal static LRUCache<AchievementRates> AchievementRatesCache = new(256);
   }
 
   internal static async Task<ProductInfo?> GetProduct(uint appID, Booster booster, CancellationToken cancellationToken) {
@@ -30,10 +31,10 @@ internal static class AppUtils {
 
     ProductInfo? product = null;
     try {
-      if (!Holder.ProductDictionary.TryGetValue(appID, out product)) {
+      if (!Holder.ProductCache.TryGet(appID, out product)) {
         product = await booster.SteamClientHandler.GetProductInfo(appID, WebBrowser.MaxTries, cancellationToken).ConfigureAwait(false);
         if (product != null) {
-          _ = Holder.ProductDictionary.TryAdd(appID, product);
+          Holder.ProductCache.Set(appID, product);
         }
       }
 #if DEBUG
@@ -56,10 +57,10 @@ internal static class AppUtils {
 
     AchievementRates? achievementRates = null;
     try {
-      if (!Holder.AchievementRatesDictionary.TryGetValue(appID, out achievementRates)) {
+      if (!Holder.AchievementRatesCache.TryGet(appID, out achievementRates)) {
         achievementRates = await booster.SteamClientHandler.GetAchievementCompletionRates(appID, cancellationToken).ConfigureAwait(false);
         if (achievementRates != null) {
-          _ = Holder.AchievementRatesDictionary.TryAdd(appID, achievementRates);
+          Holder.AchievementRatesCache.Set(appID, achievementRates);
         }
       }
 #if DEBUG
