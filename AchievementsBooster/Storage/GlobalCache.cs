@@ -5,7 +5,6 @@ using AchievementsBooster.Helper;
 using ArchiSteamFarm.Collections;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Helpers.Json;
-using JetBrains.Annotations;
 
 namespace AchievementsBooster.Storage;
 
@@ -53,9 +52,9 @@ internal sealed class GlobalCache {
 
   private void OnObjectModified(object? sender, EventArgs e) => ASF.GlobalDatabase?.SaveToJsonStorage(Constants.GlobalCacheKey, this);
 
-  [UsedImplicitly]
+  /* [UsedImplicitly] */
   public bool ShouldSerializeNonAchievementApps() => NonAchievementApps.Count > 0;
 
-  [UsedImplicitly]
+  /* [UsedImplicitly] */
   public bool ShouldSerializeVACApps() => VACApps.Count > 0;
 }

@@ -6,7 +6,6 @@ using ArchiSteamFarm.Collections;
 using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Steam;
 using ArchiSteamFarm.Steam.Storage;
-using JetBrains.Annotations;
 
 namespace AchievementsBooster.Storage;
 
@@ -41,7 +40,7 @@ internal sealed class BotCache {
 
   private void OnObjectModified(object? sender, EventArgs e) => BotDatabase?.SaveToJsonStorage(Constants.GlobalCacheKey, this);
 
-  [UsedImplicitly]
+  /* [UsedImplicitly] */
   public bool ShouldSerializePerfectGames() => PerfectGames.Count > 0;
 
   /** Static */
