@@ -110,12 +110,17 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
 
       // Add new apps for boosting if need
       if (CurrentBoostingApps.Count < BoosterConfig.Global.MaxConcurrentlyBoostingApps) {
+        Booster.Logger.Trace($"Current boosting apps: {CurrentBoostingApps.Count}, max allowed: {BoosterConfig.Global.MaxConcurrentlyBoostingApps}");
         List<AppBoostInfo> newApps = await FindNewAppsForBoosting(BoosterConfig.Global.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
-        newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
-        shouldUpdateNextAchieveTime = true;
+        if (newApps.Count > 0) {
+          Booster.Logger.Trace($"Found {newApps.Count} new apps for boosting, adding them to the current boosting apps ...");
+          newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
+          shouldUpdateNextAchieveTime = true;
+        }
       }
 
       if (CurrentBoostingApps.Count == 0) {
+        shouldUpdateNextAchieveTime = true;
         Booster.Logger.Info(NoBoostingAppsMessage);
         if (BoosterConfig.Global.BoostHoursWhenIdle) {
           await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
