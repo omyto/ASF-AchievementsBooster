@@ -173,13 +173,16 @@ internal sealed class Booster : IBooster {
 
       if (BeatingTimer != null) {
         TimeSpan dueTime = BoosterShared.TenMinutes;// Due time for the next beating
-        string dueTimeString = DateTime.Now.Add(dueTime).ToShortTimeString();
+        string dueTimeString;
 
         if (IsRestingTime) {
           Logger.Info(Messages.RestTime);
           Engine?.StopPlay(true);
           Engine = null;
+
           dueTime = TimeSpan.FromMinutes(BoosterConfig.Global.RestTimePerDay);
+          dueTimeString = DateTime.Now.Add(dueTime).ToShortTimeString();
+
           Logger.Info($"Resting time. Wake up after {dueTime.ToHumanReadable()}, which is at {dueTimeString}");
         }
         else if (Engine != null) {
@@ -188,8 +191,11 @@ internal sealed class Booster : IBooster {
             Logger.Warning("The due time for the next beating is negative, resetting to 5 seconds.");
             dueTime = BoosterShared.FiveSeconds;
           }
+
+          dueTimeString = DateTime.Now.Add(dueTime).ToShortTimeString();
         }
         else {
+          dueTimeString = DateTime.Now.Add(dueTime).ToShortTimeString();
           Logger.Info($"Next check after: {dueTime.ToHumanReadable()} ({dueTimeString}).");
         }
 
