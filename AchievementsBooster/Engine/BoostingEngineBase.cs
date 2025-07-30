@@ -30,7 +30,7 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
 
   protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
 
-  internal DateTime NextAchieveTime { get; private set; } = DateTime.MinValue;
+  private DateTime NextAchieveTime { get; set; } = DateTime.MinValue;
 
   internal virtual Task Update() => Task.CompletedTask;
 
@@ -164,6 +164,11 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
 
     int deltaTime = (int) (currentTime - lastBoosterHeartBeatTime).TotalMinutes;
     AppBoostInfo[] readyToUnlockApps = GetReadyToUnlockApps();
+
+    if (readyToUnlockApps.Length == 0) {
+      Booster.Logger.Info("No apps ready to unlock achievements, skipping ...");
+      return;
+    }
 
     foreach (AppBoostInfo app in readyToUnlockApps) {
       cancellationToken.ThrowIfCancellationRequested();
