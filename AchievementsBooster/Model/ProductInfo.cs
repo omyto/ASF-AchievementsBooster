@@ -11,6 +11,10 @@ using SteamKit2;
 namespace AchievementsBooster.Model;
 
 public sealed class ProductInfo {
+  private static string VACCategory { get; } = "category_8";
+
+  // private static string AchievementsCategory { get; } = "category_22";
+
   public uint ID { get; }
 
   public string Name { get; }
@@ -57,7 +61,7 @@ public sealed class ProductInfo {
     bool hasVACCategory = false;
     //bool hasAchievementsCategory = false;
     foreach (KeyValue category in categories) {
-      if (!hasVACCategory && Constants.VACCategory.Equals(category.Name, StringComparison.OrdinalIgnoreCase)) {
+      if (!hasVACCategory && VACCategory.Equals(category.Name, StringComparison.OrdinalIgnoreCase)) {
         hasVACCategory = true;
         continue;
       }

@@ -26,7 +26,7 @@ public sealed class BoosterConfig {
   public ImmutableHashSet<string> AutoStartBots { get; private set; } = [];
 
   [JsonInclude]
-  [Range(1, Constants.MaxGamesPlayedConcurrently)]
+  [Range(1, 32)] // ArchiHandler.MaxGamesPlayedConcurrently
   public int MaxConcurrentlyBoostingApps { get; private set; } = DefaultMaxConcurrentlyBoostingApps;
 
   [JsonInclude]

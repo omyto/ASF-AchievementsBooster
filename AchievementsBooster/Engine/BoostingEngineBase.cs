@@ -18,6 +18,8 @@ internal enum EBoostMode {
 }
 
 internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
+  private static byte MaxUnlockAchievementTries { get; } = 3;
+
   internal EBoostMode Mode { get; } = mode;
 
   protected Booster Booster { get; } = booster;
@@ -130,14 +132,14 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
     }
     finally {
       if (shouldUpdateNextAchieveTime) {
-        TimeSpan achieveTimeRemaining = Constants.FiveMinutes;
+        TimeSpan achieveTimeRemaining = BoosterShared.FiveMinutes;
         if (CurrentBoostingApps.Count > 0) {
           TimeSpan minBoostInterval = TimeSpan.FromMinutes(BoosterConfig.Global.MinBoostInterval);
           achieveTimeRemaining = minBoostInterval.AddRandomMinutes(BoosterConfig.Global.MaxBoostInterval - BoosterConfig.Global.MinBoostInterval);
         }
 
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
-        await Task.Delay(Constants.OneSeconds, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(BoosterShared.OneSeconds, cancellationToken).ConfigureAwait(false);
 
         if (CurrentBoostingApps.Count > 0) {
           foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
@@ -187,7 +189,7 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
           continue;
         }
 
-        if (app.FailedUnlockCount > Constants.MaxUnlockAchievementTries) {
+        if (app.FailedUnlockCount > MaxUnlockAchievementTries) {
           _ = CurrentBoostingApps.Remove(app.ID);
           Booster.AppRepository.MarkAppAsResting(app, DateTime.Now.AddHours(24));
           continue;

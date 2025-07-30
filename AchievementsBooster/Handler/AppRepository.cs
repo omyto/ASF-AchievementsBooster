@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Handler.Callback;
@@ -9,10 +10,13 @@ using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
+using ArchiSteamFarm.Web.Responses;
 
 namespace AchievementsBooster.Handler;
 
 internal sealed class AppRepository(Booster booster) {
+  private static Uri AchievementsFilterAPI { get; } = new("https://ab.omyto.com/api/filters");
+
   private Booster Booster { get; } = booster;
 
   internal HashSet<uint> OwnedGames { get; private set; } = [];
@@ -77,7 +81,7 @@ internal sealed class AppRepository(Booster booster) {
   }
 
   private async Task UpdateFilteredGames(CancellationToken cancellationToken) {
-    List<uint>? filteredGames = await AppUtils.FilterAchievementsApps(OwnedGames, Booster, cancellationToken).ConfigureAwait(false);
+    List<uint>? filteredGames = await FilterAchievementsApps(OwnedGames, cancellationToken).ConfigureAwait(false);
 
     if (filteredGames != null) {
       FilteredGames = filteredGames;
@@ -149,7 +153,7 @@ internal sealed class AppRepository(Booster booster) {
   }
 
   internal async Task<ProductInfo?> GetProductInfo(uint appID, CancellationToken cancellationToken) {
-    ProductInfo? product = await AppUtils.GetProduct(appID, Booster, cancellationToken).ConfigureAwait(false);
+    ProductInfo? product = await Booster.SteamClientHandler.GetProduct(appID, cancellationToken).ConfigureAwait(false);
     if (product == null) {
       Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ProductInfoNotFound, appID));
     }
@@ -231,7 +235,7 @@ internal sealed class AppRepository(Booster booster) {
       return null;
     }
 
-    AchievementRates? achievementRates = await AppUtils.GetAchievementCompletionRates(appID, Booster, cancellationToken).ConfigureAwait(false);
+    AchievementRates? achievementRates = await Booster.SteamClientHandler.GetAchievementCompletionRates(appID, cancellationToken).ConfigureAwait(false);
     if (achievementRates == null) {
       Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AchievementPercentagesNotFound, product.FullName));
       return null;
@@ -283,4 +287,55 @@ internal sealed class AppRepository(Booster booster) {
 
     return false;
   }
+
+  internal async Task<List<uint>?> FilterAchievementsApps(HashSet<uint> ownedGames, CancellationToken cancellationToken) {
+    if (ASF.WebBrowser == null) {
+      throw new InvalidOperationException(nameof(ASF.WebBrowser));
+    }
+
+    List<uint>? result = null;
+    await BoosterShared.AchievementsFilterSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+    try {
+      Dictionary<string, string> headers = new() {
+        { "ab-booster", Booster.Identifier },
+        { "ab-version", BoosterShared.PluginVersionS },
+        { "asf-version",  BoosterShared.ASFVersion }
+      };
+
+      Dictionary<string, object> data = new() {
+        { "appIds", ownedGames.ToArray() },
+        { "restriction",  new Dictionary<string, object>() {
+          { "vac", BoosterConfig.Global.RestrictAppWithVAC },
+          { "dlc", BoosterConfig.Global.RestrictAppWithDLC },
+          { "developers", BoosterConfig.Global.RestrictDevelopers.ToArray() },
+          { "publishers", BoosterConfig.Global.RestrictPublishers.ToArray() },
+          { "excludedAppIds", BoosterConfig.Global.UnrestrictedApps.ToArray() }
+        }}
+      };
+
+      ObjectResponse<AchievementsFilterResponse>? response = await ASF.WebBrowser.UrlPostToJsonObject<AchievementsFilterResponse, IDictionary<string, object>>(
+        AchievementsFilterAPI, headers, data, maxTries: 3, rateLimitingDelay: 1000, cancellationToken: cancellationToken).ConfigureAwait(false);
+      result = response?.Content?.AppIDs;
+
+      if (response == null) {
+        Booster.Logger.Warning($"Can't get achievements filter response");
+      }
+      else if (response.StatusCode != HttpStatusCode.OK) {
+        Booster.Logger.Warning($"Achievements filter response status {response.StatusCode}");
+      }
+      else if (response.Content == null) {
+        Booster.Logger.Warning($"Achievements filter response content is null");
+      }
+      else if (response.Content.Success != true) {
+        Booster.Logger.Warning($"Achievements filter response unsuccess");
+      }
+    }
+    finally {
+      _ = BoosterShared.AchievementsFilterSemaphore.Release();
+    }
+
+    return result;
+  }
+
 }

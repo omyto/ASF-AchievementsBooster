@@ -20,7 +20,7 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostingEngineBase {
 
   internal override TimeSpan GetNextBoostDueTime() {
     TimeSpan dueTime = base.GetNextBoostDueTime();
-    return dueTime > Constants.FiveMinutes ? Constants.FiveMinutes : dueTime;
+    return dueTime > BoosterShared.FiveMinutes ? BoosterShared.FiveMinutes : dueTime;
   }
 
   private ImmutableHashSet<uint> LastGamesFarming { get; set; } = [];

@@ -25,11 +25,11 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   internal static GlobalCache GlobalCache { get; private set; } = new();
 
-  public string Name => Constants.PluginName;
+  public string Name => BoosterShared.PluginName;
 
-  public Version Version => Constants.PluginVersion;
+  public Version Version => BoosterShared.PluginVersion;
 
-  public string RepositoryName => Constants.RepositoryName;
+  public string RepositoryName => "omyto/ASF-AchievementsBooster";
 
   public Task OnLoaded() {
     ASF.ArchiLogger.LogGenericInfo("** Achievements Booster | Automatically boosting achievements while farming cards **");
@@ -56,7 +56,7 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
 
   public Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties) {
     if (additionalConfigProperties != null && additionalConfigProperties.Count > 0) {
-      if (additionalConfigProperties.TryGetValue(Constants.AchievementsBoosterConfigKey, out JsonElement configValue)) {
+      if (additionalConfigProperties.TryGetValue(BoosterShared.PluginName, out JsonElement configValue)) {
         BoosterConfig? config = configValue.ToJsonObject<BoosterConfig>();
         if (config != null) {
           GlobalConfig = config;

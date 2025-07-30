@@ -24,7 +24,7 @@ internal sealed class GlobalCache {
     if (ASF.GlobalDatabase == null) {
       throw new InvalidOperationException(nameof(ASF.GlobalDatabase));
     }
-    JsonElement jsonElement = ASF.GlobalDatabase.LoadFromJsonStorage(Constants.GlobalCacheKey);
+    JsonElement jsonElement = ASF.GlobalDatabase.LoadFromJsonStorage(BoosterShared.PluginName);
     return jsonElement.ValueKind == JsonValueKind.Object ? jsonElement.ToJsonObject<GlobalCache?>() : null;
   }
 
@@ -50,7 +50,7 @@ internal sealed class GlobalCache {
     }
   }
 
-  private void OnObjectModified(object? sender, EventArgs e) => ASF.GlobalDatabase?.SaveToJsonStorage(Constants.GlobalCacheKey, this);
+  private void OnObjectModified(object? sender, EventArgs e) => ASF.GlobalDatabase?.SaveToJsonStorage(BoosterShared.PluginName, this);
 
   /* [UsedImplicitly] */
   public bool ShouldSerializeNonAchievementApps() => NonAchievementApps.Count > 0;

@@ -38,7 +38,7 @@ internal sealed class BotCache {
     }
   }
 
-  private void OnObjectModified(object? sender, EventArgs e) => BotDatabase?.SaveToJsonStorage(Constants.GlobalCacheKey, this);
+  private void OnObjectModified(object? sender, EventArgs e) => BotDatabase?.SaveToJsonStorage(BoosterShared.PluginName, this);
 
   /* [UsedImplicitly] */
   public bool ShouldSerializePerfectGames() => PerfectGames.Count > 0;
@@ -50,7 +50,7 @@ internal sealed class BotCache {
     }
 
     BotCache? cache = null;
-    JsonElement jsonElement = bot.BotDatabase.LoadFromJsonStorage(Constants.BotCacheKey);
+    JsonElement jsonElement = bot.BotDatabase.LoadFromJsonStorage(BoosterShared.PluginName);
     if (jsonElement.ValueKind == JsonValueKind.Object) {
       try {
         cache = jsonElement.ToJsonObject<BotCache>();

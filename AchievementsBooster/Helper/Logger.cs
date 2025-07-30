@@ -5,16 +5,20 @@ using ArchiSteamFarm.NLog;
 
 namespace AchievementsBooster.Helper;
 
-public sealed class Logger(ArchiLogger archiLogger) {
+public sealed class Logger {
   internal static readonly Logger Shared = new(ASF.ArchiLogger);
 
-  private readonly ArchiLogger ArchiLogger = archiLogger;
+  private ArchiLogger ArchiLogger { get; }
 
+  private string PluginName { get; }
+
+  internal Logger(ArchiLogger archiLogger, string? pluginName = null) {
+    ArchiLogger = archiLogger;
+    PluginName = pluginName ?? BoosterShared.PluginName;
 #if DEBUG
-  private readonly string PluginName = Constants.PluginShortName;
-#else
-  private readonly string PluginName = Constants.PluginName;
+    PluginName = BoosterShared.PluginShortName;
 #endif
+  }
 
   public void Trace(string message, [CallerMemberName] string? callerMethodName = null)
     => ArchiLogger.LogGenericTrace(message, PreviousMethodName(callerMethodName));

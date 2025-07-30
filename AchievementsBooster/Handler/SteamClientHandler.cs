@@ -11,6 +11,7 @@ using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Steam;
+using ArchiSteamFarm.Web;
 using SteamKit2;
 using SteamKit2.Internal;
 using PICSProductInfo = SteamKit2.SteamApps.PICSProductInfoCallback.PICSProductInfo;
@@ -115,6 +116,32 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
   }
 
   internal async Task<AchievementRates?> GetAchievementCompletionRates(uint appid, CancellationToken cancellationToken) {
+    SemaphoreSlim semaphore = BoosterShared.GetAchievementRatesLock(appid);
+    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+    AchievementRates? achievementRates = null;
+    try {
+      if (!BoosterShared.AchievementRatesCache.TryGet(appid, out achievementRates)) {
+        achievementRates = await GetGameAchievements(appid, cancellationToken).ConfigureAwait(false);
+        if (achievementRates != null) {
+          BoosterShared.AchievementRatesCache.Set(appid, achievementRates);
+        }
+      }
+#if DEBUG
+      else {
+        Logger.Trace($"Get achievement percentages for app {appid} from cache");
+      }
+#endif
+    }
+    finally {
+      _ = semaphore.Release();
+      _ = BoosterShared.RemoveAchievementRatesLock(appid);
+    }
+
+    return achievementRates;
+  }
+
+  private async Task<AchievementRates?> GetGameAchievements(uint appid, CancellationToken cancellationToken) {
     ArgumentNullException.ThrowIfNull(Client);
     ArgumentNullException.ThrowIfNull(UnifiedPlayerService);
 
@@ -193,7 +220,33 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
     return response.Result == EResult.OK ? response.Body.achievement_progress.Select(e => new AchievementProgress(e)).ToList() : null;
   }
 
-  internal async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries, CancellationToken cancellationToken) {
+  internal async Task<ProductInfo?> GetProduct(uint appID, CancellationToken cancellationToken, byte maxTries = WebBrowser.MaxTries) {
+    SemaphoreSlim semaphore = BoosterShared.GetProductInfoLock(appID);
+    await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+    ProductInfo? product = null;
+    try {
+      if (!BoosterShared.ProductCache.TryGet(appID, out product)) {
+        product = await GetProductInfo(appID, WebBrowser.MaxTries, cancellationToken).ConfigureAwait(false);
+        if (product != null) {
+          BoosterShared.ProductCache.Set(appID, product);
+        }
+      }
+#if DEBUG
+      else {
+        Logger.Trace($"Get product infor for app {product.FullName} from cache");
+      }
+#endif
+    }
+    finally {
+      _ = semaphore.Release();
+      _ = BoosterShared.RemoveProductInfoLock(appID);
+    }
+
+    return product;
+  }
+
+  private async Task<ProductInfo?> GetProductInfo(uint appID, byte maxTries, CancellationToken cancellationToken) {
     ulong? accessToken = await GetPICSAccessTokens(appID, maxTries, cancellationToken).ConfigureAwait(false);
     SteamApps.PICSRequest request = new(appID, accessToken ?? 0);
 

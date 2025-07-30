@@ -172,7 +172,7 @@ internal sealed class Booster : IBooster {
       LastBeatingTime = currentTime;
 
       if (BeatingTimer != null) {
-        TimeSpan dueTime = Constants.TenMinutes;// Due time for the next beating
+        TimeSpan dueTime = BoosterShared.TenMinutes;// Due time for the next beating
         string dueTimeString = DateTime.Now.Add(dueTime).ToShortTimeString();
 
         if (IsRestingTime) {
@@ -186,7 +186,7 @@ internal sealed class Booster : IBooster {
           dueTime = Engine.GetNextBoostDueTime();
           if (dueTime < TimeSpan.Zero) {
             Logger.Warning("The due time for the next beating is negative, resetting to 5 seconds.");
-            dueTime = Constants.FiveSeconds;
+            dueTime = BoosterShared.FiveSeconds;
           }
         }
         else {
@@ -196,7 +196,7 @@ internal sealed class Booster : IBooster {
         Logger.Trace($"Next beating in {dueTime.ToHumanReadable()} ({dueTimeString})");
 
         // Restart the timer with the new due time
-        _ = BeatingTimer.Change(dueTime.Add(Constants.OneSeconds), Timeout.InfiniteTimeSpan);
+        _ = BeatingTimer.Change(dueTime.Add(BoosterShared.OneSeconds), Timeout.InfiniteTimeSpan);
       }
 
       _ = BeatingSemaphore.Release();
@@ -248,8 +248,13 @@ internal sealed class Booster : IBooster {
       Logger.Info("The boosting process is starting");
     }
     else {
-      dueTime = TimeSpan.FromMinutes(Constants.AutoStartDelayTime);
-      Logger.Info($"The boosting process will begin in {Constants.AutoStartDelayTime} minutes");
+      float autoStartDelayTime = 5;
+#if DEBUG
+      autoStartDelayTime = .5f;
+#endif
+
+      dueTime = TimeSpan.FromMinutes(autoStartDelayTime);
+      Logger.Info($"The boosting process will begin in {autoStartDelayTime} minutes");
     }
 
     BeatingTimer = new Timer(Beating, null, dueTime, Timeout.InfiniteTimeSpan);
