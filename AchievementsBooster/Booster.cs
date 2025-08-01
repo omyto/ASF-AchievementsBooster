@@ -39,6 +39,8 @@ internal sealed class Booster : IBooster {
 
   private CancellationTokenSource CancellationTokenSource { get; set; } = new();
 
+  private bool IsPaused { get; set; }
+
   private bool IsRestingTime;
 
   [field: MaybeNull, AllowNull]
@@ -212,8 +214,16 @@ internal sealed class Booster : IBooster {
     ArgumentNullException.ThrowIfNull(callback);
 
     if (callback.PlayingBlocked) {
-      Logger.Warning(Strings.BotStatusPlayingNotAvailable);
-      CancellationTokenSource.Cancel();
+      if (BeatingTimer != null) {
+        Logger.Warning(Strings.BotStatusPlayingNotAvailable);
+        _ = Stop();
+        IsPaused = true;
+      }
+    }
+    else if (IsPaused) {
+      Logger.Info("The bot is now ready to boost again.");
+      _ = Start(15);
+      IsPaused = false;
     }
   }
 
@@ -228,6 +238,7 @@ internal sealed class Booster : IBooster {
   public Task OnDisconnected(EResult reason) {
     Logger.Warning(Strings.BotDisconnected);
     _ = Stop();
+    IsPaused = false;
     return Task.CompletedTask;
   }
 
@@ -238,24 +249,19 @@ internal sealed class Booster : IBooster {
     return Task.CompletedTask;
   }
 
-  public string Start(bool command = false) {
+  public string Start(uint delayInSeconds) {
     if (BeatingTimer != null) {
       Logger.Trace(Messages.BoostingStarted);
       return Messages.BoostingStarted;
     }
 
     TimeSpan dueTime = TimeSpan.Zero;
-    if (command) {
+    if (delayInSeconds == 0) {
       Logger.Info("The boosting process is starting");
     }
     else {
-      float autoStartDelayTime = 5;
-#if DEBUG
-      autoStartDelayTime = .5f;
-#endif
-
-      dueTime = TimeSpan.FromMinutes(autoStartDelayTime);
-      Logger.Info($"The boosting process will begin in {autoStartDelayTime} minutes");
+      dueTime = TimeSpan.FromSeconds(delayInSeconds);
+      Logger.Info($"The boosting process will start in {dueTime.ToHumanReadable()}");
     }
 
     BeatingTimer = new Timer(Beating, null, dueTime, Timeout.InfiniteTimeSpan);

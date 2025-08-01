@@ -90,8 +90,13 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
   public Task OnBotLoggedOn(Bot bot) {
     ArgumentNullException.ThrowIfNull(bot);
     if (GlobalConfig.AutoStartBots.Contains(bot.BotName)) {
-      IBooster booster = GetBooster(bot);
-      _ = booster.Start();
+
+      uint delay = 5 * 60; // Default delay of 5 minutes
+#if DEBUG
+      delay = 30; // For debugging purposes, set a shorter delay
+#endif
+
+      _ = GetBooster(bot).Start(delay);
     }
     return Task.CompletedTask;
   }

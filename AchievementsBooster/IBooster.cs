@@ -4,7 +4,7 @@ using SteamKit2;
 namespace AchievementsBooster;
 
 public interface IBooster {
-  public string Start(bool command = false);
+  public string Start(uint delayInSeconds);
 
   /* IBotConnection */
   public Task OnDisconnected(EResult reason);
