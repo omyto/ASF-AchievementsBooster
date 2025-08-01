@@ -41,9 +41,10 @@ internal static class BoosterShared {
   internal static string PluginVersionS => PluginVersion.ToString();
 
   internal static TimeSpan OneSeconds { get; } = TimeSpan.FromSeconds(1);
-  internal static TimeSpan FiveMinutes { get; } = TimeSpan.FromMinutes(5);
   internal static TimeSpan FiveSeconds { get; } = TimeSpan.FromSeconds(5);
+  internal static TimeSpan FiveMinutes { get; } = TimeSpan.FromMinutes(5);
   internal static TimeSpan TenMinutes { get; } = TimeSpan.FromMinutes(10);
+  internal static TimeSpan OneHour { get; } = TimeSpan.FromHours(1);
 
   internal static SemaphoreSlim GetProductInfoLock(uint productId)
     => ProductInfoLocks.GetOrAdd(productId, _ => new Lazy<SemaphoreSlim>(() => new SemaphoreSlim(1, 1))).Value;

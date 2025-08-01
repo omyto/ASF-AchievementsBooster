@@ -137,7 +137,7 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
     }
     finally {
       if (shouldUpdateNextAchieveTime) {
-        TimeSpan achieveTimeRemaining = BoosterShared.FiveMinutes;
+        TimeSpan achieveTimeRemaining = BoosterShared.OneHour;
         if (CurrentBoostingApps.Count > 0) {
           TimeSpan minBoostInterval = TimeSpan.FromMinutes(BoosterConfig.Global.MinBoostInterval);
           achieveTimeRemaining = minBoostInterval.AddRandomMinutes(BoosterConfig.Global.MaxBoostInterval - BoosterConfig.Global.MinBoostInterval);
