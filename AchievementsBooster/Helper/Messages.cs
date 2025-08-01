@@ -6,7 +6,7 @@ internal static class Messages {
   internal static string BoosterInitEror { get; } = "Can not initialize booster for bot: {0}";
   internal static string BoosterNotFound { get; } = "Unable to locate any booster for bot: {0}!";
   internal static string NoGamesBoosting { get; } = "The bot doesn't have any games for boosting";
-  internal static string BoostingImpossible { get; } = "Not ready to boost; playing is blocked. Checking again in 5 minutes";
+  internal static string BoostingImpossible { get; } = "Not ready to boost; playing is blocked.";
   internal static string RestTime { get; } = "Resting time";
   internal static string BoostableQueue { get; } = "Boostable queue: {0}";
   internal static string RestingApps { get; } = "Resting apps: {0}";

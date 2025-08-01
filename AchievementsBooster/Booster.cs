@@ -212,6 +212,7 @@ internal sealed class Booster : IBooster {
 
   private void OnPlayingSessionState(SteamUser.PlayingSessionStateCallback callback) {
     ArgumentNullException.ThrowIfNull(callback);
+    Logger.Trace($"OnPlayingSessionState | PlayingBlocked: {callback.PlayingBlocked}, PlayingAppID: {callback.PlayingAppID}");
 
     if (callback.PlayingBlocked) {
       if (BeatingTimer != null) {

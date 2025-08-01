@@ -8,7 +8,7 @@ public sealed class DummyBooster : IBooster {
   private DummyBooster() {
   }
 
-  public string Start(uint delayInSeconds) => string.Empty;
+  public string Start(uint delayInSeconds) => "Booster not found!";
 
   /** ASF Plugin Interfaces */
   public Task OnDisconnected(EResult reason) => Task.CompletedTask;
