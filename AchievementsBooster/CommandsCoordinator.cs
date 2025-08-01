@@ -98,10 +98,10 @@ internal static class CommandsCoordinator {
   // -- Start
 
   private static async Task<string?> ResponseStart(EAccess access, Bot bot)
-    => await InvokeBot(access, bot, nameof(Booster.Start), [typeof(uint)], [0], EAccess.Master).ConfigureAwait(false);
+    => await InvokeBot(access, bot, nameof(Booster.Start), [typeof(uint)], [(uint) 0], EAccess.Master).ConfigureAwait(false);
 
   private static async Task<string?> ResponseStart(EAccess access, string botNames, ulong steamID = 0)
-    => await InvokeBots(access, botNames, steamID, nameof(Booster.Start), [typeof(uint)], [0], EAccess.Master).ConfigureAwait(false);
+    => await InvokeBots(access, botNames, steamID, nameof(Booster.Start), [typeof(uint)], [(uint) 0], EAccess.Master).ConfigureAwait(false);
 
   // -- Stop
 
