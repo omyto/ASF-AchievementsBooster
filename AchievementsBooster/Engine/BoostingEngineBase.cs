@@ -165,7 +165,7 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
         foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
           Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
         }
-        Booster.Logger.Info($"Boosting {CurrentBoostingApps.Count} games, unlock achievements after: {timeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
+        Booster.Logger.Info($"Boosting {CurrentBoostingApps.Count} games, unlock after: {timeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
       }
     }
     else {
