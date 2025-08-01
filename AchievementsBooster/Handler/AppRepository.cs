@@ -300,7 +300,7 @@ internal sealed class AppRepository(Booster booster) {
       Dictionary<string, string> headers = new() {
         { "ab-booster", Booster.Identifier },
         { "ab-version", BoosterShared.PluginVersionS },
-        { "asf-version",  BoosterShared.ASFVersion }
+        { "asf-version",  BoosterShared.ASFVersionS }
       };
 
       Dictionary<string, object> data = new() {

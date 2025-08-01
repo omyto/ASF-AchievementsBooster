@@ -24,7 +24,7 @@ internal static class BoosterShared {
   internal static string PluginShortName { get; } = "AchvBoost";
 
   [field: MaybeNull, AllowNull]
-  internal static string ASFVersion {
+  internal static string ASFVersionS {
     get {
       field ??= typeof(ASF).Assembly.GetName().Version?.ToString() ?? "";
       return field ?? string.Empty;

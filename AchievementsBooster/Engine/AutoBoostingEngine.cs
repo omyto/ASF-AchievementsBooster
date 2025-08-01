@@ -39,7 +39,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
 
   protected override void ResumePlay() {
     if (HasTriggeredPlay) {
-      _ = Booster.ResumePlay();
+      _ = Booster.Bot.Actions.Resume();
       HasTriggeredPlay = false;
     }
   }
@@ -75,7 +75,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
 
   protected override async Task<bool> PlayBoostingApps(CancellationToken cancellationToken) {
     cancellationToken.ThrowIfCancellationRequested();
-    (bool success, string message) = await Booster.PlayGames(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
+    (bool success, string message) = await Booster.Bot.Actions.Play(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
     if (!success) {
       Booster.Logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.BoostingFailed, message));
     }
@@ -87,7 +87,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
     await HoursBooster.Instance.Update(Booster.AppRepository, cancellationToken).ConfigureAwait(false);
 
     if (HoursBooster.Instance.ReadyToBoostGames.Count > 0) {
-      (bool success, string message) = await Booster.PlayGames(HoursBooster.Instance.ReadyToBoostGames).ConfigureAwait(false);
+      (bool success, string message) = await Booster.Bot.Actions.Play(HoursBooster.Instance.ReadyToBoostGames).ConfigureAwait(false);
       if (success) {
         HasTriggeredPlay = true;
         Booster.Logger.Info($"Boosting hours {HoursBooster.Instance.ReadyToBoostGames.Count} game(s): {string.Join(",", HoursBooster.Instance.ReadyToBoostGames)}");

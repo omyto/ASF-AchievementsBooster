@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography;
@@ -218,18 +217,14 @@ internal sealed class Booster : IBooster {
     }
   }
 
-  internal EBoostMode DetermineBoostMode() => Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
+  private EBoostMode DetermineBoostMode() => Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
         ? EBoostMode.CardFarming
         : Bot.BotConfig.GamesPlayedWhileIdle.Count > 0
           ? EBoostMode.IdleGaming
           : EBoostMode.AutoBoost;
 
-  internal async Task<(bool Success, string Message)> PlayGames(IReadOnlyCollection<uint> gameIDs)
-    => await Bot.Actions.Play(gameIDs).ConfigureAwait(false);
-
-  internal (bool Success, string Message) ResumePlay() => Bot.Actions.Resume();
-
   /** IBooster implementation */
+
   public Task OnDisconnected(EResult reason) {
     Logger.Warning(Strings.BotDisconnected);
     _ = Stop();
