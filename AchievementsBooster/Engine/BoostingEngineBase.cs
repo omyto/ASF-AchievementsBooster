@@ -90,8 +90,10 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
     try {
       DateTime currentTime = DateTime.Now;
       if (!isFirstTime) {
+#if DEBUG
         Booster.Logger.Trace($"Now        : {currentTime.ToLongTimeString()} ({currentTime.Ticks})");
         Booster.Logger.Trace($"NextAchieve: {NextAchieveTime.ToLongTimeString()} ({NextAchieveTime.Ticks})");
+#endif
 
         if (currentTime >= NextAchieveTime) {
           shouldUpdateNextAchieveTime = true;
@@ -146,17 +148,28 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
         await Task.Delay(BoosterShared.OneSeconds, cancellationToken).ConfigureAwait(false);
 
-        if (CurrentBoostingApps.Count > 0) {
-          foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
-            Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
-          }
-          Booster.Logger.Info($"Boosting {CurrentBoostingApps.Count} games, unlock achievements after: {achieveTimeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
-        }
-        else {
-          Booster.Logger.Info($"No games to boost, next check after: {achieveTimeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
-        }
+        Notify(achieveTimeRemaining);
       }
       _ = BoosterSemaphore.Release();
+    }
+  }
+
+  protected virtual void Notify(TimeSpan timeRemaining) {
+    if (CurrentBoostingApps.Count > 0) {
+      if (CurrentBoostingApps.Count == 1) {
+        AppBoostInfo app = CurrentBoostingApps.Values.First();
+        string prefix = string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount);
+        Booster.Logger.Info($"{prefix}, unlock achievements after: {timeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
+      }
+      else {
+        foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
+          Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostingApp, app.FullName, app.UnlockableAchievementsCount));
+        }
+        Booster.Logger.Info($"Boosting {CurrentBoostingApps.Count} games, unlock achievements after: {timeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
+      }
+    }
+    else {
+      Booster.Logger.Info($"No games to boost, next check after: {timeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
     }
   }
 

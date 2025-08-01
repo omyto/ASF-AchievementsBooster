@@ -86,4 +86,13 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostingEngineBase {
     LastGamesFarming = CurrentGamesFarming.Select(e => e.AppID).ToImmutableHashSet();
     return results;
   }
+
+  protected override void Notify(TimeSpan achieveTimeRemaining) {
+    if (CurrentBoostingApps.Count > 0) {
+      base.Notify(achieveTimeRemaining);
+    }
+    else {
+      Booster.Logger.Info(Messages.NoBoostingAppsInArchiFarming);
+    }
+  }
 }
