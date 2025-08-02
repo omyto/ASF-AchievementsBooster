@@ -76,7 +76,7 @@ internal sealed class Booster : IBooster {
     }
 
     StopTimer();
-    Engine?.StopPlay(true);
+    Engine?.Stop(true);
     Engine = null;
 
     Logger.Info("The boosting process has been stopped!");
@@ -128,7 +128,10 @@ internal sealed class Booster : IBooster {
         if (AppRepository.OwnedGames.Count > 0) {
           EBoostMode newMode = await DetermineBoostMode(cancellationToken).ConfigureAwait(false);
           if (newMode != Engine?.Mode) {
-            Engine?.Destroy();
+            if (Engine != null) {
+              Logger.Info("Boosting mode changed, stopping the current boosting process ...");
+              Engine.Stop();
+            }
 
             Engine = newMode switch {
               EBoostMode.CardFarming => new CardFarmingAuxiliaryEngine(this),
@@ -148,7 +151,7 @@ internal sealed class Booster : IBooster {
       }
       else {
         Logger.Info(Messages.BoostingImpossible);
-        Engine?.StopPlay();
+        Engine?.Stop();
         Engine = null;
       }
     }
@@ -169,7 +172,7 @@ internal sealed class Booster : IBooster {
         Logger.Exception(exception);
       }
 
-      Engine?.StopPlay(true);
+      Engine?.Stop(true);
     }
     finally {
       LastBeatingTime = currentTime;
@@ -180,7 +183,7 @@ internal sealed class Booster : IBooster {
 
         if (IsRestingTime) {
           Logger.Info(Messages.RestTime);
-          Engine?.StopPlay(true);
+          Engine?.Stop(true);
           Engine = null;
 
           dueTime = TimeSpan.FromMinutes(BoosterConfig.Global.RestTimePerDay);

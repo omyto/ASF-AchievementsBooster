@@ -36,8 +36,9 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
     return Task.CompletedTask;
   }
 
-  protected override void ResumePlay() {
-    if (HasTriggeredPlay) {
+  internal override void Stop(bool resume = false) {
+    base.Stop(resume);
+    if (resume && HasTriggeredPlay) {
       _ = Booster.Bot.Actions.Resume();
       HasTriggeredPlay = false;
     }

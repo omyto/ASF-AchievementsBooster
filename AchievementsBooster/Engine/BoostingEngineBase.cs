@@ -42,8 +42,6 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
 
   protected virtual Task FallBackToIdleGaming(CancellationToken token) => Task.CompletedTask;
 
-  protected virtual void ResumePlay() { }
-
   protected virtual AppBoostInfo[] GetReadyToUnlockApps() => CurrentBoostingApps.Values.ToArray();
 
   protected abstract Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken token);
@@ -54,12 +52,7 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
 
   internal void Initialize() => Booster.Logger.Info($"Initializing new boosting mode {Mode} ....");
 
-  internal void Destroy() {
-    Booster.Logger.Info("Boosting mode changed, stopping the current boosting process ...");
-    StopPlay();
-  }
-
-  internal void StopPlay(bool resumePlay = false) {
+  internal virtual void Stop(bool resume = false) {
     if (CurrentBoostingApps.Count > 0) {
       BoosterSemaphore.Wait();
       try {
@@ -72,10 +65,6 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
       finally {
         _ = BoosterSemaphore.Release();
       }
-    }
-
-    if (resumePlay) {
-      ResumePlay();
     }
   }
 
