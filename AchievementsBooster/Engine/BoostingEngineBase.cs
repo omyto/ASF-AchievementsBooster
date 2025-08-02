@@ -24,13 +24,11 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
 
   protected Booster Booster { get; } = booster;
 
-  protected string NoBoostingAppsMessage { get; init; } = string.Empty;
-
   private SemaphoreSlim BoosterSemaphore { get; } = new SemaphoreSlim(1, 1);
 
   protected Dictionary<uint, AppBoostInfo> CurrentBoostingApps { get; } = [];
 
-  private DateTime NextAchieveTime { get; set; } = DateTime.MinValue;
+  protected DateTime NextAchieveTime { get; private set; } = DateTime.MinValue;
 
   internal virtual Task Update() => Task.CompletedTask;
 
@@ -84,24 +82,25 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
   internal async Task Boosting(DateTime lastBoosterHeartBeatTime, bool isRestingTime, CancellationToken cancellationToken) {
     await BoosterSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
 
+    bool isBoostingAppsChanged = false;
     bool isFirstTime = NextAchieveTime == DateTime.MinValue;
-    bool shouldUpdateNextAchieveTime = isFirstTime;
 
-    try {
-      DateTime currentTime = DateTime.Now;
-      if (!isFirstTime) {
+    DateTime currentTime = DateTime.Now;
+    bool isUnlockTime = !isFirstTime && currentTime >= NextAchieveTime;
+
 #if DEBUG
-        Booster.Logger.Trace($"Now        : {currentTime.ToLongTimeString()} ({currentTime.Ticks})");
-        Booster.Logger.Trace($"NextAchieve: {NextAchieveTime.ToLongTimeString()} ({NextAchieveTime.Ticks})");
+    Booster.Logger.Trace($"Now        : {currentTime.ToLongTimeString()} ({currentTime.Ticks})");
+    Booster.Logger.Trace($"NextAchieve: {NextAchieveTime.ToLongTimeString()} ({NextAchieveTime.Ticks})");
 #endif
 
-        if (currentTime >= NextAchieveTime) {
-          shouldUpdateNextAchieveTime = true;
-          await Achieve(currentTime, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
-        }
-        else if (!AreBoostingGamesStillValid()) {
+    try {
+      if (isUnlockTime) {
+        await Achieve(currentTime, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
+      }
+      else if (!isFirstTime) {
+        //TODO: It's belong to farming engine
+        if (!AreBoostingGamesStillValid()) {
           CurrentBoostingApps.Clear();
-          shouldUpdateNextAchieveTime = true;
           Booster.Logger.Info("Farming games have changed, update the boosting games ...");
         }
       }
@@ -117,28 +116,28 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
         if (newApps.Count > 0) {
           Booster.Logger.Trace($"Found {newApps.Count} new apps for boosting, adding them to the current boosting apps ...");
           newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
-          shouldUpdateNextAchieveTime = true;
+          isBoostingAppsChanged = true;
         }
       }
 
       if (CurrentBoostingApps.Count == 0) {
-        shouldUpdateNextAchieveTime = true;
-        Booster.Logger.Info(NoBoostingAppsMessage);
+        //TODO: It's belong to auto boosting engine
         if (BoosterConfig.Global.BoostHoursWhenIdle) {
           await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
         }
         return;
       }
 
-      // Play boosting apps if first time or if the next achievement time is reached or if the boosting apps have changed
-      if (shouldUpdateNextAchieveTime) {
+      // Play boosting apps if the next achievement time is reached or if the boosting apps have changed
+      if (isUnlockTime || isBoostingAppsChanged) {
+        //TODO: It's belong to auto boosting engine
         if (!await PlayBoostingApps(cancellationToken).ConfigureAwait(false)) {
           CurrentBoostingApps.Clear();
         }
       }
     }
     finally {
-      if (shouldUpdateNextAchieveTime) {
+      if (isFirstTime || isUnlockTime || isBoostingAppsChanged) {
         TimeSpan achieveTimeRemaining = BoosterShared.OneHour;
         if (CurrentBoostingApps.Count > 0) {
           TimeSpan minBoostInterval = TimeSpan.FromMinutes(BoosterConfig.Global.MinBoostInterval);
@@ -169,7 +168,7 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
       }
     }
     else {
-      Booster.Logger.Info($"No games to boost, next check after: {timeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
+      Booster.Logger.Warning("Not handing here, log in specific engine");
     }
   }
 

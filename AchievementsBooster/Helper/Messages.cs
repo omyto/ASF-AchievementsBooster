@@ -36,7 +36,4 @@ internal static class Messages {
   internal static string NoUnlockableStats { get; } = "{0}: No unlockable achievements, some have been restricted.";
   internal static string UnlockAchievementSuccess { get; } = "{0}: unlocked the '{1}' achievement";
   internal static string UnlockAchievementFailed { get; } = "{0}: failed to achieve achievement '{1}'";
-  internal static string NoBoostingApps { get; } = "No apps are available to boost achievements";
-  internal static string NoBoostingAppsInArchiFarming { get; } = "No apps are available to boost achievements during farming cards";
-  internal static string NoBoostingAppsInArchiPlayedWhileIdle { get; } = "No apps are available to boost achievements while playing in idle mode. Leaving 'GamesPlayedWhileIdle' empty will automatically unlock game achievements.";
 }

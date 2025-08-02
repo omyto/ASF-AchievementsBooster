@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
 using AchievementsBooster.Storage;
+using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Engine;
 
@@ -17,8 +18,6 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
   private Queue<uint> WaitingBoostApps { get; set; } = new();
 
   internal AutoBoostingEngine(Booster booster) : base(EBoostMode.AutoBoost, booster) {
-    HasTriggeredPlay = false;
-    NoBoostingAppsMessage = Messages.NoBoostingApps;
   }
 
   internal override Task Update() {
@@ -95,6 +94,15 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
       else {
         Booster.Logger.Warning($"Boosting hours failed; reason: {message}");
       }
+    }
+  }
+
+  protected override void Notify(TimeSpan timeRemaining) {
+    if (CurrentBoostingApps.Count > 0) {
+      base.Notify(timeRemaining);
+    }
+    else {
+      Booster.Logger.Info($"No apps are available to boost achievements. Recheck after: {timeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
     }
   }
 }

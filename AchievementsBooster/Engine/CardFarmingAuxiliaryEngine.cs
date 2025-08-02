@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -13,9 +12,7 @@ namespace AchievementsBooster.Engine;
 
 internal sealed class CardFarmingAuxiliaryEngine : BoostingEngineBase {
 
-  [SuppressMessage("Style", "IDE0021:Use expression body for constructor", Justification = "<Pending>")]
   internal CardFarmingAuxiliaryEngine(Booster booster) : base(EBoostMode.CardFarming, booster) {
-    NoBoostingAppsMessage = Messages.NoBoostingAppsInArchiFarming;
   }
 
   internal override TimeSpan GetNextBoostDueTime() {
@@ -92,7 +89,7 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostingEngineBase {
       base.Notify(achieveTimeRemaining);
     }
     else {
-      Booster.Logger.Info(Messages.NoBoostingAppsInArchiFarming);
+      Booster.Logger.Info("No apps are available to boost achievements during farming cards. Recheck after farming game has been changed!");
     }
   }
 }

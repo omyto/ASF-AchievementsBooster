@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
 
 namespace AchievementsBooster.Engine;
@@ -10,8 +10,8 @@ namespace AchievementsBooster.Engine;
 internal sealed class GameIdlingAuxiliaryEngine : BoostingEngineBase {
   private Queue<uint> ArchiBoostableAppsPlayedWhileIdle { get; }
 
+  [SuppressMessage("Style", "IDE0021:Use expression body for constructor", Justification = "<Pending>")]
   internal GameIdlingAuxiliaryEngine(Booster booster) : base(EBoostMode.IdleGaming, booster) {
-    NoBoostingAppsMessage = Messages.NoBoostingAppsInArchiPlayedWhileIdle;
     ArchiBoostableAppsPlayedWhileIdle = new Queue<uint>(Booster.Bot.BotConfig.GamesPlayedWhileIdle);
   }
 
@@ -38,5 +38,14 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostingEngineBase {
     }
 
     return results;
+  }
+
+  protected override void Notify(TimeSpan timeRemaining) {
+    if (CurrentBoostingApps.Count > 0) {
+      base.Notify(timeRemaining);
+    }
+    else {
+      Booster.Logger.Info("No apps are available to boost achievements while playing in idle mode. Leaving 'GamesPlayedWhileIdle' empty will automatically unlock game achievements.");
+    }
   }
 }
