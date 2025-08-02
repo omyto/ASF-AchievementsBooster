@@ -126,7 +126,7 @@ internal sealed class Booster : IBooster {
         await AppRepository.Update(cancellationToken).ConfigureAwait(false);
 
         if (AppRepository.OwnedGames.Count > 0) {
-          EBoostMode newMode = DetermineBoostMode();
+          EBoostMode newMode = await DetermineBoostMode(cancellationToken).ConfigureAwait(false);
           if (newMode != Engine?.Mode) {
             Engine?.Destroy();
 
@@ -230,11 +230,23 @@ internal sealed class Booster : IBooster {
     }
   }
 
-  private EBoostMode DetermineBoostMode() => Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
+  private async Task<EBoostMode> DetermineBoostMode(CancellationToken cancellationToken) {
+    int attempts = 0;
+    while (
+      Bot.CardsFarmer.NowFarming &&
+      Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count == 0
+      && attempts < 90 // Wait for up to 90 seconds (90 attempts of 1 second each)
+    ) {
+      await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
+      attempts++;
+    }
+
+    return Bot.CardsFarmer.CurrentGamesFarmingReadOnly.Count > 0
         ? EBoostMode.CardFarming
         : Bot.BotConfig.GamesPlayedWhileIdle.Count > 0
           ? EBoostMode.IdleGaming
           : EBoostMode.AutoBoost;
+  }
 
   /** IBooster implementation */
 
@@ -271,6 +283,7 @@ internal sealed class Booster : IBooster {
     return Strings.Done;
   }
 
+  /** Debug commands */
   internal async Task<string> Debug(string[] args) {
     Logger.Debug($"Debuging with args: {string.Join(" ", args)}");
 
