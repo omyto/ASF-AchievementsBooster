@@ -33,6 +33,8 @@ internal sealed class Booster : IBooster {
 
   private Timer? BeatingTimer { get; set; }
 
+  private bool IsBoostingRunning => BeatingTimer != null;
+
   private DateTime LastBeatingTime { get; set; }
 
   private SemaphoreSlim BeatingSemaphore { get; } = new SemaphoreSlim(1);
@@ -68,7 +70,7 @@ internal sealed class Booster : IBooster {
   }
 
   internal string Stop() {
-    if (BeatingTimer == null) {
+    if (!IsBoostingRunning) {
       Logger.Trace(Messages.BoostingNotStart);
       return Messages.BoostingNotStart;
     }
@@ -87,7 +89,7 @@ internal sealed class Booster : IBooster {
       return "AchievementsBooster is not ready to boost; playing is blocked.";
     }
 
-    if (BeatingTimer == null) {
+    if (!IsBoostingRunning) {
       return string.Join(Environment.NewLine, [
         "AchievementsBooster isn't running. Use the 'abstart' command to start boosting.",
         "To enable automatic startup when ASF launches, add the bot name to the 'AutoStartBots' array in the JSON configuration file."
@@ -172,7 +174,7 @@ internal sealed class Booster : IBooster {
     finally {
       LastBeatingTime = currentTime;
 
-      if (BeatingTimer != null) {
+      if (IsBoostingRunning) {
         TimeSpan dueTime = BoosterShared.TenMinutes;// Due time for the next beating
         string dueTimeString;
 
@@ -203,7 +205,7 @@ internal sealed class Booster : IBooster {
         Logger.Trace($"Next beating in {dueTime.ToHumanReadable()} ({dueTimeString})");
 
         // Restart the timer with the new due time
-        _ = BeatingTimer.Change(dueTime.Add(BoosterShared.OneSeconds), Timeout.InfiniteTimeSpan);
+        _ = BeatingTimer?.Change(dueTime.Add(BoosterShared.OneSeconds), Timeout.InfiniteTimeSpan);
       }
 
       _ = BeatingSemaphore.Release();
@@ -215,7 +217,7 @@ internal sealed class Booster : IBooster {
     Logger.Trace($"OnPlayingSessionState | PlayingBlocked: {callback.PlayingBlocked}, PlayingAppID: {callback.PlayingAppID}");
 
     if (callback.PlayingBlocked) {
-      if (BeatingTimer != null) {
+      if (IsBoostingRunning) {
         Logger.Warning(Strings.BotStatusPlayingNotAvailable);
         _ = Stop();
         IsPaused = true;
@@ -251,7 +253,7 @@ internal sealed class Booster : IBooster {
   }
 
   public string Start(uint delayInSeconds) {
-    if (BeatingTimer != null) {
+    if (IsBoostingRunning) {
       Logger.Trace(Messages.BoostingStarted);
       return Messages.BoostingStarted;
     }
