@@ -86,6 +86,10 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
   protected override async Task FinalizeFill(bool isBoostingAppsChanged, CancellationToken cancellationToken) {
     if (CurrentBoostingApps.Count > 0) {
       if (!await PlayBoostingApps(cancellationToken).ConfigureAwait(false)) {
+        DateTime restEndTime = DateTime.Now.AddHours(1);
+        foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
+          Booster.AppRepository.MarkAppAsResting(app, restEndTime);
+        }
         CurrentBoostingApps.Clear();
       }
     }
