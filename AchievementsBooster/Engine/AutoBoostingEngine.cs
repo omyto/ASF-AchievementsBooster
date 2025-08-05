@@ -44,8 +44,18 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
     }
   }
 
-  protected override bool ShouldRestingApp(AppBoostInfo app)
-    => BoosterConfig.Global.BoostDurationPerApp > 0 && app.BoostingDuration >= BoosterConfig.Global.BoostDurationPerApp;
+  protected override Task PostAchieve(AppBoostInfo app) {
+    if (BoosterConfig.Global.BoostDurationPerApp > 0 && app.BoostingDuration >= BoosterConfig.Global.BoostDurationPerApp) {
+      Resting(app);
+    }
+    return Task.CompletedTask;
+  }
+
+  private void Resting(AppBoostInfo app) {
+    _ = CurrentBoostingApps.Remove(app.ID);
+    Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
+    Booster.AppRepository.MarkAppAsResting(app);
+  }
 
   protected override async Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken) {
     List<AppBoostInfo> results = Booster.AppRepository.GetRestedAppsReadyForBoost(count);
@@ -73,7 +83,20 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
     return results;
   }
 
-  protected override async Task<bool> PlayBoostingApps(CancellationToken cancellationToken) {
+  protected override async Task FinalizeFill(bool isBoostingAppsChanged, CancellationToken cancellationToken) {
+    if (CurrentBoostingApps.Count > 0) {
+      if (!await PlayBoostingApps(cancellationToken).ConfigureAwait(false)) {
+        CurrentBoostingApps.Clear();
+      }
+    }
+    else {
+      if (BoosterConfig.Global.BoostHoursWhenIdle) {
+        await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
+      }
+    }
+  }
+
+  private async Task<bool> PlayBoostingApps(CancellationToken cancellationToken) {
     cancellationToken.ThrowIfCancellationRequested();
     (bool success, string message) = await Booster.Bot.Actions.Play(CurrentBoostingApps.Keys.ToList()).ConfigureAwait(false);
     if (!success) {
@@ -83,7 +106,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
     return HasTriggeredPlay = success;
   }
 
-  protected override async Task FallBackToIdleGaming(CancellationToken cancellationToken) {
+  private async Task FallBackToIdleGaming(CancellationToken cancellationToken) {
     await HoursBooster.Instance.Update(Booster.AppRepository, cancellationToken).ConfigureAwait(false);
 
     if (HoursBooster.Instance.ReadyToBoostGames.Count > 0) {

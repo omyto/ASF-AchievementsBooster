@@ -23,19 +23,6 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostingEngineBase {
   private ImmutableHashSet<uint> LastGamesFarming { get; set; } = [];
   private IReadOnlyCollection<Game> CurrentGamesFarming => Booster.Bot.CardsFarmer.CurrentGamesFarmingReadOnly;
 
-  protected override bool AreBoostingGamesStillValid() {
-    Booster.Logger.Trace("Checking if the boosting games are still valid ...");
-    bool isFarmingGamesChanged = true;
-    foreach (Game game in CurrentGamesFarming) {
-      if (LastGamesFarming.Contains(game.AppID)) {
-        isFarmingGamesChanged = false;
-        break;
-      }
-    }
-
-    return !isFarmingGamesChanged;
-  }
-
   protected override AppBoostInfo[] GetReadyToUnlockApps() {
     // Intersect between BoostingApps and CurrentGamesFarming
     List<uint> boostingAppIDs = [];
@@ -54,6 +41,29 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostingEngineBase {
     }
 
     return CurrentBoostingApps.Values.ToArray();
+  }
+
+  protected override Task PreFillApps(bool isFirstTime, bool isUnlockTime) {
+    if (!isFirstTime && !isUnlockTime) {
+      if (!AreBoostingGamesStillValid()) {
+        CurrentBoostingApps.Clear();
+        Booster.Logger.Info("Farming games have changed, update the boosting games ...");
+      }
+    }
+    return Task.CompletedTask;
+  }
+
+  private bool AreBoostingGamesStillValid() {
+    Booster.Logger.Trace("Checking if the boosting games are still valid ...");
+    bool isFarmingGamesChanged = true;
+    foreach (Game game in CurrentGamesFarming) {
+      if (LastGamesFarming.Contains(game.AppID)) {
+        isFarmingGamesChanged = false;
+        break;
+      }
+    }
+
+    return !isFarmingGamesChanged;
   }
 
   protected override async Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken) {

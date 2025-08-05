@@ -32,15 +32,13 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
 
   internal virtual Task Update() => Task.CompletedTask;
 
+  protected virtual Task PreFillApps(bool isFirstTime, bool isUnlockTime) => Task.CompletedTask;
+
+  protected virtual Task FinalizeFill(bool isBoostingAppsChanged, CancellationToken cancellationToken) => Task.CompletedTask;
+
+  protected virtual Task PostAchieve(AppBoostInfo app) => Task.CompletedTask;
+
   internal virtual TimeSpan GetNextBoostDueTime() => NextAchieveTime - DateTime.Now;
-
-  protected virtual bool AreBoostingGamesStillValid() => true;
-
-  protected virtual bool ShouldRestingApp(AppBoostInfo app) => false;
-
-  protected virtual Task<bool> PlayBoostingApps(CancellationToken token) => Task.FromResult(true);
-
-  protected virtual Task FallBackToIdleGaming(CancellationToken token) => Task.CompletedTask;
 
   protected virtual AppBoostInfo[] GetReadyToUnlockApps() => CurrentBoostingApps.Values.ToArray();
 
@@ -86,44 +84,19 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
       if (isUnlockTime) {
         await Achieve(currentTime, lastBoosterHeartBeatTime, cancellationToken).ConfigureAwait(false);
       }
-      else if (!isFirstTime) {
-        //TODO: It's belong to farming engine
-        if (!AreBoostingGamesStillValid()) {
-          CurrentBoostingApps.Clear();
-          Booster.Logger.Info("Farming games have changed, update the boosting games ...");
-        }
-      }
 
       if (isRestingTime) {
         return;
       }
 
-      // Add new apps for boosting if need
-      if (CurrentBoostingApps.Count < BoosterConfig.Global.MaxConcurrentlyBoostingApps) {
-        Booster.Logger.Trace($"Current boosting apps: {CurrentBoostingApps.Count}, max allowed: {BoosterConfig.Global.MaxConcurrentlyBoostingApps}");
-        List<AppBoostInfo> newApps = await FindNewAppsForBoosting(BoosterConfig.Global.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count, cancellationToken).ConfigureAwait(false);
-        if (newApps.Count > 0) {
-          Booster.Logger.Trace($"Found {newApps.Count} new apps for boosting, adding them to the current boosting apps ...");
-          newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
-          isBoostingAppsChanged = true;
-        }
-      }
+      // Pre-fill apps for boosting
+      await PreFillApps(isFirstTime, isUnlockTime).ConfigureAwait(false);
 
-      if (CurrentBoostingApps.Count == 0) {
-        //TODO: It's belong to auto boosting engine
-        if (BoosterConfig.Global.BoostHoursWhenIdle) {
-          await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
-        }
-        return;
-      }
+      // Fill boosting apps if still available
+      isBoostingAppsChanged = await FillBoostingApps(cancellationToken).ConfigureAwait(false);
 
-      // Play boosting apps if the next achievement time is reached or if the boosting apps have changed
-      if (isUnlockTime || isBoostingAppsChanged) {
-        //TODO: It's belong to auto boosting engine
-        if (!await PlayBoostingApps(cancellationToken).ConfigureAwait(false)) {
-          CurrentBoostingApps.Clear();
-        }
-      }
+      // Finalize the fill process
+      await FinalizeFill(isBoostingAppsChanged, cancellationToken).ConfigureAwait(false);
     }
     finally {
       if (isFirstTime || isUnlockTime || isBoostingAppsChanged) {
@@ -207,15 +180,19 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
         }
       }
 
-      if (ShouldRestingApp(app)) {
-        Resting(app);
-      }
+      await PostAchieve(app).ConfigureAwait(false);
     }
   }
 
-  private void Resting(AppBoostInfo app) {
-    _ = CurrentBoostingApps.Remove(app.ID);
-    Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
-    Booster.AppRepository.MarkAppAsResting(app);
+  protected async Task<bool> FillBoostingApps(CancellationToken cancellationToken) {
+    int availableBoostSlots = BoosterConfig.Global.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count;
+    if (availableBoostSlots > 0) {
+      List<AppBoostInfo> newApps = await FindNewAppsForBoosting(availableBoostSlots, cancellationToken).ConfigureAwait(false);
+      if (newApps.Count > 0) {
+        newApps.ForEach(app => CurrentBoostingApps.TryAdd(app.ID, app));
+        return true;
+      }
+    }
+    return false;
   }
 }
