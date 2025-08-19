@@ -25,6 +25,10 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
       WaitingBoostApps.Clear();
 
       foreach (uint appID in Booster.AppRepository.FilteredGames) {
+        if (CurrentBoostingApps.ContainsKey(appID) || Booster.AppRepository.IsRestingApp(appID)) {
+          continue;
+        }
+
         if (Booster.AppRepository.IsBoostableApp(appID, true)) {
           WaitingBoostApps.Enqueue(appID);
         }

@@ -98,11 +98,9 @@ internal sealed class AppRepository(Booster booster) {
     if (BoosterConfig.Global.Blacklist.Count > 0) {
       FilteredGames = FilteredGames.Except(BoosterConfig.Global.Blacklist).ToList();
     }
-
-    if (RestingBoostApps.Count > 0) {
-      FilteredGames = FilteredGames.Except(RestingBoostApps.Keys).ToList();
-    }
   }
+
+  internal bool IsRestingApp(uint appID) => RestingBoostApps.ContainsKey(appID);
 
   internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
     app.BoostingDuration = 0;
