@@ -126,11 +126,10 @@ internal sealed class AppRepository(Booster booster) {
       }
     }
 
-    return BoosterConfig.Global.UnrestrictedApps.Contains(appID)
-      || (!UnboostableApps.Contains(appID)
-        && !Booster.Cache.PerfectGames.Contains(appID)
-        && !AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Contains(appID)
-        && (!BoosterConfig.Global.RestrictAppWithVAC || !AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)));
+    return !Booster.Cache.PerfectGames.Contains(appID)
+      && !UnboostableApps.Contains(appID)
+      && !AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Contains(appID)
+      && (BoosterConfig.Global.UnrestrictedApps.Contains(appID) || !(BoosterConfig.Global.RestrictAppWithVAC && AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)));
   }
 
   internal List<AppBoostInfo> GetRestedAppsReadyForBoost(int max) {
