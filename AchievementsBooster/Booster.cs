@@ -301,6 +301,7 @@ internal sealed class Booster : IBooster {
         if (botConfig != null) {
           botConfig.Normalize(Logger);
           Config = new BoosterConfig(Bot.BotName, botConfig);
+          AppRepository.ResetUnboostableApps();
         }
       }
     }

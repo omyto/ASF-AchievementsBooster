@@ -110,6 +110,8 @@ internal sealed class AppRepository(Booster booster) {
     }
   }
 
+  internal void ResetUnboostableApps() => UnboostableApps.Clear();
+
   internal bool IsBoostableApp(uint appID, bool isFiltered = false) {
     if (!isFiltered) {
       if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
@@ -177,6 +179,7 @@ internal sealed class AppRepository(Booster booster) {
 
     if (progress.Total == 0) {
       _ = UnboostableApps.Add(appID);
+      _ = AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Add(appID);
       Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, appID));
       return null;
     }
@@ -213,6 +216,7 @@ internal sealed class AppRepository(Booster booster) {
     List<StatData> stats = statsResponse.StatDatas;
     if (stats.Count == 0) {
       _ = UnboostableApps.Add(appID);
+      _ = AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Add(appID);
       Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.AchievementsNotAvailable, product.FullName));
       return null;
     }
