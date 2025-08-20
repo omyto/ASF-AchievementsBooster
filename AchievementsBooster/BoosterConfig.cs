@@ -5,7 +5,7 @@ using AchievementsBooster.Storage;
 
 namespace AchievementsBooster;
 
-internal class BoosterConfig {
+internal sealed class BoosterConfig {
   internal bool AutoStart { get; private set; }
   internal int MaxConcurrentlyBoostingApps { get; private set; }
   internal int MinBoostInterval { get; private set; }
