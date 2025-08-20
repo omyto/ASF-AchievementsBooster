@@ -28,15 +28,15 @@ public sealed class StatData {
 
 internal static class UserStatsUtils {
 
-  internal static List<StatData>? ParseResponse(CMsgClientGetUserStatsResponse response) {
+  internal static List<StatData>? ParseResponse(CMsgClientGetUserStatsResponse response, Logger logger) {
     List<StatData> result = [];
     KeyValue keyValues = new();
     if (response.schema != null) {
       using (MemoryStream ms = new(response.schema)) {
         if (!keyValues.TryReadAsBinary(ms)) {
-          Logger.Shared.Error(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(response.schema)));
+          logger.Error(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(response.schema)));
           return null;
-        };
+        }
       }
 
       //first we enumerate all real achievements
@@ -52,8 +52,10 @@ internal static class UserStatsUtils {
 
                 string? dependancyName = achievement.Children.Find(child => child.Name == "progress") == null ? "" : achievement.Children.Find(child => child.Name == "progress")?.Children?.Find(child => child.Name == "value")?.Children?.Find(child => child.Name == "operand1")?.Value;
 
-                if (!uint.TryParse(achievement.Children.Find(child => child.Name == "progress") == null ? "0" : achievement.Children.Find(child => child.Name == "progress")!.Children.Find(child => child.Name == "max_val")?.Value, out uint dependancyValue)) {
-                  Logger.Shared.Error(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsInvalid, nameof(dependancyValue)));
+                string? rawValue = achievement.Children.Find(child => child.Name == "progress") == null ? "0" : achievement.Children.Find(child => child.Name == "progress")!.Children.Find(child => child.Name == "max_val")?.Value;
+                if (!uint.TryParse(rawValue, out uint dependancyValue)) {
+                  logger.Error($"App: {response?.game_id}: Failed to parse dependency value.");
+                  logger.Error($"Stat: {stat.Name}, Achievement: {achievement.Name}, RawValue: '{rawValue ?? "null"}'");
                   return null;
                 }
 

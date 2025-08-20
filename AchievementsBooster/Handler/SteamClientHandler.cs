@@ -61,7 +61,7 @@ internal sealed class SteamClientHandler : ClientMsgHandler {
       return null;
     }
 
-    return response.UserStats;
+    return response.ParseResponse(Logger);
   }
 
   internal async Task<bool> UnlockStat(ulong appID, StatData stat, uint crcStats) {

@@ -8,28 +8,28 @@ namespace AchievementsBooster.Handler.Callback;
 
 internal sealed class UserStatsResponse {
   internal uint CrcStats { get; }
-  internal List<StatData> StatDatas { get; }
+  internal List<StatData>? StatDatas { get; }
 
-  internal UserStatsResponse(List<StatData> stats, uint crcStats) {
-    StatDatas = stats;
+  internal UserStatsResponse(uint crcStats, List<StatData>? stats) {
     CrcStats = crcStats;
+    StatDatas = stats;
   }
 }
 
 internal sealed class GetUserStatsResponseCallback : CallbackMsg {
   internal bool Success { get; }
 
-  internal UserStatsResponse? UserStats { get; }
+  internal CMsgClientGetUserStatsResponse Response { get; }
 
-  internal GetUserStatsResponseCallback(JobID jobID, CMsgClientGetUserStatsResponse msg) {
+  internal GetUserStatsResponseCallback(JobID jobID, CMsgClientGetUserStatsResponse response) {
     ArgumentNullException.ThrowIfNull(jobID);
-    ArgumentNullException.ThrowIfNull(msg);
+    ArgumentNullException.ThrowIfNull(response);
 
     JobID = jobID;
-    Success = EResult.OK == (EResult) msg.eresult;
-
-    if (Success) {
-      UserStats = new(UserStatsUtils.ParseResponse(msg) ?? [], msg.crc_stats);
-    }
+    Response = response;
+    Success = EResult.OK == (EResult) response.eresult;
   }
+
+  internal UserStatsResponse? ParseResponse(Logger logger)
+    => Success ? new(Response.crc_stats, UserStatsUtils.ParseResponse(Response, logger)) : null;
 }

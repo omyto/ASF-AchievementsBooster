@@ -213,7 +213,12 @@ internal sealed class AppRepository(Booster booster) {
       return null;
     }
 
-    List<StatData> stats = statsResponse.StatDatas;
+    List<StatData>? stats = statsResponse.StatDatas;
+    if (stats == null) {
+      Booster.Logger.Warning($"No stats data found for app {appID}");
+      return null;
+    }
+
     if (stats.Count == 0) {
       _ = UnboostableApps.Add(appID);
       _ = AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Add(appID);

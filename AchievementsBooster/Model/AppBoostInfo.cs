@@ -44,7 +44,7 @@ public sealed class AppBoostInfo {
 
   internal async Task<(bool, string)> UnlockNextAchievement(SteamClientHandler clientHandler, CancellationToken cancellationToken) {
     UserStatsResponse? response = await clientHandler.GetStats(ID, cancellationToken).ConfigureAwait(false);
-    if (response == null) {
+    if (response == null || response.StatDatas == null) {
       // Not reachable
       return (false, string.Format(CultureInfo.CurrentCulture, Messages.NoUnlockableStats, FullName));
     }
