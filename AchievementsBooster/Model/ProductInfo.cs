@@ -23,6 +23,10 @@ public sealed class ProductInfo {
 
   public string Type { get; init; }
 
+  public string? Developer { get; init; }
+
+  public string? Publisher { get; init; }
+
   public string? ReleaseState { get; init; }
 
   public string? SteamReleaseDate { get; init; }
@@ -32,10 +36,6 @@ public sealed class ProductInfo {
   public bool IsVACEnabled { get; init; }
 
   public ImmutableHashSet<uint> DLCs { get; init; }
-
-  public ImmutableHashSet<string> Developers { get; init; }
-
-  public ImmutableHashSet<string> Publishers { get; init; }
 
   public bool IsBoostable => IsBoostableValue == true;
 
@@ -99,12 +99,12 @@ public sealed class ProductInfo {
     Name = name;
     Type = type;
     FullName = $"{ID} ({Name})";
+    Developer = developer;
+    Publisher = publisher;
     ReleaseState = releaseState != KeyValue.Invalid ? releaseState.AsString() ?? string.Empty : null;
     SteamReleaseDate = steamReleaseDate != KeyValue.Invalid ? steamReleaseDate.AsString() ?? string.Empty : null;
     StoreReleaseDate = storeReleaseDate != KeyValue.Invalid ? storeReleaseDate.AsString() ?? string.Empty : null;
     IsVACEnabled = hasVACCategory;
-    Developers = developer != null ? ImmutableHashSet.Create(StringComparer.OrdinalIgnoreCase, [developer]) : [];
-    Publishers = publisher != null ? ImmutableHashSet.Create(StringComparer.OrdinalIgnoreCase, [publisher]) : [];
     DLCs = dlcs ?? [];
   }
 

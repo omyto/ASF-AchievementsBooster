@@ -270,24 +270,16 @@ internal sealed class AppRepository(Booster booster) {
       return true;
     }
 
-    if (Booster.Config.RestrictDevelopersReadOnly.Count > 0) {
-      foreach (string developer in product.Developers) {
-        if (Booster.Config.IsRestrictedByDeveloper(developer)) {
-          Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, product.FullName, developer));
-          _ = UnboostableApps.Add(appID);
-          return true;
-        }
-      }
+    if (product.Developer != null && Booster.Config.IsRestrictedByDeveloper(product.Developer)) {
+      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, product.FullName, product.Developer));
+      _ = UnboostableApps.Add(appID);
+      return true;
     }
 
-    if (Booster.Config.RestrictPublishersReadOnly.Count > 0) {
-      foreach (string publisher in product.Publishers) {
-        if (Booster.Config.IsRestrictedByPublisher(publisher)) {
-          Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, product.FullName, publisher));
-          _ = UnboostableApps.Add(appID);
-          return true;
-        }
-      }
+    if (product.Publisher != null && Booster.Config.IsRestrictedByPublisher(product.Publisher)) {
+      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, product.FullName, product.Publisher));
+      _ = UnboostableApps.Add(appID);
+      return true;
     }
 
     return false;
