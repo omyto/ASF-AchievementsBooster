@@ -8,10 +8,7 @@ using AchievementsBooster.Helper;
 
 namespace AchievementsBooster.Storage;
 
-public sealed class BoosterConfig {
-
-  public static BoosterConfig Global => AchievementsBoosterPlugin.GlobalConfig;
-
+public sealed class BoosterGlobalConfig {
   public const int DefaultMinBoostInterval = 30;
   public const int DefaultMaxBoostInterval = 60;
   public const int DefaultBoostDurationPerApp = 600;
@@ -56,24 +53,24 @@ public sealed class BoosterConfig {
   public bool RestrictAppWithDLC { get; private set; } = DefaultRestrictAppWithDLC;
 
   [JsonInclude]
-  public ImmutableHashSet<string> RestrictDevelopers { get; private set; } = [];
+  public ImmutableList<string> RestrictDevelopers { get; private set; } = [];
 
   [JsonInclude]
-  public ImmutableHashSet<string> RestrictPublishers { get; private set; } = [];
+  public ImmutableList<string> RestrictPublishers { get; private set; } = [];
 
   [JsonInclude]
-  public ImmutableHashSet<uint> UnrestrictedApps { get; private set; } = [];
+  public ImmutableList<uint> UnrestrictedApps { get; private set; } = [];
 
   [JsonInclude]
-  public ImmutableHashSet<uint> Blacklist { get; private set; } = [];
+  public ImmutableList<uint> Blacklist { get; private set; } = [];
 
   [JsonInclude]
   public bool BoostHoursWhenIdle { get; private set; } = DefaultBoostHoursWhenIdle;
 
   [JsonConstructor]
-  internal BoosterConfig() { }
+  internal BoosterGlobalConfig() { }
 
-  internal void Validate() {
+  internal void Normalize(Logger logger) {
     PropertyInfo[] properties = GetType().GetProperties(BindingFlags.Instance | BindingFlags.Public);
     foreach (PropertyInfo property in properties) {
       RangeAttribute? rangeAttribute = property.GetCustomAttribute<RangeAttribute>();
@@ -83,13 +80,13 @@ public sealed class BoosterConfig {
 
         if (value != clampedValue) {
           property.SetValue(this, clampedValue);
-          Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, clampedValue));
+          logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, property.Name, value, clampedValue));
         }
       }
     }
 
     if (MinBoostInterval > MaxBoostInterval) {
-      Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostInterval), MaxBoostInterval, MinBoostInterval));
+      logger.Warning(string.Format(CultureInfo.CurrentCulture, Messages.ConfigPropertyInvalid, nameof(MaxBoostInterval), MaxBoostInterval, MinBoostInterval));
       MaxBoostInterval = MinBoostInterval;
     }
   }

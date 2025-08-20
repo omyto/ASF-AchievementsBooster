@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using AchievementsBooster.Handler.Callback;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
-using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Web.Responses;
 
@@ -95,8 +94,8 @@ internal sealed class AppRepository(Booster booster) {
       FilteredGames = FilteredGames.Except(ASF.GlobalConfig.Blacklist).ToList();
     }
 
-    if (BoosterConfig.Global.Blacklist.Count > 0) {
-      FilteredGames = FilteredGames.Except(BoosterConfig.Global.Blacklist).ToList();
+    if (Booster.Config.BlacklistReadOnly.Count > 0) {
+      FilteredGames = FilteredGames.Except(Booster.Config.BlacklistReadOnly).ToList();
     }
   }
 
@@ -104,7 +103,7 @@ internal sealed class AppRepository(Booster booster) {
 
   internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
     app.BoostingDuration = 0;
-    app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(BoosterConfig.Global.BoostRestTimePerApp);
+    app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(Booster.Config.BoostRestTimePerApp);
 
     if (!RestingBoostApps.TryAdd(app.ID, app)) {
       Booster.Logger.Warning($"App {app.FullName} already resting");
@@ -118,7 +117,7 @@ internal sealed class AppRepository(Booster booster) {
         return false;
       }
 
-      if (BoosterConfig.Global.Blacklist.Contains(appID)) {
+      if (Booster.Config.IsBlacklistedApp(appID)) {
         Booster.Logger.Trace($"App {appID} is on your AchievementsBooster blacklist list");
         return false;
       }
@@ -127,7 +126,7 @@ internal sealed class AppRepository(Booster booster) {
     return !Booster.Cache.PerfectGames.Contains(appID)
       && !UnboostableApps.Contains(appID)
       && !AchievementsBoosterPlugin.GlobalCache.NonAchievementApps.Contains(appID)
-      && (BoosterConfig.Global.UnrestrictedApps.Contains(appID) || !(BoosterConfig.Global.RestrictAppWithVAC && AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)));
+      && (Booster.Config.IsUnrestrictedApp(appID) || !(Booster.Config.RestrictAppWithVAC && AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)));
   }
 
   internal List<AppBoostInfo> GetRestedAppsReadyForBoost(int max) {
@@ -244,27 +243,27 @@ internal sealed class AppRepository(Booster booster) {
 
   private bool IsRestrictedApp(ProductInfo product) {
     uint appID = product.ID;
-    if (BoosterConfig.Global.UnrestrictedApps.Contains(appID)) {
+    if (Booster.Config.IsUnrestrictedApp(appID)) {
       return false;
     }
 
     if (product.IsVACEnabled) {
       _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
-      if (BoosterConfig.Global.RestrictAppWithVAC) {
+      if (Booster.Config.RestrictAppWithVAC) {
         Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithVAC, product.FullName));
         return true;
       }
     }
 
-    if (BoosterConfig.Global.RestrictAppWithDLC && product.DLCs.Count > 0) {
+    if (Booster.Config.RestrictAppWithDLC && product.DLCs.Count > 0) {
       Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreAppWithDLC, product.FullName));
       _ = UnboostableApps.Add(appID);
       return true;
     }
 
-    if (BoosterConfig.Global.RestrictDevelopers.Count > 0) {
-      foreach (string developer in BoosterConfig.Global.RestrictDevelopers) {
-        if (product.Developers.Contains(developer)) {
+    if (Booster.Config.RestrictDevelopersReadOnly.Count > 0) {
+      foreach (string developer in product.Developers) {
+        if (Booster.Config.IsRestrictedByDeveloper(developer)) {
           Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnoreDeveloper, product.FullName, developer));
           _ = UnboostableApps.Add(appID);
           return true;
@@ -272,9 +271,9 @@ internal sealed class AppRepository(Booster booster) {
       }
     }
 
-    if (BoosterConfig.Global.RestrictPublishers.Count > 0) {
-      foreach (string publisher in BoosterConfig.Global.RestrictPublishers) {
-        if (product.Publishers.Contains(publisher)) {
+    if (Booster.Config.RestrictPublishersReadOnly.Count > 0) {
+      foreach (string publisher in product.Publishers) {
+        if (Booster.Config.IsRestrictedByPublisher(publisher)) {
           Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.IgnorePublisher, product.FullName, publisher));
           _ = UnboostableApps.Add(appID);
           return true;
@@ -303,11 +302,11 @@ internal sealed class AppRepository(Booster booster) {
       Dictionary<string, object> data = new() {
         { "appIds", ownedGames.ToArray() },
         { "restriction",  new Dictionary<string, object>() {
-          { "vac", BoosterConfig.Global.RestrictAppWithVAC },
-          { "dlc", BoosterConfig.Global.RestrictAppWithDLC },
-          { "developers", BoosterConfig.Global.RestrictDevelopers.ToArray() },
-          { "publishers", BoosterConfig.Global.RestrictPublishers.ToArray() },
-          { "excludedAppIds", BoosterConfig.Global.UnrestrictedApps.ToArray() }
+          { "vac", Booster.Config.RestrictAppWithVAC },
+          { "dlc", Booster.Config.RestrictAppWithDLC },
+          { "developers", Booster.Config.RestrictDevelopersReadOnly.ToArray() },
+          { "publishers", Booster.Config.RestrictPublishersReadOnly.ToArray() },
+          { "excludedAppIds", Booster.Config.UnrestrictedAppsReadOnly.ToArray() }
         }}
       };
 

@@ -3,9 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using AchievementsBooster.Handler;
 using AchievementsBooster.Model;
-using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Engine;
@@ -17,42 +15,42 @@ internal sealed class HoursBooster {
   private List<uint> BoostedGames { get; set; } = [];
   internal List<uint> ReadyToBoostGames { get; private set; } = [];
 
-  internal async Task Update(AppRepository appRepository, CancellationToken cancellationToken) {
+  internal async Task Update(Booster booster, CancellationToken cancellationToken) {
     BoostedGames.AddRange(ReadyToBoostGames);
     ReadyToBoostGames.Clear();
 
-    HashSet<uint> validGames = appRepository.OwnedGames.ToHashSet();
+    HashSet<uint> validGames = booster.AppRepository.OwnedGames.ToHashSet();
 
     if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Count > 0) {
       validGames.ExceptWith(ASF.GlobalConfig.Blacklist);
     }
 
-    if (BoosterConfig.Global.Blacklist.Count > 0) {
-      validGames.ExceptWith(BoosterConfig.Global.Blacklist);
+    if (booster.Config.BlacklistReadOnly.Count > 0) {
+      validGames.ExceptWith(booster.Config.BlacklistReadOnly);
     }
 
     List<uint> waitingGames = validGames.Except(BoostedGames).ToList();
 
     if (waitingGames.Count > 0) {
-      ReadyToBoostGames = await FindReadyToBoostGames(waitingGames, appRepository, cancellationToken).ConfigureAwait(false);
+      ReadyToBoostGames = await FindReadyToBoostGames(waitingGames, booster, cancellationToken).ConfigureAwait(false);
     }
 
     if (ReadyToBoostGames.Count == 0) {
       BoostedGames.Clear();
-      ReadyToBoostGames = await FindReadyToBoostGames(validGames, appRepository, cancellationToken).ConfigureAwait(false);
+      ReadyToBoostGames = await FindReadyToBoostGames(validGames, booster, cancellationToken).ConfigureAwait(false);
     }
   }
 
-  private static async Task<List<uint>> FindReadyToBoostGames(ICollection<uint> appIDs, AppRepository appRepository, CancellationToken cancellationToken) {
+  private static async Task<List<uint>> FindReadyToBoostGames(ICollection<uint> appIDs, Booster booster, CancellationToken cancellationToken) {
     List<uint> readyToBoostGames = [];
 
     foreach (uint appID in appIDs) {
-      if (BoosterConfig.Global.RestrictAppWithVAC) {
+      if (booster.Config.RestrictAppWithVAC) {
         if (AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)) {
           continue;
         }
 
-        ProductInfo? productInfo = await appRepository.GetProductInfo(appID, cancellationToken).ConfigureAwait(false);
+        ProductInfo? productInfo = await booster.AppRepository.GetProductInfo(appID, cancellationToken).ConfigureAwait(false);
         if (productInfo != null && productInfo.IsVACEnabled) {
           _ = AchievementsBoosterPlugin.GlobalCache.VACApps.Add(appID);
           continue;
@@ -60,7 +58,7 @@ internal sealed class HoursBooster {
       }
 
       readyToBoostGames.Add(appID);
-      if (readyToBoostGames.Count >= BoosterConfig.Global.MaxConcurrentlyBoostingApps) {
+      if (readyToBoostGames.Count >= booster.Config.MaxConcurrentlyBoostingApps) {
         break;
       }
     }

@@ -17,11 +17,11 @@ using SteamKit2;
 namespace AchievementsBooster;
 
 [Export(typeof(IPlugin))]
-public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBotSteamClient, IBotCommand2, IGitHubPluginUpdates {
+public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBotModules, IBotSteamClient, IBotCommand2, IGitHubPluginUpdates {
 
   private static readonly ConcurrentDictionary<Bot, Booster> Boosters = new();
 
-  internal static BoosterConfig GlobalConfig { get; private set; } = new();
+  internal static BoosterGlobalConfig GlobalConfig { get; private set; } = new();
 
   internal static GlobalCache GlobalCache { get; private set; } = new();
 
@@ -57,13 +57,10 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
   public Task OnASFInit(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties) {
     if (additionalConfigProperties != null && additionalConfigProperties.Count > 0) {
       if (additionalConfigProperties.TryGetValue(BoosterShared.PluginName, out JsonElement configValue)) {
-        BoosterConfig? config = configValue.ToJsonObject<BoosterConfig>();
+        BoosterGlobalConfig? config = configValue.ToJsonObject<BoosterGlobalConfig>();
         if (config != null) {
+          config.Normalize(Logger.Shared);
           GlobalConfig = config;
-          GlobalConfig.Validate();
-          if (GlobalConfig.AutoStartBots.IsEmpty) {
-            Logger.Shared.Warning(string.Format(CultureInfo.CurrentCulture, Messages.AutoStartBotsEmpty));
-          }
         }
       }
     }
@@ -83,23 +80,16 @@ public sealed class AchievementsBoosterPlugin : IASF, IBot, IBotConnection, IBot
     return Task.CompletedTask;
   }
 
-  /* IBotConnection */
+  /** IBotConnection */
 
   public Task OnBotDisconnected(Bot bot, EResult reason) => GetBooster(bot).OnDisconnected(reason);
 
-  public Task OnBotLoggedOn(Bot bot) {
-    ArgumentNullException.ThrowIfNull(bot);
-    if (GlobalConfig.AutoStartBots.Contains(bot.BotName)) {
+  public Task OnBotLoggedOn(Bot bot) => GetBooster(bot).OnLoggedOn(bot);
 
-      uint delay = 5 * 60; // Default delay of 5 minutes
-#if DEBUG
-      delay = 30; // For debugging purposes, set a shorter delay
-#endif
+  /** IBotModules */
 
-      _ = GetBooster(bot).Start(delay);
-    }
-    return Task.CompletedTask;
-  }
+  public Task OnBotInitModules(Bot bot, IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties = null)
+    => GetBooster(bot).OnInitModules(additionalConfigProperties);
 
   /** IBotSteamClient */
 

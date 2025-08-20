@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Engine;
@@ -11,6 +13,7 @@ using AchievementsBooster.Handler.Exceptions;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
+using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
 using SteamKit2;
@@ -20,6 +23,8 @@ namespace AchievementsBooster;
 internal sealed class Booster : IBooster {
 
   internal Bot Bot { get; }
+
+  internal BoosterConfig Config { get; private set; }
 
   internal Logger Logger { get; }
 
@@ -55,6 +60,7 @@ internal sealed class Booster : IBooster {
 
   internal Booster(Bot bot) {
     Bot = bot;
+    Config = new BoosterConfig(bot.BotName);
     Logger = new Logger(bot.ArchiLogger);
     Cache = BotCache.LoadOrCreateCacheForBot(bot);
     SteamClientHandler = new SteamClientHandler(bot, Logger);
@@ -90,10 +96,7 @@ internal sealed class Booster : IBooster {
     }
 
     if (!IsBoostingRunning) {
-      return string.Join(Environment.NewLine, [
-        "AchievementsBooster isn't running. Use the 'abstart' command to start boosting.",
-        "To enable automatic startup when ASF launches, add the bot name to the 'AutoStartBots' array in the JSON configuration file."
-      ]);
+      return "AchievementsBooster isn't running. Use the 'abstart' command to start boosting or update config to automatic start when bot logged on.";
     }
 
     if (IsRestingTime) {
@@ -116,7 +119,7 @@ internal sealed class Booster : IBooster {
     Logger.Trace("Boosting heartbeating ...");
 
     DateTime currentTime = DateTime.Now;
-    IsRestingTime = currentTime.IsBoosterRestingTime();
+    IsRestingTime = currentTime.IsBoosterRestingTime(this);
 
     CancellationTokenSource = new CancellationTokenSource();
     CancellationToken cancellationToken = CancellationTokenSource.Token;
@@ -186,7 +189,7 @@ internal sealed class Booster : IBooster {
           Engine?.Stop(true);
           Engine = null;
 
-          dueTime = TimeSpan.FromMinutes(BoosterConfig.Global.RestTimePerDay);
+          dueTime = TimeSpan.FromMinutes(Config.RestTimePerDay);
           dueTimeString = DateTime.Now.Add(dueTime).ToShortTimeString();
 
           Logger.Info($"Resting time. Wake up after {dueTime.ToHumanReadable()}, which is at {dueTimeString}");
@@ -257,6 +260,31 @@ internal sealed class Booster : IBooster {
     Logger.Warning(Strings.BotDisconnected);
     _ = Stop();
     IsPaused = false;
+    return Task.CompletedTask;
+  }
+
+  public Task OnLoggedOn(Bot bot) {
+    if (Config.AutoStart) {
+      uint delay = 5 * 60;
+#if DEBUG
+      delay = 30;
+#endif
+
+      _ = Start(delay);
+    }
+    return Task.CompletedTask;
+  }
+
+  public Task OnInitModules(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties) {
+    if (additionalConfigProperties != null && additionalConfigProperties.Count > 0) {
+      if (additionalConfigProperties.TryGetValue(BoosterShared.PluginName, out JsonElement configValue)) {
+        BoosterBotConfig? botConfig = configValue.ToJsonObject<BoosterBotConfig>();
+        if (botConfig != null) {
+          botConfig.Normalize(Logger);
+          Config = new BoosterConfig(Bot.BotName, botConfig);
+        }
+      }
+    }
     return Task.CompletedTask;
   }
 
