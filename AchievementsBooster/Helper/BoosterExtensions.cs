@@ -4,14 +4,14 @@ using System.Diagnostics.CodeAnalysis;
 namespace AchievementsBooster.Helper;
 
 public static class BoosterExtensions {
-  internal static bool IsBoosterRestingTime(this DateTime time, Booster booster) {
-    if (booster.Config.RestTimePerDay == 0) {
+  internal static bool IsBoosterRestingTime(this DateTime time, int restTimePerDay) {
+    if (restTimePerDay == 0) {
       return false;
     }
 
     DateTime weakUpTime = new(time.Year, time.Month, time.Day, 6, 0, 0, 0);
     if (time < weakUpTime) {
-      DateTime restingStartTime = weakUpTime.AddMinutes(-booster.Config.RestTimePerDay);
+      DateTime restingStartTime = weakUpTime.AddMinutes(-restTimePerDay);
       if (time > restingStartTime) {
         return true;
       }

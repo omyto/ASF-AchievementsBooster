@@ -119,7 +119,7 @@ internal sealed class Booster : IBooster {
     Logger.Trace("Boosting heartbeating ...");
 
     DateTime currentTime = DateTime.Now;
-    IsRestingTime = currentTime.IsBoosterRestingTime(this);
+    IsRestingTime = currentTime.IsBoosterRestingTime(Config.RestTimePerDay);
 
     CancellationTokenSource = new CancellationTokenSource();
     CancellationToken cancellationToken = CancellationTokenSource.Token;
