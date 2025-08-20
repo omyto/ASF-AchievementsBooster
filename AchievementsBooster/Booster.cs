@@ -75,6 +75,25 @@ internal sealed class Booster : IBooster {
     BeatingTimer = null;
   }
 
+  internal string Start(uint delayInSeconds) {
+    if (IsBoostingRunning) {
+      Logger.Trace(Messages.BoostingStarted);
+      return Messages.BoostingStarted;
+    }
+
+    TimeSpan dueTime = TimeSpan.Zero;
+    if (delayInSeconds == 0) {
+      Logger.Info("The boosting process is starting");
+    }
+    else {
+      dueTime = TimeSpan.FromSeconds(delayInSeconds);
+      Logger.Info($"The boosting process will start in {dueTime.ToHumanReadable()}");
+    }
+
+    BeatingTimer = new Timer(Beating, null, dueTime, Timeout.InfiniteTimeSpan);
+    return Strings.Done;
+  }
+
   internal string Stop() {
     if (!IsBoostingRunning) {
       Logger.Trace(Messages.BoostingNotStart);
@@ -293,25 +312,6 @@ internal sealed class Booster : IBooster {
     SteamClientHandler.Init();
     _ = callbackManager.Subscribe<SteamUser.PlayingSessionStateCallback>(OnPlayingSessionState);
     return Task.CompletedTask;
-  }
-
-  public string Start(uint delayInSeconds) {
-    if (IsBoostingRunning) {
-      Logger.Trace(Messages.BoostingStarted);
-      return Messages.BoostingStarted;
-    }
-
-    TimeSpan dueTime = TimeSpan.Zero;
-    if (delayInSeconds == 0) {
-      Logger.Info("The boosting process is starting");
-    }
-    else {
-      dueTime = TimeSpan.FromSeconds(delayInSeconds);
-      Logger.Info($"The boosting process will start in {dueTime.ToHumanReadable()}");
-    }
-
-    BeatingTimer = new Timer(Beating, null, dueTime, Timeout.InfiniteTimeSpan);
-    return Strings.Done;
   }
 
   /** Debug commands */

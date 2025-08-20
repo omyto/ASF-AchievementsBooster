@@ -11,9 +11,6 @@ public sealed class DummyBooster : IBooster {
   private DummyBooster() {
   }
 
-  public string Start(uint delayInSeconds) => "Booster not found!";
-
-  /** ASF Plugin Interfaces */
   public Task OnDisconnected(EResult reason) => Task.CompletedTask;
   public Task OnLoggedOn(Bot bot) => Task.CompletedTask;
   public Task OnInitModules(IReadOnlyDictionary<string, JsonElement>? additionalConfigProperties) => Task.CompletedTask;
