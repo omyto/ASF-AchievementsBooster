@@ -1,18 +1,17 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using AchievementsBooster.Storage;
 
 namespace AchievementsBooster.Helper;
 
 public static class BoosterExtensions {
-  public static bool IsBoosterRestingTime(this DateTime time) {
-    if (BoosterConfig.Global.RestTimePerDay == 0) {
+  internal static bool IsBoosterRestingTime(this DateTime time, Booster booster) {
+    if (booster.Config.RestTimePerDay == 0) {
       return false;
     }
 
     DateTime weakUpTime = new(time.Year, time.Month, time.Day, 6, 0, 0, 0);
     if (time < weakUpTime) {
-      DateTime restingStartTime = weakUpTime.AddMinutes(-BoosterConfig.Global.RestTimePerDay);
+      DateTime restingStartTime = weakUpTime.AddMinutes(-booster.Config.RestTimePerDay);
       if (time > restingStartTime) {
         return true;
       }

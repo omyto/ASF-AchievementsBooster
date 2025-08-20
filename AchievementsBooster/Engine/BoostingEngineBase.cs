@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
-using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Engine;
@@ -102,8 +101,8 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
       if (isFirstTime || isUnlockTime || isBoostingAppsChanged) {
         TimeSpan achieveTimeRemaining = BoosterShared.OneHour;
         if (CurrentBoostingApps.Count > 0) {
-          TimeSpan minBoostInterval = TimeSpan.FromMinutes(BoosterConfig.Global.MinBoostInterval);
-          achieveTimeRemaining = minBoostInterval.AddRandomMinutes(BoosterConfig.Global.MaxBoostInterval - BoosterConfig.Global.MinBoostInterval);
+          TimeSpan minBoostInterval = TimeSpan.FromMinutes(Booster.Config.MinBoostInterval);
+          achieveTimeRemaining = minBoostInterval.AddRandomMinutes(Booster.Config.MaxBoostInterval - Booster.Config.MinBoostInterval);
         }
 
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
@@ -185,7 +184,7 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
   }
 
   protected async Task<bool> FillBoostingApps(CancellationToken cancellationToken) {
-    int availableBoostSlots = BoosterConfig.Global.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count;
+    int availableBoostSlots = Booster.Config.MaxConcurrentlyBoostingApps - CurrentBoostingApps.Count;
     if (availableBoostSlots > 0) {
       List<AppBoostInfo> newApps = await FindNewAppsForBoosting(availableBoostSlots, cancellationToken).ConfigureAwait(false);
       if (newApps.Count > 0) {

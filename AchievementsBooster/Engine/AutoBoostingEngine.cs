@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using AchievementsBooster.Helper;
 using AchievementsBooster.Model;
-using AchievementsBooster.Storage;
 using ArchiSteamFarm.Core;
 
 namespace AchievementsBooster.Engine;
@@ -49,7 +48,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
   }
 
   protected override Task PostAchieve(AppBoostInfo app) {
-    if (BoosterConfig.Global.BoostDurationPerApp > 0 && app.BoostingDuration >= BoosterConfig.Global.BoostDurationPerApp) {
+    if (Booster.Config.BoostDurationPerApp > 0 && app.BoostingDuration >= Booster.Config.BoostDurationPerApp) {
       Resting(app);
     }
     return Task.CompletedTask;
@@ -98,7 +97,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
       }
     }
     else {
-      if (BoosterConfig.Global.BoostHoursWhenIdle) {
+      if (Booster.Config.BoostHoursWhenIdle) {
         await FallBackToIdleGaming(cancellationToken).ConfigureAwait(false);
       }
     }
@@ -115,7 +114,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
   }
 
   private async Task FallBackToIdleGaming(CancellationToken cancellationToken) {
-    await HoursBooster.Instance.Update(Booster.AppRepository, cancellationToken).ConfigureAwait(false);
+    await HoursBooster.Instance.Update(Booster, cancellationToken).ConfigureAwait(false);
 
     if (HoursBooster.Instance.ReadyToBoostGames.Count > 0) {
       (bool success, string message) = await Booster.Bot.Actions.Play(HoursBooster.Instance.ReadyToBoostGames).ConfigureAwait(false);
