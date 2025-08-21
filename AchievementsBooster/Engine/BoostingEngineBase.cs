@@ -50,19 +50,6 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
   internal void Initialize() => Booster.Logger.Info($"Initializing new boosting mode {Mode} ....");
 
   internal virtual void Stop(bool resume = false) {
-    if (CurrentBoostingApps.Count > 0) {
-      BoosterSemaphore.Wait();
-      try {
-        DateTime now = DateTime.Now;
-        foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
-          Booster.AppRepository.MarkAppAsResting(app, now);
-        }
-        CurrentBoostingApps.Clear();
-      }
-      finally {
-        _ = BoosterSemaphore.Release();
-      }
-    }
   }
 
   internal async Task Boosting(DateTime lastBoosterHeartBeatTime, bool isRestingTime, CancellationToken cancellationToken) {
@@ -174,7 +161,6 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
 
         if (app.FailedUnlockCount > MaxUnlockAchievementTries) {
           _ = CurrentBoostingApps.Remove(app.ID);
-          Booster.AppRepository.MarkAppAsResting(app, DateTime.Now.AddHours(24));
           continue;
         }
       }

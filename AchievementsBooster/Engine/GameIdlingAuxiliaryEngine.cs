@@ -32,7 +32,7 @@ internal sealed class GameIdlingAuxiliaryEngine : BoostingEngineBase {
     catch (Exception) {
       if (results.Count > 0) {
         DateTime now = DateTime.Now;
-        results.ForEach(app => Booster.AppRepository.MarkAppAsResting(app, now));
+        results.ForEach(app => ArchiBoostableAppsPlayedWhileIdle.Enqueue(app.ID));
       }
       throw;
     }

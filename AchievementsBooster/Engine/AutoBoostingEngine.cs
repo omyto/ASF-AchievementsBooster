@@ -16,6 +16,8 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
 
   private Queue<uint> WaitingBoostApps { get; set; } = new();
 
+  private Dictionary<uint, AppBoostInfo> RestingBoostApps { get; } = [];
+
   internal AutoBoostingEngine(Booster booster) : base(EBoostMode.AutoBoost, booster) {
   }
 
@@ -23,8 +25,12 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
     if (Booster.AppRepository.IsOwnedGamesUpdated || WaitingBoostApps.Count == 0) {
       WaitingBoostApps.Clear();
 
+      // Remove apps that are no longer owned or filtered
+      RestingBoostApps.Keys.Except(Booster.AppRepository.FilteredGames).ToList().ForEach(appID => RestingBoostApps.Remove(appID));
+      CurrentBoostingApps.Keys.Except(Booster.AppRepository.FilteredGames).ToList().ForEach(appID => CurrentBoostingApps.Remove(appID));
+
       foreach (uint appID in Booster.AppRepository.FilteredGames) {
-        if (CurrentBoostingApps.ContainsKey(appID) || Booster.AppRepository.IsRestingApp(appID)) {
+        if (CurrentBoostingApps.ContainsKey(appID) || RestingBoostApps.ContainsKey(appID)) {
           continue;
         }
 
@@ -36,6 +42,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
       Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.BoostableQueue,
         $"{string.Join(",", WaitingBoostApps.Take(50))}{(WaitingBoostApps.Count > 50 ? ", ..." : ".")}"));
     }
+
     return Task.CompletedTask;
   }
 
@@ -47,21 +54,19 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
     }
   }
 
-  protected override Task PostAchieve(AppBoostInfo app) {
+  protected override Task PostAchieve(AppBoostInfo app) => Resting(app);
+
+  private Task Resting(AppBoostInfo app) {
     if (Booster.Config.BoostDurationPerApp > 0 && app.BoostingDuration >= Booster.Config.BoostDurationPerApp) {
-      Resting(app);
+      _ = CurrentBoostingApps.Remove(app.ID);
+      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
+      MarkAppAsResting(app);
     }
     return Task.CompletedTask;
   }
 
-  private void Resting(AppBoostInfo app) {
-    _ = CurrentBoostingApps.Remove(app.ID);
-    Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApp, app.FullName, app.BoostingDuration));
-    Booster.AppRepository.MarkAppAsResting(app);
-  }
-
   protected override async Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken) {
-    List<AppBoostInfo> results = Booster.AppRepository.GetRestedAppsReadyForBoost(count);
+    List<AppBoostInfo> results = GetRestedAppsReadyForBoost(count);
 
     try {
       // Get from boostable queue
@@ -78,7 +83,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
     catch (Exception) {
       if (results.Count > 0) {
         DateTime now = DateTime.Now;
-        results.ForEach(app => Booster.AppRepository.MarkAppAsResting(app, now));
+        results.ForEach(app => MarkAppAsResting(app, now));
       }
       throw;
     }
@@ -91,7 +96,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
       if (!await PlayBoostingApps(cancellationToken).ConfigureAwait(false)) {
         DateTime restEndTime = DateTime.Now.AddHours(1);
         foreach (AppBoostInfo app in CurrentBoostingApps.Values) {
-          Booster.AppRepository.MarkAppAsResting(app, restEndTime);
+          MarkAppAsResting(app, restEndTime);
         }
         CurrentBoostingApps.Clear();
       }
@@ -135,5 +140,33 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
     else {
       Booster.Logger.Info($"No apps are available to boost achievements. Recheck after: {timeRemaining.ToHumanReadable()} ({NextAchieveTime.ToShortTimeString()})");
     }
+  }
+
+  private void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
+    app.BoostingDuration = 0;
+    app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(Booster.Config.BoostRestTimePerApp);
+
+    if (!RestingBoostApps.TryAdd(app.ID, app)) {
+      Booster.Logger.Warning($"App {app.FullName} already resting");
+    }
+  }
+
+  private List<AppBoostInfo> GetRestedAppsReadyForBoost(int max) {
+    List<AppBoostInfo> results = [];
+    DateTime now = DateTime.Now;
+
+    foreach (AppBoostInfo app in RestingBoostApps.Values.ToList()) {
+      if (now > app.RestingEndTime) {
+        results.Add(app);
+        _ = RestingBoostApps.Remove(app.ID);
+        Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.UnlockableAchievementsCount));
+
+        if (results.Count >= max) {
+          break;
+        }
+      }
+    }
+
+    return results;
   }
 }

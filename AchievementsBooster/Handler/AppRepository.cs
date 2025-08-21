@@ -28,8 +28,6 @@ internal sealed class AppRepository(Booster booster) {
 
   private HashSet<uint> UnboostableApps { get; } = [];
 
-  private Dictionary<uint, AppBoostInfo> RestingBoostApps { get; } = [];
-
   internal async Task Update(CancellationToken cancellationToken) {
     await UpdateOwnedGames(cancellationToken).ConfigureAwait(false);
 
@@ -53,30 +51,12 @@ internal sealed class AppRepository(Booster booster) {
       return;
     }
 
-    HashSet<uint> newOwnedGames = ownedGames.Keys.ToHashSet();
-    List<uint> gamesRemoved = OwnedGames.Except(newOwnedGames).ToList();
-
-    OwnedGames = newOwnedGames;
+    OwnedGames = ownedGames.Keys.ToHashSet();
     IsOwnedGamesUpdated = true;
     LastUpdateOwnedGamesTime = now;
 
     Booster.Logger.Info($"Owned games updated: {OwnedGames.Count} game(s).");
     //Booster.Logger.Trace($"Games owned: {string.Join(",", OwnedGames)}");
-
-    if (gamesRemoved.Count > 0) {
-      Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.GamesRemoved, string.Join(",", gamesRemoved)));
-
-      // Remove from resting list
-      foreach (uint appID in gamesRemoved) {
-        _ = RestingBoostApps.Remove(appID);
-      }
-
-      if (RestingBoostApps.Count > 0) {
-        Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", RestingBoostApps.Keys)));
-      }
-    }
-
-    return;
   }
 
   private async Task UpdateFilteredGames(CancellationToken cancellationToken) {
@@ -87,17 +67,6 @@ internal sealed class AppRepository(Booster booster) {
     }
     else if (FilteredGames.Count == 0) {
       FilteredGames = PossibleApps.FilterAchievementsApps(OwnedGames);
-    }
-  }
-
-  internal bool IsRestingApp(uint appID) => RestingBoostApps.ContainsKey(appID);
-
-  internal void MarkAppAsResting(AppBoostInfo app, DateTime? restingEndTime = null) {
-    app.BoostingDuration = 0;
-    app.RestingEndTime = restingEndTime ?? DateTime.Now.AddMinutes(Booster.Config.BoostRestTimePerApp);
-
-    if (!RestingBoostApps.TryAdd(app.ID, app)) {
-      Booster.Logger.Warning($"App {app.FullName} already resting");
     }
   }
 
@@ -124,25 +93,6 @@ internal sealed class AppRepository(Booster booster) {
       && (Booster.Config.IsUnrestrictedApp(appID) || !(Booster.Config.RestrictAppWithVAC && AchievementsBoosterPlugin.GlobalCache.VACApps.Contains(appID)));
   }
 
-  internal List<AppBoostInfo> GetRestedAppsReadyForBoost(int max) {
-    List<AppBoostInfo> results = [];
-    DateTime now = DateTime.Now;
-
-    foreach (AppBoostInfo app in RestingBoostApps.Values.ToList()) {
-      if (now > app.RestingEndTime) {
-        results.Add(app);
-        _ = RestingBoostApps.Remove(app.ID);
-        Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.FoundBoostableApp, app.FullName, app.UnlockableAchievementsCount));
-
-        if (results.Count >= max) {
-          break;
-        }
-      }
-    }
-
-    return results;
-  }
-
   internal async Task<ProductInfo?> GetProductInfo(uint appID, CancellationToken cancellationToken) {
     ProductInfo? product = await Booster.SteamClientHandler.GetProduct(appID, cancellationToken).ConfigureAwait(false);
     if (product == null) {
@@ -154,11 +104,6 @@ internal sealed class AppRepository(Booster booster) {
   internal async Task<AppBoostInfo?> GetBoostableApp(uint appID, CancellationToken cancellationToken) {
     if (!IsBoostableApp(appID)) {
       return null;
-    }
-
-    if (RestingBoostApps.TryGetValue(appID, out AppBoostInfo? restingApp)) {
-      _ = RestingBoostApps.Remove(appID);
-      return restingApp;
     }
 
     // Check achievement progress

@@ -68,26 +68,18 @@ internal sealed class CardFarmingAuxiliaryEngine : BoostingEngineBase {
 
   protected override async Task<List<AppBoostInfo>> FindNewAppsForBoosting(int count, CancellationToken cancellationToken) {
     List<AppBoostInfo> results = [];
+    Game[] currentGamesFarming = CurrentGamesFarming.ToArray();
 
-    try {
-      Game[] currentGamesFarming = CurrentGamesFarming.ToArray();
-      for (int index = 0; index < currentGamesFarming.Length && results.Count < count; index++) {
-        cancellationToken.ThrowIfCancellationRequested();
-        uint appID = currentGamesFarming[index].AppID;
-        if (!CurrentBoostingApps.ContainsKey(appID)) {
-          AppBoostInfo? app = await Booster.AppRepository.GetBoostableApp(appID, cancellationToken).ConfigureAwait(false);
-          if (app != null) {
-            results.Add(app);
-          }
+    for (int index = 0; index < currentGamesFarming.Length && results.Count < count; index++) {
+      cancellationToken.ThrowIfCancellationRequested();
+      uint appID = currentGamesFarming[index].AppID;
+
+      if (!CurrentBoostingApps.ContainsKey(appID)) {
+        AppBoostInfo? app = await Booster.AppRepository.GetBoostableApp(appID, cancellationToken).ConfigureAwait(false);
+        if (app != null) {
+          results.Add(app);
         }
       }
-    }
-    catch (Exception) {
-      if (results.Count > 0) {
-        DateTime now = DateTime.Now;
-        results.ForEach(app => Booster.AppRepository.MarkAppAsResting(app, now));
-      }
-      throw;
     }
 
     LastGamesFarming = CurrentGamesFarming.Select(e => e.AppID).ToImmutableHashSet();
