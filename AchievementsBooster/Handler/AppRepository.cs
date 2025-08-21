@@ -75,8 +75,6 @@ internal sealed class AppRepository(Booster booster) {
         Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, Messages.RestingApps, string.Join(",", RestingBoostApps.Keys)));
       }
     }
-
-    return;
   }
 
   private async Task UpdateFilteredGames(CancellationToken cancellationToken) {
@@ -102,6 +100,8 @@ internal sealed class AppRepository(Booster booster) {
   }
 
   internal void ResetUnboostableApps() => UnboostableApps.Clear();
+
+  internal void RemoveRestingApps(List<uint> appIDs) => appIDs.ForEach(appID => RestingBoostApps.Remove(appID));
 
   internal bool IsBoostableApp(uint appID, bool log = true) {
     if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
