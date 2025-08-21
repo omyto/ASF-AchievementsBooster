@@ -28,7 +28,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
           continue;
         }
 
-        if (Booster.AppRepository.IsBoostableApp(appID, true)) {
+        if (Booster.AppRepository.IsBoostableApp(appID, false)) {
           WaitingBoostApps.Enqueue(appID);
         }
       }
@@ -69,7 +69,7 @@ internal sealed class AutoBoostingEngine : BoostingEngineBase {
         cancellationToken.ThrowIfCancellationRequested();
         uint appID = WaitingBoostApps.Dequeue();
 
-        AppBoostInfo? app = await Booster.AppRepository.GetBoostableApp(appID, cancellationToken, false, false).ConfigureAwait(false);
+        AppBoostInfo? app = await Booster.AppRepository.GetBoostableApp(appID, cancellationToken).ConfigureAwait(false);
         if (app != null) {
           results.Add(app);
         }

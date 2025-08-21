@@ -88,15 +88,6 @@ internal sealed class AppRepository(Booster booster) {
     else if (FilteredGames.Count == 0) {
       FilteredGames = PossibleApps.FilterAchievementsApps(OwnedGames);
     }
-
-    // Filter out blacklisted apps and resting apps
-    if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Count > 0) {
-      FilteredGames = FilteredGames.Except(ASF.GlobalConfig.Blacklist).ToList();
-    }
-
-    if (Booster.Config.BlacklistReadOnly.Count > 0) {
-      FilteredGames = FilteredGames.Except(Booster.Config.BlacklistReadOnly).ToList();
-    }
   }
 
   internal bool IsRestingApp(uint appID) => RestingBoostApps.ContainsKey(appID);
@@ -112,17 +103,19 @@ internal sealed class AppRepository(Booster booster) {
 
   internal void ResetUnboostableApps() => UnboostableApps.Clear();
 
-  internal bool IsBoostableApp(uint appID, bool isFiltered = false) {
-    if (!isFiltered) {
-      if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
+  internal bool IsBoostableApp(uint appID, bool log = true) {
+    if (ASF.GlobalConfig != null && ASF.GlobalConfig.Blacklist.Contains(appID)) {
+      if (log) {
         Booster.Logger.Trace(string.Format(CultureInfo.CurrentCulture, Messages.AppInASFBlacklist, appID));
-        return false;
       }
+      return false;
+    }
 
-      if (Booster.Config.IsBlacklistedApp(appID)) {
+    if (Booster.Config.IsBlacklistedApp(appID)) {
+      if (log) {
         Booster.Logger.Trace($"App {appID} is on your AchievementsBooster blacklist list");
-        return false;
       }
+      return false;
     }
 
     return !Booster.Cache.PerfectGames.Contains(appID)
@@ -158,16 +151,14 @@ internal sealed class AppRepository(Booster booster) {
     return product;
   }
 
-  internal async Task<AppBoostInfo?> GetBoostableApp(uint appID, CancellationToken cancellationToken, bool reCheckBoostable = true, bool allowRestingApp = true) {
-    if (reCheckBoostable && !IsBoostableApp(appID)) {
+  internal async Task<AppBoostInfo?> GetBoostableApp(uint appID, CancellationToken cancellationToken) {
+    if (!IsBoostableApp(appID)) {
       return null;
     }
 
-    if (allowRestingApp) {
-      if (RestingBoostApps.TryGetValue(appID, out AppBoostInfo? restingApp)) {
-        _ = RestingBoostApps.Remove(appID);
-        return restingApp;
-      }
+    if (RestingBoostApps.TryGetValue(appID, out AppBoostInfo? restingApp)) {
+      _ = RestingBoostApps.Remove(appID);
+      return restingApp;
     }
 
     // Check achievement progress
