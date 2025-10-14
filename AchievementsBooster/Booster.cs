@@ -278,7 +278,7 @@ internal sealed class Booster : IBooster {
   /** IBooster implementation */
 
   public Task OnDisconnected(EResult reason) {
-    Logger.Warning(Strings.BotDisconnected);
+    //Logger.Warning(Strings.BotDisconnected);
     _ = Stop();
     IsPaused = false;
     return Task.CompletedTask;
