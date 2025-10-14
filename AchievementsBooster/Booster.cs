@@ -16,6 +16,7 @@ using ArchiSteamFarm.Core;
 using ArchiSteamFarm.Helpers.Json;
 using ArchiSteamFarm.Localization;
 using ArchiSteamFarm.Steam;
+using ArchiSteamFarm.Storage;
 using SteamKit2;
 
 namespace AchievementsBooster;
@@ -250,7 +251,8 @@ internal sealed class Booster : IBooster {
     }
     else if (IsPaused) {
       Logger.Info("The bot is now ready to boost again.");
-      _ = Start(15);
+      uint minDelayAfterBlock = ASF.GlobalConfig?.MinFarmingDelayAfterBlock ?? GlobalConfig.DefaultMinFarmingDelayAfterBlock;
+      _ = Start(minDelayAfterBlock + 15);
       IsPaused = false;
     }
   }
