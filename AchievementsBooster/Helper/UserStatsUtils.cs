@@ -41,7 +41,8 @@ internal static class UserStatsUtils {
 
       //first we enumerate all real achievements
       foreach (KeyValue stat in keyValues.Children.Find(child => child.Name == "stats")?.Children ?? []) {
-        if (stat.Children.Find(child => child.Name == "type")?.Value == "4") {
+        string? childTypeValue = stat.Children.Find(child => child.Name == "type")?.Value?.ToUpperInvariant();
+        if (childTypeValue == "4" || childTypeValue == "ACHIEVEMENTS") {
           foreach (KeyValue achievement in stat.Children.Find(child => child.Name == "bits")?.Children ?? []) {
             if (int.TryParse(achievement.Name, out int bitNum)) {
               if (uint.TryParse(stat.Name, out uint statNum)) {
@@ -103,7 +104,8 @@ internal static class UserStatsUtils {
       }
       //Now we update all dependancies
       foreach (KeyValue stat in keyValues.Children.Find(child => child.Name == "stats")?.Children ?? []) {
-        if (stat.Children.Find(child => child.Name == "type")?.Value == "1") {
+        string? childTypeValue = stat.Children.Find(child => child.Name == "type")?.Value?.ToUpperInvariant();
+        if (childTypeValue == "1" || childTypeValue == "INT") {
           if (uint.TryParse(stat.Name, out uint statNum)) {
             bool restricted = int.TryParse(stat.Children.Find(child => child.Name == "permission")?.Value, out int value) && value > 1;
             string? name = stat.Children.Find(child => child.Name == "name")?.Value;
