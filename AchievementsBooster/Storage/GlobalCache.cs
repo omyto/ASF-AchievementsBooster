@@ -14,6 +14,7 @@ internal sealed class GlobalCache {
 
   [JsonDisallowNull]
   [JsonInclude]
+  [JsonPropertyName("NonAchievementApps2")]
   internal ConcurrentHashSet<uint> NonAchievementApps { get; private init; } = [];
 
   [JsonDisallowNull]

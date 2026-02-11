@@ -156,8 +156,10 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
       if (success) {
         Booster.Logger.Info(message);
         if (app.UnlockableAchievementsCount == 0) {
+          if (app.RemainingAchievementsCount == 0) {
+            _ = Booster.Cache.PerfectGames.Add(app.ID);
+          }
           _ = CurrentBoostingApps.Remove(app.ID);
-          _ = Booster.Cache.PerfectGames.Add(app.ID);
           Booster.Logger.Info(string.Format(CultureInfo.CurrentCulture, app.RemainingAchievementsCount == 0 ? Messages.FinishedBoost : Messages.FinishedBoostable, app.FullName));
           continue;
         }

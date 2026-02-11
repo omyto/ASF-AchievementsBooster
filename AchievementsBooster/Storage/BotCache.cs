@@ -18,6 +18,7 @@ internal sealed class BotCache {
 
   [JsonDisallowNull]
   [JsonInclude]
+  [JsonPropertyName("PerfectGames2")]
   internal ConcurrentHashSet<uint> PerfectGames { get; private init; } = [];
 
   [JsonConstructor]
