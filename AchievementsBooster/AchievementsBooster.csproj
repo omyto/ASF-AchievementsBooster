@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>Library</OutputType>
-		<TargetFramework>net9.0</TargetFramework>
 		<AssemblyTitle>Steam Achievements Booster</AssemblyTitle>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="SteamKit2" IncludeAssets="compile" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" IncludeAssets="compile" />
 		<PackageReference Include="System.Composition.AttributedModel" IncludeAssets="compile" />
 	</ItemGroup>
 

@@ -86,7 +86,7 @@ internal static class CommandsCoordinator {
 
     IList<string?> results = await Utilities.InParallel(bots.Select(bot => Task.Run(() => InvokeBot(Commands.GetProxyAccess(bot, access, steamID), bot, methodName, types, parameters, accessRequired)))).ConfigureAwait(false);
 
-    List<string> responses = [.. results.Where(static result => !string.IsNullOrEmpty(result))!];
+    List<string> responses = results.Where(result => !string.IsNullOrEmpty(result)).Select(result => result!).ToList();
 
     return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
   }
