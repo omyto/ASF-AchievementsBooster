@@ -106,7 +106,7 @@ internal abstract class BoostingEngineBase(EBoostMode mode, Booster booster) {
         }
 
         NextAchieveTime = DateTime.Now.Add(achieveTimeRemaining);
-        await Task.Delay(BoosterShared.OneSeconds, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(BoosterShared.OneSeconds, CancellationToken.None).ConfigureAwait(false);
 
         Notify(achieveTimeRemaining);
       }
